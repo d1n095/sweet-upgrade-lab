@@ -18,6 +18,27 @@ function trace(scanRunId: string | undefined, msg: string, ...args: any[]) {
   console.log(`[SCAN:${tid}] ${msg}`, ...args);
 }
 
+// ── Resilient chained fetch with retry on 502 ──
+async function chainedFetch(url: string, options: RequestInit, label: string, maxRetries = 2): Promise<void> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const res = await fetch(url, options);
+      if (res.ok || res.status < 500) return;
+      const bodyText = await res.text().catch(() => "");
+      console.error(`[CHAIN] ${label} attempt ${attempt + 1} got HTTP ${res.status}: ${bodyText.slice(0, 200)}`);
+      if (attempt < maxRetries) {
+        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+      }
+    } catch (e: any) {
+      console.error(`[CHAIN] ${label} attempt ${attempt + 1} network error: ${e?.message}`);
+      if (attempt < maxRetries) {
+        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+      }
+    }
+  }
+  console.error(`[CHAIN] ${label} FAILED after ${maxRetries + 1} attempts`);
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -2078,10 +2099,10 @@ serve(async (req) => {
       trace(scanRun.id, `start → user=${userId.slice(0, 8)} stage=${systemStage} mode=${isTargeted ? "targeted" : "full"} steps=${prioritizedSteps.length} input=`, scanInput);
       console.log(`🚨 SCAN STARTED scan_id=${scanRun.id} stage=${systemStage} mode=${isTargeted ? "targeted" : "full"} steps=${prioritizedSteps.length}`);
       trace(scanRun.id, `→ chain: process_step[0]`);
-      fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
+      chainedFetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
         body: JSON.stringify({ action: "process_step", scan_run_id: scanRun.id, step_index: 0, iteration: 1 }),
-      }).catch((e) => console.error(`[SCAN:${tid}] Failed to chain process_step[0]:`, e));
+      }, `process_step[0] scan=${tid}`).catch(() => {});
 
       return new Response(JSON.stringify({ success: true, scan_run_id: scanRun.id, job_id: scanRun.id, status: "started", system_stage: systemStage, scan_mode: isTargeted ? "targeted" : "full" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
@@ -2205,17 +2226,17 @@ serve(async (req) => {
         const nextStep = STEPS[step_index + 1];
         await supabase.from("scan_runs").update({ steps_results: updatedResults, current_step: step_index + 1, current_step_label: nextStep.label }).eq("id", scan_run_id);
         trace(scan_run_id, `→ chain: process_step[${step_index + 1}] id=${nextStep.id}`);
-        fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
+        chainedFetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
           method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
           body: JSON.stringify({ action: "process_step", scan_run_id, step_index: step_index + 1, iteration: currentIteration }),
-        }).catch((e) => console.error(`[SCAN:${scan_run_id.slice(0, 8)}] Failed to chain process_step[${step_index + 1}]:`, e));
+        }, `process_step[${step_index + 1}] scan=${scan_run_id.slice(0, 8)}`).catch(() => {});
       } else {
         await supabase.from("scan_runs").update({ steps_results: updatedResults }).eq("id", scan_run_id);
         trace(scan_run_id, `→ chain: evaluate_iteration (all ${STEPS.length} steps done)`);
-        fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
+        chainedFetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
           method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
           body: JSON.stringify({ action: "evaluate_iteration", scan_run_id, iteration: currentIteration }),
-        }).catch((e) => console.error(`[SCAN:${scan_run_id.slice(0, 8)}] Failed to chain evaluate_iteration:`, e));
+        }, `evaluate_iteration scan=${scan_run_id.slice(0, 8)}`).catch(() => {});
       }
 
       return new Response(JSON.stringify({ success: true, ok: true, step: step.id, step_index, iteration: currentIteration }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
@@ -2248,10 +2269,10 @@ serve(async (req) => {
       }).catch(() => {});
 
       trace(scan_run_id, `→ chain: finalize coverage=${coverageScore}%`);
-      fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
+      chainedFetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
         body: JSON.stringify({ action: "finalize", scan_run_id }),
-      }).catch((e) => console.error(`[SCAN:${scan_run_id.slice(0, 8)}] Failed to chain finalize:`, e));
+      }, `finalize scan=${scan_run_id.slice(0, 8)}`).catch(() => {});
 
       return new Response(JSON.stringify({ success: true, ok: true, action: "finalizing", iterations_completed: currentIteration }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
     }
@@ -2261,6 +2282,8 @@ serve(async (req) => {
       const { data: scanRun } = await supabase.from("scan_runs").select("*").eq("id", scan_run_id).single();
       if (!scanRun || scanRun.status !== "running") return new Response(JSON.stringify({ success: false, error: "Scan not running" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
+      try {
+      console.error("[FINALIZE START]", scan_run_id);
       trace(scan_run_id, `finalize start`);
       const systemStage: SystemStage = scanRun.system_stage || await getSystemStage(supabase);
 
@@ -2790,8 +2813,22 @@ serve(async (req) => {
         return new Response(JSON.stringify({ success: false, violations: enrichedViolations, context: scanContext, scan_id: scan_run_id }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
       }
 
+      console.error("[FINALIZE COMPLETE]", scan_run_id);
       trace(scan_run_id, `✓ scan done detected=${issuesCount} created=${workItemsCreated} health=${unified.system_health_score} stage=${systemStage}`);
       return new Response(JSON.stringify({ success: true, scan_id: scan_run_id, detected: issuesCount, created: workItemsCreated, filtered: issuesCount - workItemsCreated, skipped: skippedCount, action: "finalized", iterations: iterationsCompleted, system_stage: systemStage, scanContext }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
+      } catch (finalizeError: any) {
+        console.error(`[FINALIZE CRASH] scan=${scan_run_id}`, finalizeError?.message, finalizeError?.stack?.slice(0, 500));
+        try {
+          await supabase.from("scan_runs").update({
+            status: "error",
+            error_message: `Finalize crash: ${finalizeError?.message || "unknown"}`,
+            completed_at: new Date().toISOString(),
+            current_step_label: "Kraschade under finalisering",
+          }).eq("id", scan_run_id);
+        } catch (_) {}
+        try { await logRuntimeTrace("api", "run-full-scan", "/finalize", finalizeError?.message || "Unknown", { stack: finalizeError?.stack?.slice(0, 500), scan_run_id }); } catch (_) {}
+        return new Response(JSON.stringify({ success: false, error: finalizeError?.message || "Finalize crash", stack: finalizeError?.stack?.slice(0, 500) || null, scan_id: scan_run_id }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
+      }
     }
 
     // ── STATUS ──
