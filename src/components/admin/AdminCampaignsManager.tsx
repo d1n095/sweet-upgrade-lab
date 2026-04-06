@@ -751,8 +751,8 @@ const BundlesTab = () => {
 
   const addProductToBundle = async (bundleId: string, productId: string) => {
     const existing = bundleItems[bundleId] || [];
-    if (existing.find(i => i.product_id === productId)) { toast.error('Finns redan'); return; }
-    await supabase.from('bundle_items').insert({ bundle_id: bundleId, product_id: productId, quantity: 1 });
+    if (existing.find(i => i.shopify_product_id === productId)) { toast.error('Finns redan'); return; }
+    await supabase.from('bundle_items').insert({ bundle_id: bundleId, shopify_product_id: productId, quantity: 1 });
     toast.success('Tillagd');
     fetchData();
   };
