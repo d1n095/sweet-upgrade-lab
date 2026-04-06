@@ -60,7 +60,7 @@ const SystemStateDashboard = () => {
         scansRes, bugsRes, workItemsRes, changeLogRes,
         readLogRes, productsRes, ordersRes,
       ] = await Promise.all([
-        supabase.from('ai_scan_results').select('scan_type, overall_score, overall_status, issues_count, created_at').order('created_at', { ascending: false }).limit(30),
+        supabase.from('scan_results').select('scan_type, overall_score, overall_status, issues_count, created_at').order('created_at', { ascending: false }).limit(30),
         supabase.from('bug_reports').select('status, ai_severity, ai_category, created_at').limit(200),
         supabase.from('work_items' as any).select('status, priority, item_type, ai_detected, source_type, ai_type_classification, created_at, completed_at').limit(300),
         supabase.from('change_log').select('change_type, source, created_at').gte('created_at', weekAgo).limit(200),

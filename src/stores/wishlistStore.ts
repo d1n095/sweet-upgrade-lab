@@ -40,8 +40,8 @@ export const useWishlistStore = create<WishlistStore>()(
           try {
             await supabase.from('wishlists').insert({
               user_id: userId,
-              shopify_product_id: product.node.id,
-              shopify_product_handle: product.node.handle
+              product_id: product.node.id,
+              product_handle: product.node.handle
             });
           } catch (error) {
             console.error('Failed to sync wishlist item to database:', error);
@@ -62,7 +62,7 @@ export const useWishlistStore = create<WishlistStore>()(
               .from('wishlists')
               .delete()
               .eq('user_id', userId)
-              .eq('shopify_product_id', productId);
+              .eq('product_id', productId);
           } catch (error) {
             console.error('Failed to remove wishlist item from database:', error);
           }
@@ -110,7 +110,7 @@ export const useWishlistStore = create<WishlistStore>()(
           const { items: localItems } = get();
           
           // If user has local items that aren't in DB, add them
-          const dbProductIds = new Set(dbWishlist?.map(w => w.shopify_product_id) || []);
+          const dbProductIds = new Set(dbWishlist?.map(w => w.product_id) || []);
           const localItemsToSync = localItems.filter(
             item => !dbProductIds.has(item.node.id)
           );
@@ -119,9 +119,9 @@ export const useWishlistStore = create<WishlistStore>()(
           for (const item of localItemsToSync) {
             const { error: insertError } = await supabase.from('wishlists').upsert({
               user_id: userId,
-              shopify_product_id: item.node.id,
-              shopify_product_handle: item.node.handle
-            }, { onConflict: 'user_id,shopify_product_id' });
+              product_id: item.node.id,
+              product_handle: item.node.handle
+            }, { onConflict: 'user_id,product_id' });
             
             if (insertError) {
               console.error('Failed to sync item:', insertError);

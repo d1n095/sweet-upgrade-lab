@@ -322,7 +322,7 @@ const SystemExplorer = () => {
     queryKey: ["backend-scan-latest"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("ai_scan_results")
+        .from("scan_results")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(1)
@@ -544,7 +544,7 @@ const SystemExplorer = () => {
     queryKey: ["system-explorer-latest-scan"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("ai_scan_results")
+        .from("scan_results")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(1)
@@ -559,7 +559,7 @@ const SystemExplorer = () => {
     queryKey: ["system-explorer-last-3-scans"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("ai_scan_results")
+        .from("scan_results")
         .select("results")
         .order("created_at", { ascending: false })
         .limit(3);

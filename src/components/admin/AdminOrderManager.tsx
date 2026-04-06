@@ -40,7 +40,7 @@ interface Order {
   notes: string | null;
   created_at: string;
   updated_at: string;
-  shopify_order_number: string | null;
+  external_order_number: string | null;
   order_number: string | null;
   items: any;
   shipping_address: any;

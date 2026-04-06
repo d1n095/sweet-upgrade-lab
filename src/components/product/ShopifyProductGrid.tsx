@@ -37,13 +37,13 @@ const ShopifyProductGrid = () => {
     const loadBestsellerIds = async () => {
       const { data } = await supabase
         .from('product_sales')
-        .select('shopify_product_id, total_quantity_sold')
+        .select('product_id, total_quantity_sold')
         .gt('total_quantity_sold', 0)
         .order('total_quantity_sold', { ascending: false })
         .limit(5);
       
       if (data) {
-        setBestsellerIds(data.map(item => item.shopify_product_id));
+        setBestsellerIds(data.map(item => item.product_id));
       }
     };
     loadBestsellerIds();

@@ -38,9 +38,9 @@ interface WorkItemDetailProps {
     ai_review_status?: string;
     ai_review_result?: any;
     ai_review_at?: string;
-    ai_pre_verify_status?: string;
-    ai_pre_verify_result?: any;
-    ai_pre_verify_at?: string;
+    pre_verify_status?: string;
+    pre_verify_result?: any;
+    pre_verify_at?: string;
     resolution_notes?: string;
     ignored?: boolean;
     ignored_reason?: string;
@@ -611,39 +611,39 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
             </div>
 
             {/* AI Pre-Verification Suggestion */}
-            {item.ai_pre_verify_status && item.ai_pre_verify_status !== 'not_fixed' && item.ai_pre_verify_status !== 'dismissed' && (isOpen || item.ai_pre_verify_status === 'confirmed' || item.ai_pre_verify_status === 'rejected') && (
+            {item.pre_verify_status && item.pre_verify_status !== 'not_fixed' && item.pre_verify_status !== 'dismissed' && (isOpen || item.pre_verify_status === 'confirmed' || item.pre_verify_status === 'rejected') && (
               <div className={cn('rounded-lg p-3 space-y-2.5 border', {
-                'bg-accent/10 border-accent/30': item.ai_pre_verify_status === 'appears_fixed' || item.ai_pre_verify_status === 'confirmed',
-                'bg-primary/5 border-primary/20': item.ai_pre_verify_status === 'possibly_fixed',
-                'bg-destructive/5 border-destructive/20': item.ai_pre_verify_status === 'rejected',
+                'bg-accent/10 border-accent/30': item.pre_verify_status === 'appears_fixed' || item.pre_verify_status === 'confirmed',
+                'bg-primary/5 border-primary/20': item.pre_verify_status === 'possibly_fixed',
+                'bg-destructive/5 border-destructive/20': item.pre_verify_status === 'rejected',
               })}>
                 <div className="flex items-center gap-1.5 text-xs font-semibold">
                   <Sparkles className="w-3.5 h-3.5 text-primary" />
-                  {item.ai_pre_verify_status === 'confirmed' ? 'AI-förslag bekräftat' :
-                   item.ai_pre_verify_status === 'rejected' ? 'AI-förslag avvisat' : 'AI förslag: Verkar löst'}
+                  {item.pre_verify_status === 'confirmed' ? 'AI-förslag bekräftat' :
+                   item.pre_verify_status === 'rejected' ? 'AI-förslag avvisat' : 'AI förslag: Verkar löst'}
                   <Badge variant="outline" className={cn('text-[9px] ml-auto', {
-                    'border-accent/40 text-accent': item.ai_pre_verify_status === 'appears_fixed' || item.ai_pre_verify_status === 'confirmed',
-                    'border-primary/30 text-primary': item.ai_pre_verify_status === 'possibly_fixed',
-                    'border-destructive/30 text-destructive': item.ai_pre_verify_status === 'rejected',
+                    'border-accent/40 text-accent': item.pre_verify_status === 'appears_fixed' || item.pre_verify_status === 'confirmed',
+                    'border-primary/30 text-primary': item.pre_verify_status === 'possibly_fixed',
+                    'border-destructive/30 text-destructive': item.pre_verify_status === 'rejected',
                   })}>
-                    {item.ai_pre_verify_status === 'confirmed' ? '✅ Bekräftad av användare' :
-                     item.ai_pre_verify_status === 'rejected' ? '❌ Avvisad — djupanalys körd' :
-                     item.ai_pre_verify_status === 'appears_fixed' ? '✅ Verkar fixat' : '🔍 Möjligen fixat'}
-                    {item.ai_pre_verify_result?.confidence != null && ` (${item.ai_pre_verify_result.confidence}%)`}
+                    {item.pre_verify_status === 'confirmed' ? '✅ Bekräftad av användare' :
+                     item.pre_verify_status === 'rejected' ? '❌ Avvisad — djupanalys körd' :
+                     item.pre_verify_status === 'appears_fixed' ? '✅ Verkar fixat' : '🔍 Möjligen fixat'}
+                    {item.pre_verify_result?.confidence != null && ` (${item.pre_verify_result.confidence}%)`}
                   </Badge>
                 </div>
-                {item.ai_pre_verify_result?.reasoning && (
-                  <p className="text-xs text-muted-foreground">{item.ai_pre_verify_result.reasoning}</p>
+                {item.pre_verify_result?.reasoning && (
+                  <p className="text-xs text-muted-foreground">{item.pre_verify_result.reasoning}</p>
                 )}
-                {item.ai_pre_verify_result?.related_change && (
+                {item.pre_verify_result?.related_change && (
                   <p className="text-[10px] text-muted-foreground">
-                    <span className="font-medium">Relaterad ändring:</span> {item.ai_pre_verify_result.related_change}
+                    <span className="font-medium">Relaterad ändring:</span> {item.pre_verify_result.related_change}
                   </p>
                 )}
-                {item.ai_pre_verify_at && (
-                  <p className="text-[10px] text-muted-foreground">{fmtFull(item.ai_pre_verify_at).relative}</p>
+                {item.pre_verify_at && (
+                  <p className="text-[10px] text-muted-foreground">{fmtFull(item.pre_verify_at).relative}</p>
                 )}
-                {isOpen && !['confirmed', 'rejected'].includes(item.ai_pre_verify_status || '') && (
+                {isOpen && !['confirmed', 'rejected'].includes(item.pre_verify_status || '') && (
                 <div className="flex gap-2 pt-1">
                   <Button size="sm" variant="default" className="flex-1 gap-1 h-7 text-xs"
                     disabled={runningPreVerify}
@@ -654,14 +654,14 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                         await onStatusChange(item.id, 'done');
                         // 2. Log human confirmation
                         await supabase.from('work_items').update({
-                          ai_pre_verify_status: 'confirmed',
-                          ai_pre_verify_result: {
-                            ...item.ai_pre_verify_result,
+                          pre_verify_status: 'confirmed',
+                          pre_verify_result: {
+                            ...item.pre_verify_result,
                             human_confirmed: true,
                             confirmed_at: new Date().toISOString(),
                             confirmed_by: user?.id,
                           },
-                          resolution_notes: `✅ Bekräftad via AI-förslag (${item.ai_pre_verify_result?.confidence || '?'}% konfidens)`,
+                          resolution_notes: `✅ Bekräftad via AI-förslag (${item.pre_verify_result?.confidence || '?'}% konfidens)`,
                         } as any).eq('id', item.id);
                         // 3. Log to change_log
                         await supabase.from('change_log').insert({
@@ -671,7 +671,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                           source: 'human_confirmation',
                           work_item_id: item.id,
                           bug_report_id: item.source_type === 'bug_report' ? item.source_id : null,
-                          metadata: { ai_confidence: item.ai_pre_verify_result?.confidence, action: 'confirm' },
+                          metadata: { ai_confidence: item.pre_verify_result?.confidence, action: 'confirm' },
                         });
                         // 4. Trigger post-verify review
                         triggerReviewForWorkItem(item.id, { context: 'human_confirmed_pre_verify' });
@@ -693,9 +693,9 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                         // 1. Escalate priority
                         const newPriority = item.priority === 'low' ? 'medium' : item.priority === 'medium' ? 'high' : 'high';
                         await supabase.from('work_items').update({
-                          ai_pre_verify_status: 'rejected',
-                          ai_pre_verify_result: {
-                            ...item.ai_pre_verify_result,
+                          pre_verify_status: 'rejected',
+                          pre_verify_result: {
+                            ...item.pre_verify_result,
                             human_rejected: true,
                             rejected_at: new Date().toISOString(),
                             rejected_by: user?.id,
@@ -711,7 +711,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                           source: 'human_rejection',
                           work_item_id: item.id,
                           bug_report_id: item.source_type === 'bug_report' ? item.source_id : null,
-                          metadata: { ai_confidence: item.ai_pre_verify_result?.confidence, action: 'reject', escalated_to: newPriority },
+                          metadata: { ai_confidence: item.pre_verify_result?.confidence, action: 'reject', escalated_to: newPriority },
                         });
                         toast.info('🔍 Avvisad — AI-analys är inaktiverad.', { duration: 4000 });
                         onRefresh?.();

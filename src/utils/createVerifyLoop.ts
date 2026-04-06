@@ -63,7 +63,6 @@ export async function createAndVerify(options: CreateVerifyOptions): Promise<Cre
 
     if (insertError) {
       lastError = `INSERT failed: ${insertError.message}`;
-      console.error(`[create-verify] ${table} INSERT failed (attempt ${attempts}):`, insertError);
 
       observe({
         event_type: 'error',
@@ -88,7 +87,6 @@ export async function createAndVerify(options: CreateVerifyOptions): Promise<Cre
     const insertedId = (insertedRow as any)?.id;
     if (!insertedId) {
       lastError = 'INSERT returned no ID';
-      console.error(`[create-verify] ${table} INSERT returned no ID (attempt ${attempts})`);
 
       observe({
         event_type: 'error',
@@ -116,7 +114,6 @@ export async function createAndVerify(options: CreateVerifyOptions): Promise<Cre
 
     if (fetchError || !verifiedRow) {
       lastError = fetchError ? `VERIFY fetch failed: ${fetchError.message}` : `VERIFY: row ${insertedId} not found in DB`;
-      console.error(`[create-verify] ${table} VERIFY failed (attempt ${attempts}):`, lastError);
 
       observe({
         event_type: 'error',
@@ -141,7 +138,6 @@ export async function createAndVerify(options: CreateVerifyOptions): Promise<Cre
     const verified = (verifiedRow as any).id === insertedId;
     const durationMs = Date.now() - attemptStart;
 
-    console.log(`[create-verify] ✅ ${table} VERIFIED: id=${insertedId} (${durationMs}ms, attempt ${attempts})`);
 
     observe({
       event_type: 'action',
@@ -165,7 +161,6 @@ export async function createAndVerify(options: CreateVerifyOptions): Promise<Cre
   }
 
   // All retries exhausted
-  console.error(`[create-verify] ❌ ${table} FAILED after ${attempts} attempts: ${lastError}`);
 
   observe({
     event_type: 'error',

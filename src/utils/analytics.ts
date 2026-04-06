@@ -21,7 +21,6 @@ export const trackPageView = (pageName: string, language: string) => {
 
   // Log for development
   if (import.meta.env.DEV) {
-    console.log('[Analytics] Page View:', data);
   }
 
   // Google Analytics
@@ -45,7 +44,6 @@ export const trackEvent = ({ category, action, label, value }: TrackEventParams)
   };
 
   if (import.meta.env.DEV) {
-    console.log('[Analytics] Event:', data);
   }
 
   // Google Analytics

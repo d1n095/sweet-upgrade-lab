@@ -37,7 +37,7 @@ const Bestsellers = () => {
         // First, try to get actual bestseller data from product_sales
         const { data: salesData, error: salesError } = await supabase
           .from('product_sales')
-          .select('shopify_product_id, total_quantity_sold')
+          .select('product_id, total_quantity_sold')
           .order('total_quantity_sold', { ascending: false })
           .limit(4);
 
@@ -55,7 +55,7 @@ const Bestsellers = () => {
           
           // Add products in order of sales
           for (const sale of salesData) {
-            const product = productMap.get(sale.shopify_product_id);
+            const product = productMap.get(sale.product_id);
             if (product) {
               sortedBestsellers.push(product);
             }

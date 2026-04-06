@@ -12,7 +12,7 @@ interface InfluencerValidation {
 }
 
 interface ReceivedProduct {
-  shopify_product_id: string;
+  product_id: string;
   product_title: string;
 }
 
@@ -65,7 +65,7 @@ export const useInfluencerCode = () => {
         // Load already received products
         const { data: products } = await supabase
           .from('influencer_products')
-          .select('shopify_product_id, product_title')
+          .select('product_id, product_title')
           .eq('influencer_id', result.influencer_id);
         
         setReceivedProducts((products || []) as ReceivedProduct[]);
@@ -86,7 +86,7 @@ export const useInfluencerCode = () => {
   }, [language, t]);
 
   const isProductReceived = useCallback((shopifyProductId: string) => {
-    return receivedProducts.some(p => p.shopify_product_id === shopifyProductId);
+    return receivedProducts.some(p => p.product_id === shopifyProductId);
   }, [receivedProducts]);
 
   const registerFreeProduct = useCallback(async (
@@ -108,8 +108,8 @@ export const useInfluencerCode = () => {
         .from('influencer_products')
         .insert({
           influencer_id: validatedInfluencer.influencer_id,
-          shopify_product_id: shopifyProductId,
-          shopify_variant_id: shopifyVariantId,
+          product_id: shopifyProductId,
+          variant_id: shopifyVariantId,
           product_title: productTitle,
         });
 
@@ -130,7 +130,7 @@ export const useInfluencerCode = () => {
 
       // Update local state
       setReceivedProducts(prev => [...prev, { 
-        shopify_product_id: shopifyProductId, 
+        product_id: shopifyProductId, 
         product_title: productTitle 
       }]);
       

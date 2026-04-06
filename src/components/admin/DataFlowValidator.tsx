@@ -125,7 +125,7 @@ const DataFlowValidator = () => {
       // ─── 1. SCAN → WORK ITEMS ───
       setProgress(10);
       const { data: scans } = await supabase
-        .from('ai_scan_results')
+        .from('scan_results')
         .select('id, scan_type, issues_count, tasks_created, created_at')
         .order('created_at', { ascending: false })
         .limit(50);
@@ -285,7 +285,7 @@ const DataFlowValidator = () => {
             const { data } = await supabase.from('order_incidents').select('id').eq('id', wi.source_id).limit(1);
             sourceExists = !!data?.length;
           } else if (wi.source_type === 'scan') {
-            const { data } = await supabase.from('ai_scan_results').select('id').eq('id', wi.source_id).limit(1);
+            const { data } = await supabase.from('scan_results').select('id').eq('id', wi.source_id).limit(1);
             sourceExists = !!data?.length;
           }
 
