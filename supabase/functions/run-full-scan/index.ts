@@ -2233,10 +2233,10 @@ serve(async (req) => {
       } else {
         await supabase.from("scan_runs").update({ steps_results: updatedResults }).eq("id", scan_run_id);
         trace(scan_run_id, `→ chain: evaluate_iteration (all ${STEPS.length} steps done)`);
-        fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
+        chainedFetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
           method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
           body: JSON.stringify({ action: "evaluate_iteration", scan_run_id, iteration: currentIteration }),
-        }).catch((e) => console.error(`[SCAN:${scan_run_id.slice(0, 8)}] Failed to chain evaluate_iteration:`, e));
+        }, `evaluate_iteration scan=${scan_run_id.slice(0, 8)}`).catch(() => {});
       }
 
       return new Response(JSON.stringify({ success: true, ok: true, step: step.id, step_index, iteration: currentIteration }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
