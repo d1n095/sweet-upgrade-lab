@@ -1033,7 +1033,7 @@ const SystemExplorer = () => {
         )}
         <div className="flex items-center gap-2 flex-wrap">
           <Database className="h-6 w-6 text-primary" />
-          <h1 className="text-2xl font-bold text-foreground">System Explorer</h1>
+          <h1 className="text-2xl font-bold text-foreground">Command Center</h1>
           <Badge variant="outline" className="ml-2">READ-ONLY</Badge>
           {isSystemAdmin && <Badge className="bg-primary/10 text-primary text-[10px]"><Shield className="h-3 w-3 mr-1" />SYSTEM ADMIN</Badge>}
           {isViewerAdmin && <Badge variant="secondary" className="text-[10px]"><Lock className="h-3 w-3 mr-1" />VIEWER</Badge>}
@@ -1072,7 +1072,7 @@ const SystemExplorer = () => {
             Backend Scan
           </button>
           <button onClick={() => setMainTab("analysis")} className={`px-3 py-1.5 text-xs font-medium rounded-t-md transition-colors ${mainTab === "analysis" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"}`}>
-            Analysis
+            Issues
           </button>
         </div>
 
