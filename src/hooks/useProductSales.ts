@@ -28,12 +28,12 @@ const initializeRealtimeSubscription = async () => {
   // Fetch initial data
   const { data, error } = await supabase
     .from('product_sales')
-    .select('shopify_product_id, total_quantity_sold');
+    .select('product_id, total_quantity_sold');
 
   if (!error && data) {
     salesCache = {};
     (data as any[]).forEach(sale => {
-      salesCache[sale.shopify_product_id] = sale.total_quantity_sold;
+      salesCache[sale.product_id] = sale.total_quantity_sold;
     });
     notifyListeners();
   }
