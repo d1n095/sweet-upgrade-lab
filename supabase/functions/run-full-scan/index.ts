@@ -1119,7 +1119,7 @@ async function runRealInteractionQA(supabase: any, scanRunId: string): Promise<a
 
   try {
     // Bundles referencing non-existent products
-    const { data: bundleItems } = await supabase.from("bundle_items").select("id, bundle_id, shopify_product_id").limit(200);
+    const { data: bundleItems } = await supabase.from("bundle_items").select("id, bundle_id, product_id").limit(200);
     const { data: bundles } = await supabase.from("bundles").select("id, name, is_active").eq("is_active", true).limit(50);
     const activeBundleIds = new Set((bundles || []).map((b: any) => b.id));
     for (const bi of bundleItems || []) {
