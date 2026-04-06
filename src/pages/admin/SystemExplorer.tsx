@@ -241,20 +241,6 @@ const SystemExplorer = () => {
   const [verifyingFix, setVerifyingFix] = useState(false);
   const [verifyResult, setVerifyResult] = useState<{ itemId: string; status: "confirmed" | "failed"; scanId?: string } | null>(null);
 
-  // Backend scan latest
-  const { data: latestBackendScan } = useQuery({
-    queryKey: ["backend-scan-latest"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("ai_scan_results")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-  });
 
   // 1. ALL work_items
   const { data: workItems = [], isLoading: wiLoading } = useQuery({

@@ -65,7 +65,6 @@ export function useScanRunner() {
       toast.info('En skanning körs redan');
       return;
     }
-    console.log('[SCAN] Trigger — no active lock, starting fresh scan');
     setState(prev => ({ ...prev, running: true, steps: [], dbProgress: 0, currentStepLabel: '' }));
     try {
       const scanRunId = await startScanJob({

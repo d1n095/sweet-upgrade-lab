@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import { AlertTriangle, Bug, CheckCircle, ChevronRight, Copy, FileText, X, Zap } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -235,13 +235,6 @@ export interface IssueAnalysisPanelProps {
 export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPanelProps) {
   const issues = useMemo(() => parseIssues(unifiedResult), [unifiedResult]);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-
-  // ── Debug logging (task requirement) ────────────────────────────────────────
-  useEffect(() => {
-    console.log('[ANALYSIS] scan_run_id:', scanRunId);
-    console.log('[ANALYSIS] unified_result raw:', unifiedResult);
-    console.log('[ANALYSIS] parsed issues count:', issues.length);
-  }, [scanRunId, unifiedResult, issues.length]);
 
   const selectedIssue = issues.find(i => i._key === selectedKey) ?? null;
 
