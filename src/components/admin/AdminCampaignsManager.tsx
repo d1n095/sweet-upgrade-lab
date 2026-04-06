@@ -66,7 +66,7 @@ interface Bundle {
 interface BundleItem {
   id: string;
   bundle_id: string;
-  product_id: string;
+  shopify_product_id: string;
   quantity: number;
 }
 

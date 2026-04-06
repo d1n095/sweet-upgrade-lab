@@ -506,7 +506,7 @@ const AdminMemberManager = ({ roleFilter = 'all', onStatsUpdate }: AdminMemberMa
       const [ordersRes, reviewsRes, emailRes] = await Promise.all([
         supabase
           .from('orders')
-          .select('id, created_at, total_amount, status, external_order_number')
+          .select('id, created_at, total_amount, status, order_number')
           .eq('user_id', member.user_id)
           .order('created_at', { ascending: false })
           .limit(10),

@@ -125,7 +125,7 @@ const EmployeeDashboard = () => {
       // Load recent orders
       const { data: ordersData } = await supabase
         .from('orders')
-        .select('id, order_email, status, total_amount, currency, created_at, external_order_number')
+        .select('id, order_email, status, total_amount, currency, created_at, order_number')
         .is('deleted_at', null)
         .order('created_at', { ascending: false })
         .limit(20);

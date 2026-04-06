@@ -40,7 +40,6 @@ interface Order {
   notes: string | null;
   created_at: string;
   updated_at: string;
-  external_order_number: string | null;
   order_number: string | null;
   items: any;
   shipping_address: any;
