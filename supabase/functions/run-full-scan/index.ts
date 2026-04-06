@@ -2226,10 +2226,10 @@ serve(async (req) => {
         const nextStep = STEPS[step_index + 1];
         await supabase.from("scan_runs").update({ steps_results: updatedResults, current_step: step_index + 1, current_step_label: nextStep.label }).eq("id", scan_run_id);
         trace(scan_run_id, `→ chain: process_step[${step_index + 1}] id=${nextStep.id}`);
-        fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
+        chainedFetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
           method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
           body: JSON.stringify({ action: "process_step", scan_run_id, step_index: step_index + 1, iteration: currentIteration }),
-        }).catch((e) => console.error(`[SCAN:${scan_run_id.slice(0, 8)}] Failed to chain process_step[${step_index + 1}]:`, e));
+        }, `process_step[${step_index + 1}] scan=${scan_run_id.slice(0, 8)}`).catch(() => {});
       } else {
         await supabase.from("scan_runs").update({ steps_results: updatedResults }).eq("id", scan_run_id);
         trace(scan_run_id, `→ chain: evaluate_iteration (all ${STEPS.length} steps done)`);
