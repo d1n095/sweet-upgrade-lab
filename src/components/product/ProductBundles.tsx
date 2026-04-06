@@ -28,7 +28,7 @@ const ProductBundles = ({ productId }: Props) => {
       const { data: bundleItems } = await supabase
         .from('bundle_items')
         .select('bundle_id')
-        .eq('shopify_product_id', productId);
+        .eq('product_id', productId);
 
       if (!bundleItems || bundleItems.length === 0) return;
 

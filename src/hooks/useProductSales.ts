@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/context/LanguageContext';
 
 interface ProductSale {
-  shopify_product_id: string;
+  product_id: string;
   total_quantity_sold: number;
   product_title: string;
 }
@@ -28,12 +28,12 @@ const initializeRealtimeSubscription = async () => {
   // Fetch initial data
   const { data, error } = await supabase
     .from('product_sales')
-    .select('shopify_product_id, total_quantity_sold');
+    .select('product_id, total_quantity_sold');
 
   if (!error && data) {
     salesCache = {};
     (data as any[]).forEach(sale => {
-      salesCache[sale.shopify_product_id] = sale.total_quantity_sold;
+      salesCache[sale.product_id] = sale.total_quantity_sold;
     });
     notifyListeners();
   }
@@ -51,7 +51,7 @@ const initializeRealtimeSubscription = async () => {
       (payload) => {
         const newRecord = payload.new as ProductSale | null;
         if (newRecord) {
-          salesCache[(newRecord as any).shopify_product_id] = newRecord.total_quantity_sold;
+          salesCache[(newRecord as any).product_id] = newRecord.total_quantity_sold;
           notifyListeners();
         }
       }

@@ -2,13 +2,13 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface MemberPrice {
-  shopify_product_id: string;
-  shopify_variant_id: string;
+  product_id: string;
+  variant_id: string;
   member_price: number;
 }
 
 interface VolumeDiscount {
-  shopify_product_id: string | null;
+  product_id: string | null;
   min_quantity: number;
   discount_percent: number;
   is_global: boolean;
@@ -39,7 +39,7 @@ export const useMemberPrices = () => {
         if (pricesData) {
           const priceMap = new Map<string, number>();
           pricesData.forEach((p) => {
-            priceMap.set((p as any).shopify_variant_id, Number(p.member_price));
+            priceMap.set((p as any).variant_id, Number(p.member_price));
           });
           setMemberPrices(priceMap);
         }
@@ -52,7 +52,7 @@ export const useMemberPrices = () => {
 
         if (volumeData) {
           setVolumeDiscounts(volumeData.map((v) => ({
-            shopify_product_id: (v as any).shopify_product_id,
+            product_id: (v as any).product_id,
             min_quantity: v.min_quantity,
             discount_percent: Number(v.discount_percent),
             is_global: v.is_global,
@@ -70,13 +70,13 @@ export const useMemberPrices = () => {
             bundleData.map(async (bundle) => {
               const { data: products } = await supabase
                 .from('bundle_products')
-                .select('shopify_product_id')
+                .select('product_id')
                 .eq('bundle_id', bundle.id);
 
               return {
                 ...bundle,
                 discount_percent: Number(bundle.discount_percent),
-                product_ids: products?.map(p => p.shopify_product_id) || []
+                product_ids: products?.map(p => p.product_id) || []
               };
             })
           );
@@ -99,7 +99,7 @@ export const useMemberPrices = () => {
   const getVolumeDiscount = (productId: string | null, quantity: number): number => {
     // Check product-specific discounts first
     const productDiscounts = volumeDiscounts.filter(
-      v => v.shopify_product_id === productId && quantity >= v.min_quantity
+      v => v.product_id === productId && quantity >= v.min_quantity
     );
 
     if (productDiscounts.length > 0) {

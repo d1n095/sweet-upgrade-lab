@@ -378,7 +378,7 @@ async function findOrderBySession(supabase: any, sessionId: string): Promise<str
 async function fetchTrackableOrderById(supabase: any, orderId: string) {
   const { data } = await supabase
     .from('orders')
-    .select('id, order_number, shopify_order_number, stripe_session_id, order_email, status, tracking_number, estimated_delivery, created_at, items, total_amount, currency, shipping_address, payment_status')
+    .select('id, order_number, external_order_number, stripe_session_id, order_email, status, tracking_number, estimated_delivery, created_at, items, total_amount, currency, shipping_address, payment_status')
     .eq('id', orderId)
     .maybeSingle();
 
