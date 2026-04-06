@@ -385,12 +385,14 @@ function IssueDetailPanel({
   onClose,
   onAddToWorkbench,
   isFixed = false,
+  isDone = false,
   highlightFix = false,
 }: {
   issue: ParsedIssue;
   onClose: () => void;
   onAddToWorkbench?: (issue: ParsedIssue) => Promise<void>;
   isFixed?: boolean;
+  isDone?: boolean;
   highlightFix?: boolean;
 }) {
   const [adding, setAdding] = useState(false);
@@ -433,8 +435,12 @@ function IssueDetailPanel({
           <div className="flex items-center gap-2 flex-wrap">
             <SeverityBadge severity={issue.severity} />
             {isFixed && (
-              <span className="text-[10px] font-medium text-green-500 flex items-center gap-1">
-                <CheckCircle className="w-3 h-3" /> In progress
+              <span className={cn(
+                'text-[10px] font-medium flex items-center gap-1 transition-colors',
+                isDone ? 'text-green-500' : 'text-muted-foreground',
+              )}>
+                <CheckCircle className="w-3 h-3" />
+                {isDone ? '✔ Fixed' : 'In progress…'}
               </span>
             )}
           </div>
@@ -509,8 +515,14 @@ function IssueDetailPanel({
           </Button>
         )}
         {isFixed && (
-          <div className="flex-1 flex items-center justify-center gap-1.5 text-sm text-green-500 font-medium py-1.5 rounded-md border border-green-500/30 bg-green-500/10">
-            <CheckCircle className="w-4 h-4" /> In progress
+          <div className={cn(
+            'flex-1 flex items-center justify-center gap-1.5 text-sm font-medium py-1.5 rounded-md border transition-colors',
+            isDone
+              ? 'text-green-500 border-green-500/30 bg-green-500/10'
+              : 'text-muted-foreground border-border bg-muted/10',
+          )}>
+            <CheckCircle className="w-4 h-4" />
+            {isDone ? '✔ Fixed' : 'In progress…'}
           </div>
         )}
         <Button variant="outline" size="sm" className="gap-1 px-3" onClick={copyPrompt}>
@@ -531,6 +543,7 @@ function RootCauseCard({
   onFixCTA,
   isTop = false,
   fixedKeys,
+  doneKeys,
 }: {
   group: RootCauseGroup;
   selectedKey: string | null;
@@ -538,16 +551,21 @@ function RootCauseCard({
   onFixCTA?: (key: string) => void;
   isTop?: boolean;
   fixedKeys: Set<string>;
+  doneKeys: Set<string>;
 }) {
   const [expanded, setExpanded] = useState(isTop);
+  const [ctaPulsing, setCtaPulsing] = useState(false);
 
   const allFixed = group.symptoms.length > 0 && group.symptoms.every(s => fixedKeys.has(s._key));
+  const allDone  = group.symptoms.length > 0 && group.symptoms.every(s => doneKeys.has(s._key));
 
   function handleFixClick(e: React.MouseEvent) {
     e.stopPropagation();
     const first = group.symptoms.find(s => !fixedKeys.has(s._key)) ?? group.symptoms[0];
     if (first) {
       setExpanded(true);
+      setCtaPulsing(true);
+      setTimeout(() => setCtaPulsing(false), 600);
       if (onFixCTA) {
         onFixCTA(first._key);
       } else {
@@ -558,8 +576,12 @@ function RootCauseCard({
 
   return (
     <div className={cn(
-      'border rounded-lg transition-all',
-      allFixed ? 'opacity-50 border-border bg-muted/10' : severityColor(group.severity),
+      'border rounded-lg transition-all duration-500',
+      allDone
+        ? 'opacity-0 max-h-0 overflow-hidden pointer-events-none border-transparent'
+        : allFixed
+          ? 'opacity-40 border-border bg-muted/10'
+          : severityColor(group.severity),
     )}>
       {/* Group header */}
       <button
@@ -570,7 +592,9 @@ function RootCauseCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
             {allFixed
-              ? <span className="text-[10px] font-medium text-green-500 flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Done</span>
+              ? <span className="text-[10px] font-medium text-green-500 flex items-center gap-1">
+                  <CheckCircle className="w-3 h-3" /> {allDone ? '✔ Fixed' : 'In progress…'}
+                </span>
               : <SeverityBadge severity={group.severity} />
             }
             <span className="text-[9px] opacity-60">
@@ -591,7 +615,7 @@ function RootCauseCard({
       {isTop && !allFixed && (
         <div className="px-3 pb-3">
           <Button
-            className="w-full gap-2"
+            className={cn('w-full gap-2 transition-transform duration-150', ctaPulsing && 'scale-95')}
             size="sm"
             onClick={handleFixClick}
           >
@@ -606,29 +630,32 @@ function RootCauseCard({
         <div className="border-t border-current/10 divide-y divide-current/10">
           {group.symptoms.map(issue => {
             const fixed = fixedKeys.has(issue._key);
+            const done  = doneKeys.has(issue._key);
             return (
               <button
                 key={issue._key}
                 onClick={() => onSelectIssue(issue._key)}
                 className={cn(
-                  'w-full text-left px-4 py-2 flex items-start gap-2 transition-colors',
+                  'w-full text-left px-4 py-2 flex items-start gap-2 transition-all duration-300',
                   selectedKey === issue._key
                     ? 'bg-primary/10'
                     : 'hover:bg-muted/30',
-                  fixed && 'opacity-50',
+                  done ? 'opacity-30' : fixed ? 'opacity-60' : '',
                 )}
               >
                 {fixed
-                  ? <CheckCircle className="w-3 h-3 mt-0.5 shrink-0 text-green-500" />
+                  ? <CheckCircle className={cn('w-3 h-3 mt-0.5 shrink-0', done ? 'text-green-500' : 'text-muted-foreground')} />
                   : <Bug className="w-3 h-3 mt-0.5 shrink-0 opacity-50" />
                 }
                 <div className="flex-1 min-w-0">
-                  <p className={cn('text-[11px] font-medium truncate', fixed ? 'line-through text-muted-foreground' : 'text-foreground')}>
+                  <p className={cn('text-[11px] font-medium truncate', done ? 'line-through text-muted-foreground' : fixed ? 'text-muted-foreground' : 'text-foreground')}>
                     {issue.title}
                   </p>
                 </div>
                 {fixed
-                  ? <span className="text-[9px] text-green-500 font-medium shrink-0">In progress</span>
+                  ? <span className={cn('text-[9px] font-medium shrink-0', done ? 'text-green-500' : 'text-muted-foreground')}>
+                      {done ? '✔ Fixed' : 'In progress…'}
+                    </span>
                   : <ChevronRight className={cn('w-3 h-3 shrink-0 mt-0.5 text-muted-foreground transition-transform', selectedKey === issue._key && 'rotate-90')} />
                 }
               </button>
@@ -653,22 +680,34 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [fixedKeys, setFixedKeys] = useState<Set<string>>(new Set());
+  const [doneKeys, setDoneKeys] = useState<Set<string>>(new Set());
   const [highlightFixKey, setHighlightFixKey] = useState<string | null>(null);
+  const [celebrationMsg, setCelebrationMsg] = useState<string | null>(null);
 
   const detailRef = useRef<HTMLDivElement>(null);
+  const prevCriticalDoneCount = useRef(0);
 
   const selectedIssue = issues.find(i => i._key === selectedKey) ?? null;
-  const hasCritical = groups.some(g => g.severity === 'critical');
+
+  const criticalIssues = useMemo(
+    () => groups.filter(g => g.severity === 'critical').flatMap(g => g.symptoms),
+    [groups],
+  );
+  const criticalFixed = criticalIssues.filter(i => fixedKeys.has(i._key)).length;
+  const criticalDone  = criticalIssues.filter(i => doneKeys.has(i._key)).length;
+  const allCriticalDone = criticalIssues.length > 0 && criticalDone === criticalIssues.length;
+  const hasCritical = criticalIssues.length > 0 && !allCriticalDone;
+
+  // Progress counts
+  const totalIssues = issues.length;
+  const addressedCount = fixedKeys.size;
 
   const topGroup   = groups[0] ?? null;
   const nextGroups = groups.slice(1, 3);
   const restGroups = groups.slice(3);
 
-  // Progress counts
-  const totalIssues = issues.length;
-  const addressedCount = fixedKeys.size;
-  const criticalIssues = groups.filter(g => g.severity === 'critical').flatMap(g => g.symptoms);
-  const criticalFixed  = criticalIssues.filter(i => fixedKeys.has(i._key)).length;
+  // Show "Next issue ready" when at least one group is done and a next group exists with unfixed issues
+  const showNextReady = doneKeys.size > 0 && nextGroups.some(g => !g.symptoms.every(s => fixedKeys.has(s._key)));
 
   // Auto-scroll detail panel into view when issue selected
   useEffect(() => {
@@ -677,8 +716,24 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
     }
   }, [selectedKey]);
 
+  // Celebration toast when critical done count increases
+  useEffect(() => {
+    if (criticalDone > prevCriticalDoneCount.current) {
+      const msg = allCriticalDone ? '✔ All critical issues fixed!' : '🔥 Critical issues reduced';
+      setCelebrationMsg(msg);
+      const t = setTimeout(() => setCelebrationMsg(null), 3500);
+      prevCriticalDoneCount.current = criticalDone;
+      return () => clearTimeout(t);
+    }
+    prevCriticalDoneCount.current = criticalDone;
+  }, [criticalDone, allCriticalDone]);
+
   const markFixed = useCallback((key: string) => {
     setFixedKeys(prev => new Set([...prev, key]));
+    // Transition to "Fixed" after 1.5s
+    setTimeout(() => {
+      setDoneKeys(prev => new Set([...prev, key]));
+    }, 1500);
   }, []);
 
   async function addWorkItem(issue: ParsedIssue) {
@@ -722,19 +777,33 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
 
       {groups.length > 0 && (
         <>
+          {/* Celebration toast */}
+          {celebrationMsg && (
+            <div className="rounded-lg px-4 py-2.5 flex items-center gap-3 bg-green-500/15 border border-green-500/40 text-green-500 text-sm font-medium animate-in fade-in slide-in-from-top-2 duration-300">
+              {celebrationMsg}
+            </div>
+          )}
+
           {/* Status banner */}
           <div className={cn(
-            'rounded-lg px-4 py-3 flex items-center justify-between gap-3',
-            hasCritical
-              ? 'bg-red-500/10 border border-red-500/30 text-red-500'
-              : 'bg-green-500/10 border border-green-500/30 text-green-600',
+            'rounded-lg px-4 py-3 flex items-center justify-between gap-3 transition-colors duration-700',
+            allCriticalDone
+              ? 'bg-green-500/10 border border-green-500/40 text-green-600'
+              : hasCritical
+                ? 'bg-red-500/10 border border-red-500/30 text-red-500'
+                : 'bg-green-500/10 border border-green-500/30 text-green-600',
           )}>
             <div className="flex items-center gap-3 min-w-0">
-              <AlertTriangle className="w-4 h-4 shrink-0" />
+              {allCriticalDone
+                ? <CheckCircle className="w-4 h-4 shrink-0" />
+                : <AlertTriangle className="w-4 h-4 shrink-0" />
+              }
               <p className="text-sm font-medium">
-                {hasCritical
-                  ? 'Your system has a critical issue affecting core functionality'
-                  : 'System is functional but can be improved'}
+                {allCriticalDone
+                  ? '✔ System stable — all critical issues resolved'
+                  : hasCritical
+                    ? 'Your system has a critical issue affecting core functionality'
+                    : 'System is functional but can be improved'}
               </p>
             </div>
             {/* Progress indicator */}
@@ -766,8 +835,16 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
                     onFixCTA={handleFixCTA}
                     isTop
                     fixedKeys={fixedKeys}
+                    doneKeys={doneKeys}
                   />
                 </div>
+              )}
+
+              {/* Next issue ready cue */}
+              {showNextReady && (
+                <p className="text-xs text-primary font-medium flex items-center gap-1.5 animate-in fade-in slide-in-from-left-2 duration-300">
+                  <Zap className="w-3 h-3" /> Next issue ready ↓
+                </p>
               )}
 
               {/* Next */}
@@ -783,6 +860,7 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
                       selectedKey={selectedKey}
                       onSelectIssue={selectIssue}
                       fixedKeys={fixedKeys}
+                      doneKeys={doneKeys}
                     />
                   ))}
                 </div>
@@ -798,6 +876,7 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
                       selectedKey={selectedKey}
                       onSelectIssue={selectIssue}
                       fixedKeys={fixedKeys}
+                      doneKeys={doneKeys}
                     />
                   ))}
                   <button
@@ -818,6 +897,7 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
                   onClose={() => { setSelectedKey(null); setHighlightFixKey(null); }}
                   onAddToWorkbench={addWorkItem}
                   isFixed={fixedKeys.has(selectedIssue._key)}
+                  isDone={doneKeys.has(selectedIssue._key)}
                   highlightFix={highlightFixKey === selectedIssue._key}
                 />
               </div>
