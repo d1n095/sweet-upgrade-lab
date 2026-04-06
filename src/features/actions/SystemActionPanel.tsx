@@ -185,6 +185,9 @@ const SystemActionPanel = ({ actions = [] }: SystemActionPanelProps) => {
         <div className="flex items-center gap-2">
           <Wrench className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm font-medium">System Action Panel</span>
+          <Badge variant="outline" className="text-[9px] text-green-700 border-green-300">
+            LOCAL MODE – no external changes
+          </Badge>
         </div>
         <Button
           variant="outline"
@@ -286,7 +289,7 @@ function ActionRow({ action, isSelected, hasRollback, onSimulate, onExecute, onR
           </Button>
           <Button variant="default" size="sm" className="h-7 text-xs gap-1" onClick={onExecute}>
             <Play className="h-3 w-3" />
-            Execute Fix
+            Apply Fix (local)
           </Button>
           {hasRollback && (
             <Button variant="outline" size="sm" className="h-7 text-xs gap-1 text-amber-700 border-amber-400 hover:bg-amber-50" onClick={onRollback}>

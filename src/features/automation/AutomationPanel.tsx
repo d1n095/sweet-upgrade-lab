@@ -7,7 +7,7 @@
  * NO backend calls. NO imports from scan/invoke/pipeline systems.
  * All execution goes via ExecutionEngine through AutomationScheduler.
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   buildAutomationTasks,
   updateTaskStatus,
@@ -16,10 +16,7 @@ import {
 } from './AutomationEngine';
 import {
   setSchedulerTasks,
-  setSchedulerEnabled,
   onSchedulerTasksChange,
-  runSchedulerNow,
-  getSchedulerStatus,
   getAutomationLog,
   clearAutomationLog,
   type AutomationLogEntry,
@@ -31,8 +28,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -76,8 +71,6 @@ interface AutomationPanelProps {
 const AutomationPanel = ({ actions = [], fixResults = [] }: AutomationPanelProps) => {
   const [tasks, setTasks] = useState<AutomationTask[]>([]);
   const [log, setLog] = useState<AutomationLogEntry[]>([]);
-  const [autoFixEnabled, setAutoFixEnabled] = useState(false);
-  const [autoOptimizeEnabled, setAutoOptimizeEnabled] = useState(false);
   const [pendingManual, setPendingManual] = useState<AutomationTask | null>(null);
   // Track action_ids that have a rollback snapshot
   const [rollbackIds, setRollbackIds] = useState<Set<string>>(new Set());
@@ -102,13 +95,6 @@ const AutomationPanel = ({ actions = [], fixResults = [] }: AutomationPanelProps
       setLog([...getAutomationLog()]);
     });
     return () => onSchedulerTasksChange(null);
-  }, []);
-
-  // ── Auto-fix toggle ────────────────────────────────────────────────────────────
-
-  const handleAutoFixToggle = useCallback((checked: boolean) => {
-    setAutoFixEnabled(checked);
-    setSchedulerEnabled(checked);
   }, []);
 
   // ── Manual execute ─────────────────────────────────────────────────────────────
@@ -163,19 +149,6 @@ const AutomationPanel = ({ actions = [], fixResults = [] }: AutomationPanelProps
     }
   };
 
-  // ── Run now ────────────────────────────────────────────────────────────────────
-
-  const handleRunNow = () => {
-    try {
-      runSchedulerNow();
-      setLog([...getAutomationLog()]);
-    } catch {
-      // never crash
-    }
-  };
-
-  const schedulerStatus = getSchedulerStatus();
-
   // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
@@ -188,12 +161,11 @@ const AutomationPanel = ({ actions = [], fixResults = [] }: AutomationPanelProps
           <Badge variant="outline" className="text-[9px]">
             {tasks.length} tasks
           </Badge>
+          <Badge variant="outline" className="text-[9px] text-green-700 border-green-300">
+            LOCAL MODE – no external changes
+          </Badge>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={handleRunNow}>
-            <RefreshCw className="h-3 w-3" />
-            Run now
-          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -207,34 +179,6 @@ const AutomationPanel = ({ actions = [], fixResults = [] }: AutomationPanelProps
         </div>
       </div>
 
-      {/* Toggles */}
-      <div className="flex flex-wrap gap-4 rounded-md border border-border/40 p-3 bg-muted/20">
-        <div className="flex items-center gap-2">
-          <Switch
-            id="auto-fix-toggle"
-            checked={autoFixEnabled}
-            onCheckedChange={handleAutoFixToggle}
-          />
-          <Label htmlFor="auto-fix-toggle" className="text-xs cursor-pointer">
-            Enable auto-fix
-          </Label>
-        </div>
-        <div className="flex items-center gap-2">
-          <Switch
-            id="auto-optimize-toggle"
-            checked={autoOptimizeEnabled}
-            onCheckedChange={setAutoOptimizeEnabled}
-          />
-          <Label htmlFor="auto-optimize-toggle" className="text-xs cursor-pointer">
-            Enable auto-optimize
-          </Label>
-        </div>
-        {autoFixEnabled && (
-          <Badge variant="outline" className="text-[9px] text-green-700 border-green-300 self-center">
-            scheduler active · {schedulerStatus.pendingCount} pending
-          </Badge>
-        )}
-      </div>
 
       {/* Task list */}
       {tasks.length === 0 ? (
@@ -246,7 +190,6 @@ const AutomationPanel = ({ actions = [], fixResults = [] }: AutomationPanelProps
               <TaskRow
                 key={task.id}
                 task={task}
-                autoModeOn={autoFixEnabled || autoOptimizeEnabled}
                 hasRollback={rollbackIds.has(task.action_id)}
                 onExecute={() => handleManualExecuteRequest(task)}
                 onRollback={() => handleRollback(task)}
@@ -286,7 +229,7 @@ const AutomationPanel = ({ actions = [], fixResults = [] }: AutomationPanelProps
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={handleManualExecuteCancel}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleManualExecuteConfirm}>Execute Fix</AlertDialogAction>
+            <AlertDialogAction onClick={handleManualExecuteConfirm}>Apply Fix (local)</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -298,13 +241,12 @@ const AutomationPanel = ({ actions = [], fixResults = [] }: AutomationPanelProps
 
 interface TaskRowProps {
   task: AutomationTask;
-  autoModeOn: boolean;
   hasRollback: boolean;
   onExecute: () => void;
   onRollback: () => void;
 }
 
-function TaskRow({ task, autoModeOn, hasRollback, onExecute, onRollback }: TaskRowProps) {
+function TaskRow({ task, hasRollback, onExecute, onRollback }: TaskRowProps) {
   const emoji = VALUE_EMOJI[task.value_impact.value_type] ?? '⚙';
 
   return (
@@ -336,8 +278,8 @@ function TaskRow({ task, autoModeOn, hasRollback, onExecute, onRollback }: TaskR
             {task.value_impact.impact} {task.value_impact.value_type}
           </Badge>
 
-          {/* Actions */}
-          {task.status === 'pending' && task.execution_mode !== 'auto' && (
+          {/* Actions — user must click; no auto-run */}
+          {task.status === 'pending' && (
             <Button
               variant="default"
               size="sm"
@@ -345,18 +287,7 @@ function TaskRow({ task, autoModeOn, hasRollback, onExecute, onRollback }: TaskR
               onClick={onExecute}
             >
               <Play className="h-3 w-3" />
-              Execute
-            </Button>
-          )}
-          {task.status === 'pending' && task.execution_mode === 'auto' && !autoModeOn && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 text-xs gap-1"
-              onClick={onExecute}
-            >
-              <Play className="h-3 w-3" />
-              Execute
+              Apply Fix (local)
             </Button>
           )}
           {hasRollback && task.status === 'done' && (
