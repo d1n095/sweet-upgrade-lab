@@ -34,7 +34,7 @@ const ReviewSummary = ({ productHandle }: ReviewSummaryProps) => {
           .eq('is_approved', true);
 
         if (productHandle) {
-          query = query.eq('product_handle', productHandle);
+          query = query.eq('shopify_product_handle', productHandle);
         }
 
         const { data, error } = await query;

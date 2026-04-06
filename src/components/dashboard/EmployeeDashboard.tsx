@@ -300,7 +300,7 @@ const EmployeeDashboard = () => {
                       >
                         <div>
                           <p className="font-medium">
-                            {order.external_order_number || order.id.slice(0, 8)}
+                            {order.order_number || order.id.slice(0, 8)}
                           </p>
                           <p className="text-sm text-muted-foreground">{order.order_email}</p>
                           <p className="text-xs text-muted-foreground">{formatDate(order.created_at)}</p>

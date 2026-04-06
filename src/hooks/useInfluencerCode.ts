@@ -108,8 +108,8 @@ export const useInfluencerCode = () => {
         .from('influencer_products')
         .insert({
           influencer_id: validatedInfluencer.influencer_id,
-          product_id: productId,
-          variant_id: variantId,
+          shopify_product_id: productId,
+          shopify_variant_id: variantId,
           product_title: productTitle,
         });
 

@@ -205,7 +205,7 @@ const VolumeDiscountsTab = () => {
 
     // For product-specific: delete all existing tiers for this product, then insert new ones
     if (mode === 'product' && productId) {
-      await supabase.from('volume_discounts').delete().eq('product_id', productId);
+      await (supabase.from('volume_discounts') as any).delete().eq('product_id', productId);
     } else if (editingId) {
       // For global edits: update or delete+recreate
       // If single tier, just update
