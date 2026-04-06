@@ -172,8 +172,6 @@ const SystemStateDashboard = () => {
           detail: 'Dataintegritetskontroll',
           lastChecked: ts, icon: Shield,
         },
-          lastChecked: ts, icon: Shield,
-        },
 
         // Sync
         {
