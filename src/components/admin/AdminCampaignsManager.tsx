@@ -782,7 +782,7 @@ const BundlesTab = () => {
 
   const calcBundleTotal = (bundleId: string, discountPct: number) => {
     const items = bundleItems[bundleId] || [];
-    const total = items.reduce((s, i) => s + getProductPrice(i.shopify_product_id) * i.quantity, 0);
+    const total = items.reduce((s, i) => s + getProductPrice(i.product_id) * i.quantity, 0);
     return { original: total, discounted: total * (1 - discountPct / 100) };
   };
 
