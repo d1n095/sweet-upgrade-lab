@@ -35,7 +35,7 @@ export const useRecentlyViewedStore = create<RecentlyViewedStore>()(
       version: 1,
       storage: createJSONStorage(() => localStorage),
       migrate: (_state, version) => {
-        // Clear any pre-v1 state (was ShopifyProduct[])
+        // Clear any pre-v1 state
         if (version < 1) return { products: [] };
         return _state as RecentlyViewedStore;
       },

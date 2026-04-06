@@ -117,7 +117,7 @@ export const useWishlistStore = create<WishlistStore>()(
       version: 1,
       storage: createJSONStorage(() => localStorage),
       migrate: (_state, version) => {
-        // Clear any pre-v1 state (was ShopifyProduct[])
+        // Clear any pre-v1 state
         if (version < 1) return { items: [], isLoading: false, userId: null };
         return _state as WishlistStore;
       },
