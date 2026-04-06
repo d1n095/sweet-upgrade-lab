@@ -4,8 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
-import { useScanRunner } from './useScanRunner';
-import type { ScanStep } from './useScanRunner';
+import { useScanRunner, type ScanStep } from './useScanRunner';
 
 function StepIcon({ status }: { status: ScanStep['status'] }) {
   if (status === 'done') return <CheckCircle className="w-4 h-4 text-green-500" />;

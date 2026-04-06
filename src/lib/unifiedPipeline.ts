@@ -48,7 +48,7 @@ const emptyStats = (): PipelineRun['stats'] => ({
  * 2. issues → ensure bugs have work_items
  * 3. work_items → ensure done items have change_log entries
  * 4. change_log → match to bugs for resolution
- * 5. verification → trigger AI review on completed items
+ * 5. verification → trigger rule-based review on completed items
  */
 export const runUnifiedPipeline = async (
   onEvent?: (event: PipelineEvent) => void
@@ -206,6 +206,7 @@ export const runUnifiedPipeline = async (
       } else {
         emit(makeEvent('work_items', 'log_exists', item.id, 'work_item', true,
           'Ändringslogg finns redan'));
+        console.log("📊 EVENT:", { stage: 'work_items', action: 'log_exists', itemId: item.id });
       }
     }
 
@@ -252,11 +253,12 @@ export const runUnifiedPipeline = async (
       } else if (bug) {
         emit(makeEvent('change_log', 'bug_already_resolved', change.id, 'change_log', true,
           'Bugg redan löst'));
+        console.log("📊 EVENT:", { stage: 'change_log', action: 'bug_already_resolved', changeId: change.id, bugId: bug.id });
       }
     }
 
     // ─── STAGE 5: VERIFICATION ───
-    // Trigger AI review on recently completed work items that lack verification
+    // Trigger rule-based review on recently completed work items that lack verification
     const { data: unverified } = await supabase
       .from('work_items' as any)
       .select('id, title, review_status')
@@ -273,7 +275,7 @@ export const runUnifiedPipeline = async (
           { work_item_id: item.id }));
       } catch (err: any) {
         emit(makeEvent('verification', 'review_error', item.id, 'work_item', false,
-          err?.message || 'AI review kraschade'));
+          err?.message || 'Granskning kraschade'));
       }
     }
   } catch (err: any) {

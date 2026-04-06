@@ -161,7 +161,7 @@ const MiniWorkbench = () => {
         const reviewResult = await triggerReviewForWorkItem(taskId, { context: 'mini_workbench_done' });
         toast.success('Uppgift klar ✓');
         if (!reviewResult.ok) {
-          toast.error('AI-granskning misslyckades — satt till manuell granskning');
+          toast.error('Granskning misslyckades — satt till manuell granskning');
         } else if (reviewResult.status === 'needs_review') {
           toast.warning('AI: ⚠️ Behöver granskning');
         } else if (reviewResult.status === 'incomplete') {

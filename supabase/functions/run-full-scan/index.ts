@@ -1643,7 +1643,7 @@ serve(async (req) => {
         body: JSON.stringify({ action: "run_parallel", scan_run_id: scanRun.id }),
       }).catch((e) => console.error("Failed to chain parallel scan:", e));
 
-      return new Response(JSON.stringify({ success: true, scan_id: scanRun.id, job_id: scanRun.id, status: "started", system_stage: systemStage, scan_mode: isTargeted ? "targeted" : "full" }), {
+      return new Response(JSON.stringify({ success: true, scan_run_id: scanRun.id, job_id: scanRun.id, status: "started", system_stage: systemStage, scan_mode: isTargeted ? "targeted" : "full" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
       });
     }

@@ -28,6 +28,7 @@ import AccountSettings from '@/components/profile/AccountSettings';
 import ProfileInfoForm from '@/components/profile/ProfileInfoForm';
 import CompleteProfileBanner from '@/components/profile/CompleteProfileBanner';
 import BusinessAccountForm from '@/components/profile/BusinessAccountForm';
+import BalanceOverview from '@/components/profile/BalanceOverview';
 import TrustBadges from '@/components/trust/TrustBadges';
 import BalanceOverview from '@/components/profile/BalanceOverview';
 
@@ -325,6 +326,9 @@ const MemberProfile = () => {
               </Button>
             </div>
           </motion.div>
+
+          {/* Balance Overview for Admin / Affiliate */}
+          <BalanceOverview />
 
           {/* Tabs */}
           <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
