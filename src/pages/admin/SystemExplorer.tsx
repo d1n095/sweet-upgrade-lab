@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { IssueAnalysisPanel } from "./system";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { safeInvoke } from "@/lib/safeInvoke";
@@ -173,7 +174,7 @@ const SystemExplorer = () => {
   const [aiAnswer, setAiAnswer] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiFocusArea, setAiFocusArea] = useState<string | null>(null);
-  const [mainTab, setMainTab] = useState<"system" | "files" | "patch" | "codeindex" | "backendscan" | "activity">("system");
+  const [mainTab, setMainTab] = useState<"system" | "files" | "patch" | "codeindex" | "backendscan" | "activity" | "analysis">("system");
   const [filesFilter, setFilesFilter] = useState<"all" | "orphan" | "has_issues">("all");
   const [selectedFile, setSelectedFile] = useState<FileEntry | null>(null);
   const [patchInput, setPatchInput] = useState("");
@@ -1288,6 +1289,9 @@ const SystemExplorer = () => {
           <button onClick={() => setMainTab("activity")} className={`px-3 py-1.5 text-xs font-medium rounded-t-md transition-colors ${mainTab === "activity" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"}`}>
             System Activity
           </button>
+          <button onClick={() => setMainTab("analysis")} className={`px-3 py-1.5 text-xs font-medium rounded-t-md transition-colors ${mainTab === "analysis" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"}`}>
+            Analysis
+          </button>
         </div>
 
         {/* BACKEND SCAN TAB */}
@@ -1548,6 +1552,9 @@ const SystemExplorer = () => {
             </div>
           );
         })()}
+        {mainTab === "analysis" && (
+          <IssueAnalysisPanel latestRun={latestRun ?? null} />
+        )}
         {mainTab === "codeindex" && (() => {
           const index = getCodeIndex();
           const componentApiIssues = index.filter(f => f.hasApiCall && f.path.includes("/components"));
