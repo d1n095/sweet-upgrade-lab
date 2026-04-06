@@ -47,7 +47,7 @@ serve(async (req) => {
     let dbQuery = supabase
       .from("orders")
       .select(
-        "id, order_number, shopify_order_number, stripe_session_id, payment_intent_id, order_email, status, tracking_number, estimated_delivery, created_at, items, total_amount, currency, payment_status, payment_method",
+        "id, order_number, external_order_number, stripe_session_id, payment_intent_id, order_email, status, tracking_number, estimated_delivery, created_at, items, total_amount, currency, payment_status, payment_method",
       )
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
