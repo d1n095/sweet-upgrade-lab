@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Flame, AlertTriangle, CheckCircle2, ChevronRight, ChevronDown, Loader2, RefreshCw, ArrowLeft } from 'lucide-react';
+import { Flame, AlertTriangle, CheckCircle2, ChevronRight, ChevronDown, Loader2, RefreshCw, ArrowLeft, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
@@ -12,6 +12,9 @@ interface RawIssue {
   severity?: string;
   fix?: string;
   cause?: string;
+  consequence?: string;
+  impact?: string;
+  risk?: string;
   target?: string;
   component?: string;
   entity_name?: string;
@@ -32,6 +35,7 @@ interface Issue {
   id: string;
   title: string;
   description: string;
+  consequence: string;
   fix: string;
   severity: 'critical' | 'high' | 'medium' | 'low';
   target: string;
@@ -54,6 +58,7 @@ function extractIssues(unified_result: Record<string, unknown> | null): Issue[] 
       id: `issue-${i}`,
       title: r.title || 'Unknown issue',
       description: r.description || r.cause || '',
+      consequence: r.consequence || r.impact || r.risk || '',
       fix: r.fix || 'Review and resolve manually.',
       severity: (['critical', 'high', 'medium', 'low'].includes((r.severity || '').toLowerCase())
         ? (r.severity as Issue['severity'])
@@ -108,13 +113,34 @@ function IssueCard({ issue, isOpen, onToggle }: { issue: Issue; isOpen: boolean;
         <div className="mt-5 space-y-4 border-t border-gray-200 pt-5 text-left" onClick={(e) => e.stopPropagation()}>
           {issue.description && (
             <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-gray-400 mb-1">What happened</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">What's wrong</p>
               <p className="text-base text-gray-700">{issue.description}</p>
             </div>
           )}
+          {issue.consequence && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">What happens if ignored</p>
+              <p className="text-base text-gray-600 italic">{issue.consequence}</p>
+            </div>
+          )}
           <div>
-            <p className="text-sm font-semibold uppercase tracking-wide text-gray-400 mb-1">How to fix</p>
-            <p className="text-base font-medium text-gray-900">{issue.fix}</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">How to fix</p>
+            <p className="text-base text-gray-900">{issue.fix}</p>
+          </div>
+          <div className="pt-2">
+            <Link to="/admin/system-explorer" onClick={(e) => e.stopPropagation()}>
+              <Button
+                className={cn(
+                  'w-full h-12 text-base font-semibold rounded-xl gap-2',
+                  issue.severity === 'critical' || issue.severity === 'high'
+                    ? 'bg-red-600 hover:bg-red-700 text-white'
+                    : 'bg-amber-500 hover:bg-amber-600 text-white',
+                )}
+              >
+                <Wrench className="h-5 w-5" />
+                Fix this →
+              </Button>
+            </Link>
           </div>
         </div>
       )}
@@ -125,7 +151,7 @@ function IssueCard({ issue, isOpen, onToggle }: { issue: Issue; isOpen: boolean;
 export default function SystemOverview() {
   const [openId, setOpenId] = useState<string | null>(null);
 
-  const { data: latestRun, isLoading, refetch, dataUpdatedAt } = useQuery<ScanRun | null>({
+  const { data: latestRun, isLoading, refetch } = useQuery<ScanRun | null>({
     queryKey: ['system-overview-latest-run'],
     queryFn: async () => {
       const { data, error } = await supabase
