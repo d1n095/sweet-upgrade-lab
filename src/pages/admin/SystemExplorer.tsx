@@ -1030,7 +1030,18 @@ const SystemExplorer = () => {
       {/* Main tree panel */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {/* COMMAND CENTER */}
-        <SystemCommandCenter latestRun={latestRun as any} />
+        <SystemCommandCenter
+          latestRun={latestRun as any}
+          workItems={workItems as any}
+          onSelectItem={(item) => setSelectedItem(item as any)}
+          onMarkInProgress={async (itemId) => {
+            await supabase
+              .from("work_items" as any)
+              .update({ status: "in_progress" })
+              .eq("id", itemId);
+            queryClient.invalidateQueries({ queryKey: ["system-explorer-work-items"] });
+          }}
+        />
 
         {!systemTruth.scanWorking && <p className="text-[10px] text-red-500 font-mono">❌ SCAN NOT PRODUCING DATA</p>}
         {!systemTruth.workItemsCreated && <p className="text-[10px] text-red-500 font-mono">❌ PIPELINE BLOCKED</p>}
