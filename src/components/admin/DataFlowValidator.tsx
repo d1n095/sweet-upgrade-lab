@@ -135,7 +135,7 @@ const DataFlowValidator = () => {
 
         {
           const { data: linkedItems } = await supabase
-            .from('work_items' as any)
+            .from('work_items')
             .select('id')
             .eq('source_type', 'scan')
             .eq('source_id', scan.id)
@@ -189,7 +189,7 @@ const DataFlowValidator = () => {
 
         // Bug → Work Item
         const { data: wiRaw } = await supabase
-          .from('work_items' as any)
+          .from('work_items')
           .select('id, status, review_status')
           .eq('source_type', 'bug_report')
           .eq('source_id', bug.id)
@@ -267,7 +267,7 @@ const DataFlowValidator = () => {
       // ─── 3. WORK ITEMS → SOURCE VALIDATION ───
       setProgress(60);
       const { data: wiRaw2 } = await supabase
-        .from('work_items' as any)
+        .from('work_items')
         .select('id, title, source_type, source_id, status, review_status, related_order_id')
         .in('status', ['open', 'claimed', 'in_progress', 'done'])
         .limit(200);
@@ -339,7 +339,7 @@ const DataFlowValidator = () => {
         const links: FlowLink[] = [];
 
         if (cl.work_item_id) {
-          const { data: wiCheck } = await supabase.from('work_items' as any).select('id').eq('id', cl.work_item_id).limit(1);
+          const { data: wiCheck } = await supabase.from('work_items').select('id').eq('id', cl.work_item_id).limit(1);
           const items = wiCheck as any[] | null;
           links.push({
             from: 'change_log', fromId: cl.id,

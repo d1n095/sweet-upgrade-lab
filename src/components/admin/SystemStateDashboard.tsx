@@ -61,7 +61,7 @@ const SystemStateDashboard = () => {
         productsRes, ordersRes,
       ] = await Promise.all([
         supabase.from('bug_reports').select('status, created_at').limit(200),
-        supabase.from('work_items' as any).select('status, priority, item_type, source_type, created_at, completed_at').limit(300),
+        supabase.from('work_items').select('status, priority, item_type, source_type, created_at, completed_at').limit(300),
         supabase.from('change_log').select('change_type, source, created_at').gte('created_at', weekAgo).limit(200),
         supabase.from('products').select('stock, is_visible, is_sellable, price, image_urls, description_sv, category_id').limit(300),
         supabase.from('orders').select('payment_status, status, fulfillment_status, created_at').gte('created_at', weekAgo).is('deleted_at', null).limit(500),

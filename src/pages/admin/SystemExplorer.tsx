@@ -107,7 +107,7 @@ const RuntimeTraceSection = ({ traceId }: { traceId?: string }) => {
   useEffect(() => {
     if (!traceId) return;
     setLoading(true);
-    supabase.from("runtime_traces" as any).select("*").eq("id", traceId).maybeSingle().then(({ data }) => {
+    supabase.from("runtime_traces").select("*").eq("id", traceId).maybeSingle().then(({ data }) => {
       setTrace(data);
       setLoading(false);
     });
@@ -168,7 +168,7 @@ const SystemExplorer = () => {
   const [selectedItem, setSelectedItem] = useState<WorkItem | null>(null);
   const [detailTab, setDetailTab] = useState<"info" | "history">("info");
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [showRawScan, setShowRawScan] = useState(false);
+  const [showBackendRaw, setShowBackendRaw] = useState(false);
   const [aiQuery, setAiQuery] = useState("");
   const [aiAnswer, setAiAnswer] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
@@ -181,7 +181,7 @@ const SystemExplorer = () => {
   const [safeModeEnabled, setSafeModeEnabled] = useState(true);
   const [patchSubmitted, setPatchSubmitted] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [showBackendRaw, setShowBackendRaw] = useState(false);
+  const [devMode, setDevMode] = useState(false);
   const [fileScanResult, setFileScanResult] = useState<{ total: number; emptyFiles: number; largeFiles: number } | null>(null);
   const [codeScanResult, setCodeScanResult] = useState<{ type: string; message: string; file: string }[] | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -241,20 +241,6 @@ const SystemExplorer = () => {
   const [verifyingFix, setVerifyingFix] = useState(false);
   const [verifyResult, setVerifyResult] = useState<{ itemId: string; status: "confirmed" | "failed"; scanId?: string } | null>(null);
 
-  // Backend scan latest
-  const { data: latestBackendScan } = useQuery({
-    queryKey: ["backend-scan-latest"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("ai_scan_results")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-  });
 
   // 1. ALL work_items
   const { data: workItems = [], isLoading: wiLoading } = useQuery({
@@ -275,12 +261,13 @@ const SystemExplorer = () => {
     queryKey: ["system-explorer-structure-map"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("system_structure_map" as any)
+        .from("system_structure_map")
         .select("entity_type, entity_name, last_seen_at, scan_count")
         .order("last_seen_at", { ascending: false })
         .limit(200);
       if (error) throw error;
-      return (data || []) as any[];
+      if (!Array.isArray(data)) throw new Error("Invalid data shape");
+      return data;
     },
   });
 
@@ -289,11 +276,12 @@ const SystemExplorer = () => {
     queryKey: ["system-explorer-expectations"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("system_expectations" as any)
+        .from("system_expectations")
         .select("entity_type, entity_name, required")
         .eq("required", true);
       if (error) throw error;
-      return (data || []) as any[];
+      if (!Array.isArray(data)) throw new Error("Invalid data shape");
+      return data;
     },
   });
 
@@ -311,14 +299,14 @@ const SystemExplorer = () => {
     queryFn: async () => {
       const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const { data } = await supabase
-        .from("runtime_traces" as any)
+        .from("runtime_traces")
         .select("id, function_name, endpoint, error_message, created_at, source")
         .gte("created_at", cutoff)
         .order("created_at", { ascending: false })
         .limit(200);
       if (!data?.length) return [];
       const clusters: Record<string, { function_name: string; endpoint: string; error_message: string; count: number; latest: string; source: string }> = {};
-      for (const t of data as any[]) {
+      for (const t of data) {
         const key = `${t.function_name}::${(t.error_message || "").slice(0, 100)}`;
         if (!clusters[key]) {
           clusters[key] = { function_name: t.function_name, endpoint: t.endpoint || "", error_message: t.error_message || "", count: 0, latest: t.created_at, source: t.source || "" };
@@ -337,12 +325,12 @@ const SystemExplorer = () => {
     queryFn: async () => {
       const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const { data } = await supabase
-        .from("runtime_traces" as any)
+        .from("runtime_traces")
         .select("id, function_name, endpoint, error_message, created_at, request_trace_id, source")
         .gte("created_at", cutoff)
         .order("created_at", { ascending: false })
         .limit(50);
-      return (data || []) as any[];
+      return data || [];
     },
     staleTime: 30_000,
   });
@@ -373,19 +361,19 @@ const SystemExplorer = () => {
     queryFn: async () => {
       const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
       const [tracesRes, obsRes] = await Promise.all([
-        supabase.from("runtime_traces" as any).select("id, function_name, endpoint, error_message, created_at, request_trace_id").gte("created_at", cutoff).order("created_at", { ascending: false }).limit(50),
-        supabase.from("system_observability_log" as any).select("id, event_type, source, message, created_at, component").gte("created_at", cutoff).order("created_at", { ascending: false }).limit(50),
+        supabase.from("runtime_traces").select("id, function_name, endpoint, error_message, created_at, request_trace_id").gte("created_at", cutoff).order("created_at", { ascending: false }).limit(50),
+        supabase.from("system_observability_log").select("id, event_type, source, message, created_at, component").gte("created_at", cutoff).order("created_at", { ascending: false }).limit(50),
       ]);
-      const traces = ((tracesRes.data || []) as any[]).map((t: any) => ({
+      const traces = (tracesRes.data || []).map((t) => ({
         ts: t.created_at, source: `trace:${t.function_name || "unknown"}`, message: t.error_message || `${t.endpoint || ""} OK`, id: t.id,
       }));
-      const obs = ((obsRes.data || []) as any[]).map((o: any) => ({
+      const obs = (obsRes.data || []).map((o) => ({
         ts: o.created_at, source: `${o.source || o.component || "system"}`, message: o.message || o.event_type, id: o.id,
       }));
-      const combined = [...traces, ...obs].sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime()).slice(0, 100);
+      const combined = [...traces, ...obs].sort((a, b) => new Date(b.ts ?? 0).getTime() - new Date(a.ts ?? 0).getTime()).slice(0, 100);
       // Fallback: if no logs in last 2h, fetch from last scan snapshot
       if (combined.length === 0) {
-        const { data: snapshot } = await supabase.from("scan_snapshots" as any).select("diagnosis_summary, created_at, scan_confidence_score, total_detected, total_created").order("created_at", { ascending: false }).limit(1).maybeSingle() as any;
+        const { data: snapshot } = await supabase.from("scan_snapshots").select("diagnosis_summary, created_at, scan_confidence_score, total_detected, total_created").order("created_at", { ascending: false }).limit(1).maybeSingle();
         if (snapshot) {
           const lines = (snapshot.diagnosis_summary || "").split("\n").filter(Boolean);
           return lines.map((line: string, idx: number) => ({
@@ -437,32 +425,18 @@ const SystemExplorer = () => {
     }
   };
 
-  // 2. Latest scan
-  const { data: latestScan, isLoading: scanLoading } = useQuery({
-    queryKey: ["system-explorer-latest-scan"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("ai_scan_results")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  // 2c. Last 3 scans for no-issue detection
+  // 2c. Last 3 scan runs for no-issue detection
   const { data: last3Scans = [] } = useQuery({
     queryKey: ["system-explorer-last-3-scans"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("ai_scan_results")
-        .select("results")
+        .from("scan_runs")
+        .select("unified_result")
+        .in("status", ["done", "completed"])
         .order("created_at", { ascending: false })
         .limit(3);
       if (error) throw error;
-      return (data || []) as any[];
+      return data || [];
     },
   });
 
@@ -477,6 +451,9 @@ const SystemExplorer = () => {
         .limit(1)
         .maybeSingle();
       if (error) throw error;
+      if (data && !data.unified_result && (data.status === "done" || data.status === "completed")) {
+        console.warn("[SystemExplorer] Scan returned no unified_result", data.id);
+      }
       return data;
     },
   });
@@ -514,13 +491,14 @@ const SystemExplorer = () => {
         .order("created_at", { ascending: false })
         .limit(10);
       if (error) throw error;
-      return (data || []) as any[];
+      if (!Array.isArray(data)) throw new Error("Invalid data shape");
+      return data;
     },
   });
 
   const activeSnapshot = selectedSnapshotId ? scanSnapshots.find((s: any) => s.id === selectedSnapshotId) : null;
 
-  const unifiedResult = (latestRun as any)?.unified_result as Record<string, any> | null;
+  const unifiedResult = latestRun?.unified_result as Record<string, any> | null;
   const scanResults: Record<string, any> | null = unifiedResult
     ? {
         ...unifiedResult,
@@ -532,7 +510,7 @@ const SystemExplorer = () => {
         ],
       }
     : null;
-  const detectedIssues = scanResults?.issues?.length ?? scanResults?.master_list?.total ?? scanResults?.detected_issues?.length ?? (activeSnapshot ? activeSnapshot.total_detected : latestScan?.issues_count) ?? 0;
+  const detectedIssues = scanResults?.issues?.length ?? scanResults?.master_list?.total ?? scanResults?.detected_issues?.length ?? (activeSnapshot ? activeSnapshot.total_detected : 0) ?? 0;
 
   // Regression detection: compare last 2 snapshots
   const regressions = useMemo(() => {
@@ -618,22 +596,17 @@ const SystemExplorer = () => {
     // Collect all issue targets/names across last 3 scans
     const issuedTargets = new Set<string>();
     for (const scan of last3Scans) {
-      const res = scan.results as Record<string, any> | null;
+      const res = scan.unified_result as Record<string, any> | null;
       if (!res) continue;
-      const issues = (res.issues ?? res.master_list?.items ?? []) as any[];
+      const issues: any[] = [
+        ...(res.broken_flows || []),
+        ...(res.fake_features || []),
+        ...(res.interaction_failures || []),
+        ...(res.data_issues || []),
+      ];
       for (const issue of issues) {
         const targets = [issue.target, issue.component, issue.entity_name, issue.title, issue.category].filter(Boolean);
         for (const t of targets) issuedTargets.add(String(t).toLowerCase());
-      }
-      // Also check step_results for per-step issues
-      const steps = (res.step_results ?? res) as Record<string, any>;
-      for (const [, val] of Object.entries(steps)) {
-        if (Array.isArray(val?.issues)) {
-          for (const si of val.issues) {
-            const ts = [si.target, si.component, si.entity_name, si.title].filter(Boolean);
-            for (const t of ts) issuedTargets.add(String(t).toLowerCase());
-          }
-        }
       }
     }
     // Filter structure_map entities that are NOT in unscannedAreas AND have no issues
@@ -686,9 +659,14 @@ const SystemExplorer = () => {
     // Collect issue targets from last 3 scans (reuse logic)
     const issuedTargets = new Set<string>();
     for (const scan of last3Scans) {
-      const res = scan.results as Record<string, any> | null;
+      const res = scan.unified_result as Record<string, any> | null;
       if (!res) continue;
-      const issues = (res.issues ?? res.master_list?.items ?? []) as any[];
+      const issues: any[] = [
+        ...(res.broken_flows || []),
+        ...(res.fake_features || []),
+        ...(res.interaction_failures || []),
+        ...(res.data_issues || []),
+      ];
       for (const issue of issues) {
         [issue.target, issue.component, issue.entity_name, issue.title].filter(Boolean).forEach((t: any) => issuedTargets.add(String(t).toLowerCase()));
       }
@@ -765,26 +743,17 @@ const SystemExplorer = () => {
     const recentIssueTitles = new Set<string>();
     const scansToCheck = last3Scans.slice(0, 2);
     for (const scan of scansToCheck) {
-      const res = scan.results as Record<string, any> | null;
+      const res = scan.unified_result as Record<string, any> | null;
       if (!res) continue;
-      const issues = (res.issues ?? res.detected_issues ?? []) as any[];
+      const issues: any[] = [
+        ...(res.broken_flows || []),
+        ...(res.fake_features || []),
+        ...(res.interaction_failures || []),
+        ...(res.data_issues || []),
+      ];
       for (const issue of issues) {
         if (issue.fingerprint) recentIssueFingerprints.add(issue.fingerprint.toLowerCase());
         if (issue.title) recentIssueTitles.add(issue.title.toLowerCase().trim());
-      }
-      for (const [, val] of Object.entries(res)) {
-        if (Array.isArray(val)) {
-          for (const item of val) {
-            if (item?.fingerprint) recentIssueFingerprints.add(item.fingerprint.toLowerCase());
-            if (item?.title) recentIssueTitles.add(item.title.toLowerCase().trim());
-          }
-        }
-        if (val?.issues && Array.isArray(val.issues)) {
-          for (const item of val.issues) {
-            if (item?.fingerprint) recentIssueFingerprints.add(item.fingerprint.toLowerCase());
-            if (item?.title) recentIssueTitles.add(item.title.toLowerCase().trim());
-          }
-        }
       }
     }
     const flagged = new Set<string>();
@@ -848,7 +817,7 @@ const SystemExplorer = () => {
     }
 
     // Step results from scan for executed status
-    const stepResults = ((latestRun as any)?.steps_results ?? scanResults?.step_results ?? scanResults) as Record<string, any> | null;
+    const stepResults = (latestRun?.steps_results ?? scanResults?.step_results ?? scanResults) as Record<string, any> | null;
     const createTrace: any[] = scanResults?._create_trace ?? [];
 
     return SCANNER_GROUPS.map(group => {
@@ -985,8 +954,8 @@ const SystemExplorer = () => {
   };
 
   const systemTruth = {
-    scanWorking: latestRun != null && ((latestRun as any)?.work_items_created > 0 || (latestRun as any)?.total_new_issues > 0),
-    workItemsCreated: (latestRun as any)?.work_items_created > 0,
+    scanWorking: latestRun != null && ((latestRun.work_items_created ?? 0) > 0 || (latestRun.total_new_issues ?? 0) > 0),
+    workItemsCreated: (latestRun?.work_items_created ?? 0) > 0,
   };
 
   return (
@@ -1000,7 +969,7 @@ const SystemExplorer = () => {
           onSelectItem={(item) => setSelectedItem(item as any)}
           onMarkInProgress={async (itemId) => {
             await supabase
-              .from("work_items" as any)
+              .from("work_items")
               .update({ status: "in_progress" })
               .eq("id", itemId);
             queryClient.invalidateQueries({ queryKey: ["system-explorer-work-items"] });
@@ -1010,40 +979,44 @@ const SystemExplorer = () => {
         {!systemTruth.scanWorking && <p className="text-[10px] text-red-500 font-mono">❌ SCAN NOT PRODUCING DATA</p>}
         {!systemTruth.workItemsCreated && <p className="text-[10px] text-red-500 font-mono">❌ PIPELINE BLOCKED</p>}
 
-        <div className="flex gap-2 items-center">
-          <Input
-            placeholder="Search code..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-            className="h-7 text-[10px] max-w-[250px]"
-          />
-          <Button variant="outline" size="sm" className="text-[10px] h-7" onClick={handleSearch}>Search</Button>
-        </div>
-        {searchResults.length > 0 && (
-          <div>
-            <h3 className="text-sm font-semibold mb-1">Search Results ({searchResults.length})</h3>
-            {searchResults.map((r, i) => (
-              <div
-                key={i}
-                style={{
-                  padding: "8px",
-                  borderBottom: "1px solid hsl(var(--border))",
-                  cursor: "pointer"
-                }}
-                onClick={() => {
-                  const entry = fileSystemMap.find(f => f.path === r.path);
-                  if (entry) setSelectedFile(entry);
-                }}
-              >
-                <div><strong>{r.path}</strong></div>
-                <div className="text-muted-foreground">Line {r.lineNumber}</div>
-                <div style={{ fontFamily: "monospace" }} className="text-xs">
-                  {r.line}
-                </div>
+        {devMode && (
+          <>
+            <div className="flex gap-2 items-center">
+              <Input
+                placeholder="Search code..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                className="h-7 text-[10px] max-w-[250px]"
+              />
+              <Button variant="outline" size="sm" className="text-[10px] h-7" onClick={handleSearch}>Search</Button>
+            </div>
+            {searchResults.length > 0 && (
+              <div>
+                <h3 className="text-sm font-semibold mb-1">Search Results ({searchResults.length})</h3>
+                {searchResults.map((r, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      padding: "8px",
+                      borderBottom: "1px solid hsl(var(--border))",
+                      cursor: "pointer"
+                    }}
+                    onClick={() => {
+                      const entry = fileSystemMap.find(f => f.path === r.path);
+                      if (entry) setSelectedFile(entry);
+                    }}
+                  >
+                    <div><strong>{r.path}</strong></div>
+                    <div className="text-muted-foreground">Line {r.lineNumber}</div>
+                    <div style={{ fontFamily: "monospace" }} className="text-xs">
+                      {r.line}
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
         <div className="flex items-center gap-2 flex-wrap">
           <Database className="h-6 w-6 text-primary" />
@@ -1060,12 +1033,10 @@ const SystemExplorer = () => {
           {isSystemAdmin && (
             <ScanControls />
           )}
-           {isSystemAdmin && (
-             <Button variant="outline" size="sm" onClick={() => setShowRawScan(!showRawScan)}>
-               <FileText className="h-4 w-4 mr-1" />
-               {showRawScan ? "Hide Raw Scan" : "View Raw Scan"}
-             </Button>
-           )}
+          <Button variant={devMode ? "secondary" : "ghost"} size="sm" onClick={() => setDevMode(!devMode)}>
+            <Monitor className="h-4 w-4 mr-1" />
+            {devMode ? "Hide Dev Mode" : "Dev Mode"}
+          </Button>
         </div>
 
         {/* TAB BAR */}
@@ -1092,8 +1063,8 @@ const SystemExplorer = () => {
 
         {/* BACKEND SCAN TAB */}
         {mainTab === "backendscan" && (() => {
-          const run = latestRun as any;
-          const r = run?.unified_result as any;
+          const run = latestRun;
+          const r = run?.unified_result as Record<string, any> | null;
           const issuesList: any[] = [
             ...(r?.broken_flows || []),
             ...(r?.fake_features || []),
@@ -1244,8 +1215,8 @@ const SystemExplorer = () => {
         {/* CODE INDEX TAB */}
         {mainTab === "analysis" && (
           <IssueAnalysisPanel
-            scanRunId={(latestRun as any)?.id ?? null}
-            unifiedResult={(latestRun as any)?.unified_result ?? null}
+            scanRunId={latestRun?.id ?? null}
+            unifiedResult={latestRun?.unified_result ?? null}
           />
         )}
 
@@ -1377,8 +1348,8 @@ const SystemExplorer = () => {
 
             {/* Scan Input */}
             {latestRun && (() => {
-              const ur = latestRun.unified_result as any;
-              const si = ur?.steps_results?._scan_input || (latestRun as any).steps_results?._scan_input;
+              const ur = latestRun.unified_result as Record<string, any> | null;
+              const si = ur?.steps_results?._scan_input || (latestRun.steps_results as Record<string, any> | null)?._scan_input;
               if (!si) return null;
               return (
                 <Card className="mt-3">
@@ -1904,66 +1875,68 @@ const SystemExplorer = () => {
         {/* SYSTEM TAB */}
         {mainTab === "system" && (
         <>
-        {showRawScan && (
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                Raw Scan Results (read-only)
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {(() => {
-                if (!scanResults) return <p className="text-xs text-muted-foreground">No scan results available</p>;
-                try {
-                  const limited = { ...scanResults };
-                  const allIssues = limited?.issues ?? limited?._create_trace ?? [];
-                  const totalCount = Array.isArray(allIssues) ? allIssues.length : 0;
-                  if (Array.isArray(limited?.issues) && limited.issues.length > 50) {
-                    limited.issues = limited.issues.slice(0, 50);
-                  }
-                  if (Array.isArray(limited?._create_trace) && limited._create_trace.length > 50) {
-                    limited._create_trace = limited._create_trace.slice(0, 50);
-                  }
-                  return (
-                    <>
-                      {totalCount > 50 && (
-                        <p className="text-[10px] text-muted-foreground mb-2">Showing 50 of {totalCount} issues</p>
-                      )}
-                      <pre className="bg-muted/30 border border-border rounded-md p-3 text-[10px] font-mono overflow-auto max-h-[500px] whitespace-pre-wrap text-foreground select-all">
-                        {JSON.stringify(limited, null, 2)}
-                      </pre>
-                    </>
-                  );
-                } catch (e) {
-                  return <p className="text-xs text-destructive">Error rendering scan results</p>;
-                }
-              })()}
-            </CardContent>
-          </Card>
+        {devMode && (
+          <>
+            <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Raw Scan Results (read-only)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {(() => {
+                    if (!scanResults) return <p className="text-xs text-muted-foreground">No scan results available</p>;
+                    try {
+                      const limited = { ...scanResults };
+                      const allIssues = limited?.issues ?? limited?._create_trace ?? [];
+                      const totalCount = Array.isArray(allIssues) ? allIssues.length : 0;
+                      if (Array.isArray(limited?.issues) && limited.issues.length > 50) {
+                        limited.issues = limited.issues.slice(0, 50);
+                      }
+                      if (Array.isArray(limited?._create_trace) && limited._create_trace.length > 50) {
+                        limited._create_trace = limited._create_trace.slice(0, 50);
+                      }
+                      return (
+                        <>
+                          {totalCount > 50 && (
+                            <p className="text-[10px] text-muted-foreground mb-2">Showing 50 of {totalCount} issues</p>
+                          )}
+                          <pre className="bg-muted/30 border border-border rounded-md p-3 text-[10px] font-mono overflow-auto max-h-[500px] whitespace-pre-wrap text-foreground select-all">
+                            {JSON.stringify(limited, null, 2)}
+                          </pre>
+                        </>
+                      );
+                    } catch (e) {
+                      return <p className="text-xs text-destructive">Error rendering scan results</p>;
+                    }
+                  })()}
+                </CardContent>
+              </Card>
+            <div className="flex items-center gap-2">
+              <select
+                className="text-xs border border-border rounded-md px-2 py-1.5 bg-background text-foreground"
+                value={selectedSnapshotId || ""}
+                onChange={(e) => setSelectedSnapshotId(e.target.value || null)}
+              >
+                <option value="">Live data</option>
+                {scanSnapshots.map((snap: any) => (
+                  <option key={snap.id} value={snap.id}>
+                    {format(new Date(snap.created_at), "MM-dd HH:mm")} — {snap.total_detected} issues, {snap.total_created} created
+                  </option>
+                ))}
+              </select>
+              {selectedSnapshotId && (
+                <Badge variant="secondary" className="text-[9px]">📸 Snapshot</Badge>
+              )}
+              {activeSnapshot?.scan_confidence_score != null && (
+                <Badge variant={activeSnapshot.scan_confidence_score >= 70 ? "outline" : "destructive"} className="text-[9px]">
+                  🎯 Confidence: {activeSnapshot.scan_confidence_score}%
+                </Badge>
+              )}
+            </div>
+          </>
         )}
-        <div className="flex items-center gap-2">
-          <select
-            className="text-xs border border-border rounded-md px-2 py-1.5 bg-background text-foreground"
-            value={selectedSnapshotId || ""}
-            onChange={(e) => setSelectedSnapshotId(e.target.value || null)}
-          >
-            <option value="">Live data</option>
-            {scanSnapshots.map((snap: any) => (
-              <option key={snap.id} value={snap.id}>
-                {format(new Date(snap.created_at), "MM-dd HH:mm")} — {snap.total_detected} issues, {snap.total_created} created
-              </option>
-            ))}
-          </select>
-          {selectedSnapshotId && (
-            <Badge variant="secondary" className="text-[9px]">📸 Snapshot</Badge>
-          )}
-          {activeSnapshot?.scan_confidence_score != null && (
-            <Badge variant={activeSnapshot.scan_confidence_score >= 70 ? "outline" : "destructive"} className="text-[9px]">
-              🎯 Confidence: {activeSnapshot.scan_confidence_score}%
-            </Badge>
-          )}
-        </div>
 
         {/* REGRESSION BANNER */}
         {regressions.length > 0 && (
@@ -1976,7 +1949,7 @@ const SystemExplorer = () => {
             ))}
           </div>
         )}
-        {isSystemAdmin && (
+        {devMode && isSystemAdmin && (
         <Card>
           <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("aiAssistant")}>
             <CardTitle className="text-sm flex items-center gap-2">
@@ -2047,7 +2020,7 @@ const SystemExplorer = () => {
         )}
 
         {/* DEBUG CONSOLE */}
-        {isSystemAdmin && (
+        {devMode && isSystemAdmin && (
         <Card>
           <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("debugConsole")}>
             <CardTitle className="text-sm flex items-center gap-2">
@@ -2079,7 +2052,7 @@ const SystemExplorer = () => {
         )}
 
         {/* INSERT RESULTS */}
-        {isSystemAdmin && (
+        {devMode && isSystemAdmin && (
         <Card>
           <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("insertResults")}>
             <CardTitle className="text-sm flex items-center gap-2">
@@ -2183,6 +2156,8 @@ const SystemExplorer = () => {
           </Card>
         </div>
 
+        {devMode && (
+        <>
         {/* DEBUG FLAGS */}
         <Card>
           <CardHeader className="pb-2">
@@ -2212,11 +2187,11 @@ const SystemExplorer = () => {
                 <div className="grid grid-cols-3 gap-2 text-sm">
                   <div>
                     <span className="text-muted-foreground text-xs">Scan ID</span>
-                    <p className="font-mono text-xs">{latestScan?.id?.slice(0, 8) ?? "–"}…</p>
+                    <p className="font-mono text-xs">{latestRun?.id?.slice(0, 8) ?? "–"}…</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground text-xs">Created</span>
-                    <p className="text-xs">{latestScan ? format(new Date(latestScan.created_at), "MM-dd HH:mm") : "–"}</p>
+                    <p className="text-xs">{latestRun ? format(new Date(latestRun.created_at ?? ''), "MM-dd HH:mm") : "–"}</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground text-xs">Detected</span>
@@ -2242,7 +2217,7 @@ const SystemExplorer = () => {
                     <div className="text-[10px] text-muted-foreground">Skipped (dedup)</div>
                   </div>
                   <div className="border border-border rounded-md p-2 text-center">
-                    <div className="text-lg font-bold">{latestRun?.work_items_created ?? latestScan?.tasks_created ?? 0}</div>
+                    <div className="text-lg font-bold">{latestRun?.work_items_created ?? 0}</div>
                     <div className="text-[10px] text-muted-foreground">Created Items</div>
                   </div>
                 </div>
@@ -2855,21 +2830,21 @@ const SystemExplorer = () => {
           </CardHeader>
           {expandedSections.scanResults && (
             <CardContent>
-              {scanLoading ? (
+              {latestRunLoading ? (
                 <p className="text-sm text-muted-foreground">Laddar...</p>
-              ) : latestScan ? (
+              ) : latestRun ? (
                 <div className="space-y-2 text-sm">
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                    <div><span className="text-muted-foreground">ID:</span> {latestScan.id.slice(0, 8)}…</div>
-                    <div><span className="text-muted-foreground">Typ:</span> {latestScan.scan_type}</div>
-                    <div><span className="text-muted-foreground">Score:</span> {latestScan.overall_score ?? "–"}</div>
-                    <div><span className="text-muted-foreground">Issues:</span> {latestScan.issues_count ?? 0}</div>
-                    <div><span className="text-muted-foreground">Tasks skapade:</span> {latestScan.tasks_created ?? 0}</div>
-                    <div><span className="text-muted-foreground">Status:</span> {latestScan.overall_status ?? "–"}</div>
-                    <div className="col-span-2"><span className="text-muted-foreground">Skapad:</span> {format(new Date(latestScan.created_at), "yyyy-MM-dd HH:mm")}</div>
+                    <div><span className="text-muted-foreground">ID:</span> {latestRun.id.slice(0, 8)}…</div>
+                    <div><span className="text-muted-foreground">Typ:</span> {latestRun.scan_mode ?? "full"}</div>
+                    <div><span className="text-muted-foreground">Score:</span> {latestRun.system_health_score ?? "–"}</div>
+                    <div><span className="text-muted-foreground">Issues:</span> {detectedIssues}</div>
+                    <div><span className="text-muted-foreground">Tasks skapade:</span> {latestRun.work_items_created ?? 0}</div>
+                    <div><span className="text-muted-foreground">Status:</span> {latestRun.status ?? "–"}</div>
+                    <div className="col-span-2"><span className="text-muted-foreground">Skapad:</span> {latestRun.created_at ? format(new Date(latestRun.created_at), "yyyy-MM-dd HH:mm") : "–"}</div>
                   </div>
-                  {latestScan.executive_summary && (
-                    <p className="text-muted-foreground border-t pt-2 mt-2">{latestScan.executive_summary}</p>
+                  {latestRun.executive_summary && (
+                    <p className="text-muted-foreground border-t pt-2 mt-2">{latestRun.executive_summary}</p>
                   )}
                   {/* High Attention Areas */}
                   {scanResults?.high_attention_areas?.length > 0 && (
@@ -3522,6 +3497,8 @@ const SystemExplorer = () => {
         </Card>
         </>
         )}
+        </>
+        )}
       </div>
       {selectedItem && (
         <div className="w-80 border-l border-border bg-card overflow-y-auto p-4 space-y-4 flex-shrink-0">
@@ -3788,7 +3765,7 @@ const SystemExplorer = () => {
                     setVerifyResult(null);
                     try {
                       // 1. Mark as done
-                      await supabase.from("work_items" as any).update({
+                      await supabase.from("work_items").update({
                         status: "done",
                         completed_at: new Date().toISOString(),
                       }).eq("id", selectedItem.id);
@@ -3819,7 +3796,7 @@ const SystemExplorer = () => {
                       const vStatus = stillFound ? "failed" : "confirmed";
 
                       // 4. Update work item with verification result
-                      await supabase.from("work_items" as any).update({
+                      await supabase.from("work_items").update({
                         verification_status: vStatus,
                         verified_at: new Date().toISOString(),
                       }).eq("id", selectedItem.id);

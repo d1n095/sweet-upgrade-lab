@@ -49,7 +49,7 @@ const WorkbenchStaffPanel = () => {
       const userIds = [...new Set(roles.map(r => r.user_id))];
       const [profilesRes, itemsRes, templatesRes, perfRes] = await Promise.all([
         supabase.from('profiles').select('user_id, username, avatar_url').in('user_id', userIds),
-        supabase.from('work_items' as any).select('claimed_by, status').neq('status', 'done'),
+        supabase.from('work_items').select('claimed_by, status').neq('status', 'done'),
         supabase.from('role_templates').select('role_key, name_sv'),
         supabase.from('staff_performance').select('*').in('user_id', userIds),
       ]);
