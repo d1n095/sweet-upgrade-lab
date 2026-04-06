@@ -4,7 +4,7 @@
  * UI for the safe execution system.
  * Provides per-action:
  *  - "Simulate Fix"  — dry-run; shows impact + risk (no real changes)
- *  - "Execute Fix"   — confirmation gate required; blocked when risk=high
+ *  - "Apply Fix (Local)" — confirmation gate required; blocked when risk=high
  *  - "Rollback"      — available after a successful execution
  *
  * NO backend calls. NO imports from existing action/verification systems.
@@ -248,11 +248,13 @@ const SystemActionPanel = ({ actions = [] }: SystemActionPanelProps) => {
               )}
               <br />
               A rollback snapshot will be stored. This simulates the fix — no schema or core changes.
+              <br />
+              <span className="text-muted-foreground italic">Local mode – no external changes</span>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={handleExecuteCancel}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleExecuteConfirm}>Execute Fix</AlertDialogAction>
+            <AlertDialogAction onClick={handleExecuteConfirm}>Apply Fix (Local)</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
