@@ -170,7 +170,7 @@ const DataFlowValidator = () => {
             id: scan.id, origin: 'scan', originId: scan.id,
             links,
             status: hasBroken ? 'broken' : hasMissing ? 'partial' : 'intact',
-            summary: `Scan ${scan.scan_type} (${scan.id.slice(0, 8)}) → ${links.length} kopplingar`,
+            summary: `Scan ${(scan as any).scan_mode || 'unknown'} (${scan.id.slice(0, 8)}) → ${links.length} kopplingar`,
             checkedAt: now,
           });
         }
