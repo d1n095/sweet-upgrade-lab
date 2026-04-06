@@ -245,9 +245,7 @@ async function handleCriticalBreak(report: CriticalPathReport): Promise<void> {
         source_id: 'system',
       });
     }
-  } catch (e) {
-    console.warn('[CriticalPath] Failed to create work item:', e);
-  }
+  } catch (_) {}
 
   // Pause non-critical work items
   try {
@@ -255,9 +253,7 @@ async function handleCriticalBreak(report: CriticalPathReport): Promise<void> {
       .update({ status: 'blocked' })
       .in('priority', ['low', 'medium'])
       .eq('status', 'open');
-  } catch (e) {
-    console.warn('[CriticalPath] Failed to pause non-critical items:', e);
-  }
+  } catch (_) {}
 
   toast.error(
     `🚨 Kritisk sökväg bruten — ${report.brokenStages.length} steg trasiga. Non-critical tasks pausade.`,

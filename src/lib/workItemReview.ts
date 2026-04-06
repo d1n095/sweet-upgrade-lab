@@ -23,7 +23,6 @@ export const triggerReviewForWorkItem = async (
   options: TriggerReviewOptions = {}
 ): Promise<TriggerReviewResult> => {
   const context = options.context || 'unknown';
-  console.info('[review] trigger (rule-based)', { workItemId, context });
 
   try {
     const { data: item, error: fetchError } = await supabase
@@ -60,11 +59,9 @@ export const triggerReviewForWorkItem = async (
       } as any)
       .eq('id', workItemId);
 
-    console.info('[review] complete (rule-based)', { workItemId, context, status: reviewResult.status });
     return { ok: true, status: reviewResult.status as ReviewStatus, review: reviewResult };
   } catch (err: any) {
     const message = err?.message || 'Unknown review error';
-    console.error('[review] failed', { workItemId, context, message });
 
     await supabase
       .from('work_items')

@@ -232,8 +232,7 @@ const SearchSuggestions = () => {
           setRecentSearches(getRecentSearches());
         }
         setShowSuggestions(true);
-      } catch (error) {
-        console.error('Failed to fetch suggestions:', error);
+      } catch (_) {
       } finally {
         setIsLoading(false);
       }

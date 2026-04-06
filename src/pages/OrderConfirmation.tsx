@@ -73,9 +73,7 @@ const OrderConfirmation = () => {
             setIsLoading(false);
             return;
           }
-        } catch (err) {
-          console.error('[order-confirmation] lookup failed:', err);
-        }
+        } catch (_) {}
 
         if (attempt < maxRetries - 1) {
           await new Promise((resolve) => setTimeout(resolve, retryDelayMs));

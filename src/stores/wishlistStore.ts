@@ -47,9 +47,7 @@ export const useWishlistStore = create<WishlistStore>()(
               product_id: item.id,
               product_handle: item.handle,
             });
-          } catch (error) {
-            console.error('Failed to sync wishlist item to database:', error);
-          }
+          } catch (_) {}
         }
       },
 
@@ -65,9 +63,7 @@ export const useWishlistStore = create<WishlistStore>()(
               .delete()
               .eq('user_id', userId)
               .eq('product_id', productId);
-          } catch (error) {
-            console.error('Failed to remove wishlist item from database:', error);
-          }
+          } catch (_) {}
         }
       },
 
@@ -80,9 +76,7 @@ export const useWishlistStore = create<WishlistStore>()(
         if (userId) {
           try {
             await supabase.from('wishlists').delete().eq('user_id', userId);
-          } catch (error) {
-            console.error('Failed to clear wishlist from database:', error);
-          }
+          } catch (_) {}
         }
       },
 
@@ -109,11 +103,10 @@ export const useWishlistStore = create<WishlistStore>()(
                 product_id: item.id,
                 product_handle: item.handle,
               }, { onConflict: 'user_id,product_id' });
-              if (insertError) console.error('Failed to sync item:', insertError);
+              if (insertError) {}
             }
           }
-        } catch (error) {
-          console.error('Failed to sync wishlist with database:', error);
+        } catch (_) {
         } finally {
           set({ isLoading: false });
         }
