@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { AlertTriangle, Bug, CheckCircle, ChevronRight, Copy, FileText, X, Zap } from 'lucide-react';
+import { AlertTriangle, Bug, CheckCircle, ChevronRight, Copy, FileText, Inbox, X, Zap } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { createWorkItemWithDedup } from '@/utils/workItemDedup';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -12,11 +13,22 @@ export interface ParsedIssue {
   /** Human-readable category (broken_flows, fake_features, etc.) */
   _category: string;
   id: string;
+  /** issue type identifier, e.g. "missing_field", "orphan_file", "broken_flow" */
+  type: string;
   title: string;
   description: string;
+  /** file or component path */
   file: string;
+  /** alias for file, used in fix generation */
+  path: string;
+  /** specific missing field name if type === "missing_field" */
+  missing_field: string;
+  /** component or service name */
+  component: string;
   severity: 'critical' | 'high' | 'medium' | 'low' | 'info';
   fix_suggestion: string;
+  /** occurrence count */
+  count: number;
   /** generated fix prompt */
   prompt: string;
   /** raw original object for deep inspection */
@@ -34,8 +46,56 @@ function normalizeSeverity(v: string | undefined): ParsedIssue['severity'] {
   return 'info';
 }
 
-function buildPrompt(issue: Omit<ParsedIssue, 'prompt' | '_key'>): string {
-  const file = issue.file || '(unknown file)';
+function generateFixPrompt(issue: Omit<ParsedIssue, 'prompt' | '_key'>): string {
+  if (issue.type === 'missing_field') {
+    return `ISSUE:
+Missing field "${issue.missing_field}" in ${issue.component || issue.file || '(unknown component)'}
+
+ROOT CAUSE:
+Data is returned without required property "${issue.missing_field}", breaking downstream logic.
+
+FIX:
+
+1. Locate source:
+   - ${issue.component || issue.file}
+   - Check DB query or API response
+
+2. Ensure field exists:
+   - Add "${issue.missing_field}" to SELECT query
+   OR
+   - Map correct field name from DB
+
+3. Verify type alignment:
+   - frontend type must include "${issue.missing_field}"
+
+4. Re-run scan and confirm:
+   - issue disappears
+
+CONTEXT:
+Seen ${issue.count} times
+Severity: ${issue.severity}`;
+  }
+
+  if (issue.type === 'orphan_file') {
+    return `ISSUE:
+Orphan file detected: ${issue.path || issue.file}
+
+ROOT CAUSE:
+File is not imported or referenced anywhere in the project.
+
+FIX OPTIONS:
+
+1. If unused:
+   - DELETE file
+
+2. If missing reference:
+   - import into correct module
+
+3. Verify:
+   - run scan → orphan count reduced`;
+  }
+
+  const file = issue.file || issue.path || '(unknown file)';
   const lines = [
     `Fix ${issue.title} in ${file}`,
     '',
@@ -48,7 +108,7 @@ function buildPrompt(issue: Omit<ParsedIssue, 'prompt' | '_key'>): string {
       : 'The issue should be resolved so the system behaves correctly.',
     '',
     'Fix:',
-    issue.fix_suggestion || '1. Investigate the affected file.\n2. Identify the root cause.\n3. Apply the minimal change to resolve the issue.',
+    issue.fix_suggestion || `1. Investigate component: ${issue.component || file}\n2. Trace data flow and restore expected structure.`,
   ];
   return lines.join('\n');
 }
@@ -101,8 +161,24 @@ function parseIssues(unifiedResult: any): ParsedIssue[] {
       const fix_suggestion: string =
         item.fix_suggestion ?? item.fix ?? item.recommended_fix ?? item.suggestion ?? item.action ?? '';
 
-      const partial = { _category: label, id, title, description, file, severity, fix_suggestion, _raw: item };
-      const prompt = buildPrompt(partial);
+      const type: string =
+        item.type ?? item.issue_type ?? item.kind ?? key.replace(/s$/, '');  // e.g. "broken_flows" → "broken_flow"
+
+      const component: string =
+        item.component ?? item.service ?? item.module ?? '';
+
+      const path: string =
+        item.path ?? item.file ?? item.source_file ?? item.route ?? item.target ?? '';
+
+      const missing_field: string =
+        item.missing_field ?? item.missing_fields?.[0] ?? item.field ?? '';
+
+      const count: number =
+        typeof item.count === 'number' ? item.count :
+        typeof item.occurrences === 'number' ? item.occurrences : 1;
+
+      const partial = { _category: label, id, type, title, description, file, path, component, missing_field, severity, fix_suggestion, count, _raw: item };
+      const prompt = generateFixPrompt(partial);
 
       parsed.push({
         ...partial,
@@ -137,14 +213,40 @@ function SeverityBadge({ severity }: { severity: ParsedIssue['severity'] }) {
 
 // ── Detail Panel ──────────────────────────────────────────────────────────────
 
-function IssueDetailPanel({ issue, onClose }: { issue: ParsedIssue; onClose: () => void }) {
+function IssueDetailPanel({
+  issue,
+  onClose,
+  onAddToWorkbench,
+}: {
+  issue: ParsedIssue;
+  onClose: () => void;
+  onAddToWorkbench?: (issue: ParsedIssue) => Promise<void>;
+}) {
   const [copied, setCopied] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [addedMsg, setAddedMsg] = useState<string | null>(null);
 
   function copyPrompt() {
-    navigator.clipboard.writeText(issue.prompt).then(() => {
+    navigator.clipboard.writeText(generateFixPrompt(issue)).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
+  }
+
+  async function handleAddToWorkbench() {
+    if (!onAddToWorkbench) return;
+    setAdding(true);
+    setAddedMsg(null);
+    try {
+      await onAddToWorkbench(issue);
+      setAddedMsg('Added!');
+      setTimeout(() => setAddedMsg(null), 3000);
+    } catch {
+      setAddedMsg('Failed');
+      setTimeout(() => setAddedMsg(null), 3000);
+    } finally {
+      setAdding(false);
+    }
   }
 
   return (
@@ -218,9 +320,23 @@ function IssueDetailPanel({ issue, onClose }: { issue: ParsedIssue; onClose: () 
           </Button>
         </div>
         <pre className="text-[10px] font-mono bg-muted/40 border border-border rounded-md p-2 whitespace-pre-wrap break-words text-foreground overflow-auto max-h-[200px]">
-          {issue.prompt}
+          {generateFixPrompt(issue)}
         </pre>
       </section>
+
+      {/* Add to Workbench */}
+      {onAddToWorkbench && (
+        <Button
+          size="sm"
+          variant="secondary"
+          className="w-full h-7 text-[11px] gap-1.5"
+          onClick={handleAddToWorkbench}
+          disabled={adding}
+        >
+          <Inbox className="w-3 h-3" />
+          {addedMsg ?? (adding ? 'Adding…' : 'Add to Workbench')}
+        </Button>
+      )}
     </div>
   );
 }
@@ -237,6 +353,20 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
   const selectedIssue = issues.find(i => i._key === selectedKey) ?? null;
+
+  async function addWorkItem(issue: ParsedIssue) {
+    await createWorkItemWithDedup({
+      title: `[${issue._category}] ${issue.title}`.slice(0, 117) + (`[${issue._category}] ${issue.title}`.length > 117 ? '…' : ''),
+      description: `${generateFixPrompt(issue)}\n\nScan run: ${scanRunId ?? 'unknown'}`,
+      item_type: 'bug',
+      priority: issue.severity === 'critical' || issue.severity === 'high' ? 'high' : 'medium',
+      status: 'open',
+      source_type: 'scan',
+      source_id: scanRunId ?? 'scan_manual',
+      source_file: issue.path || issue.file || null,
+      source_component: issue.component || null,
+    });
+  }
 
   // ── Severity filter ──────────────────────────────────────────────────────────
   const [severityFilter, setSeverityFilter] = useState<ParsedIssue['severity'] | 'all'>('all');
@@ -318,7 +448,7 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
 
             {/* Detail panel */}
             {selectedIssue && (
-              <IssueDetailPanel issue={selectedIssue} onClose={() => setSelectedKey(null)} />
+              <IssueDetailPanel issue={selectedIssue} onClose={() => setSelectedKey(null)} onAddToWorkbench={addWorkItem} />
             )}
           </div>
         </>
