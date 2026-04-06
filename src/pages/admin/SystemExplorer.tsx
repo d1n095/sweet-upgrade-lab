@@ -13,7 +13,7 @@ import { Database, Activity, Bug, CheckCircle, AlertTriangle, Clock, Shield, Che
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import ReactMarkdown from "react-markdown";
-import { ScanControls } from "./system";
+import { ScanControls, IssueAnalysisPanel } from "./system";
 
 type WorkItem = {
   id: string;
@@ -173,7 +173,7 @@ const SystemExplorer = () => {
   const [aiAnswer, setAiAnswer] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiFocusArea, setAiFocusArea] = useState<string | null>(null);
-  const [mainTab, setMainTab] = useState<"system" | "files" | "patch" | "codeindex" | "backendscan">("system");
+  const [mainTab, setMainTab] = useState<"system" | "files" | "patch" | "codeindex" | "backendscan" | "analysis">("system");
   const [filesFilter, setFilesFilter] = useState<"all" | "orphan" | "has_issues">("all");
   const [selectedFile, setSelectedFile] = useState<FileEntry | null>(null);
   const [patchInput, setPatchInput] = useState("");
@@ -1163,6 +1163,9 @@ const SystemExplorer = () => {
           <button onClick={() => setMainTab("backendscan")} className={`px-3 py-1.5 text-xs font-medium rounded-t-md transition-colors ${mainTab === "backendscan" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"}`}>
             Backend Scan
           </button>
+          <button onClick={() => setMainTab("analysis")} className={`px-3 py-1.5 text-xs font-medium rounded-t-md transition-colors ${mainTab === "analysis" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"}`}>
+            Analysis
+          </button>
         </div>
 
         {/* BACKEND SCAN TAB */}
@@ -1315,6 +1318,14 @@ const SystemExplorer = () => {
             </div>
           );
         })()}
+
+        {/* CODE INDEX TAB */}
+        {mainTab === "analysis" && (
+          <IssueAnalysisPanel
+            scanRunId={(latestRun as any)?.id ?? null}
+            unifiedResult={(latestRun as any)?.unified_result ?? null}
+          />
+        )}
 
         {/* CODE INDEX TAB */}
         {mainTab === "codeindex" && (() => {
