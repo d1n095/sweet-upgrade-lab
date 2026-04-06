@@ -423,32 +423,18 @@ const SystemExplorer = () => {
     }
   };
 
-  // 2. Latest scan
-  const { data: latestScan, isLoading: scanLoading } = useQuery({
-    queryKey: ["system-explorer-latest-scan"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("ai_scan_results")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  // 2c. Last 3 scans for no-issue detection
+  // 2c. Last 3 scan runs for no-issue detection
   const { data: last3Scans = [] } = useQuery({
     queryKey: ["system-explorer-last-3-scans"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("ai_scan_results")
-        .select("results")
+        .from("scan_runs")
+        .select("unified_result")
+        .in("status", ["done", "completed"])
         .order("created_at", { ascending: false })
         .limit(3);
       if (error) throw error;
-      return (data || []) as any[];
+      return data || [];
     },
   });
 
@@ -506,7 +492,7 @@ const SystemExplorer = () => {
 
   const activeSnapshot = selectedSnapshotId ? scanSnapshots.find((s: any) => s.id === selectedSnapshotId) : null;
 
-  const unifiedResult = (latestRun as any)?.unified_result as Record<string, any> | null;
+  const unifiedResult = latestRun?.unified_result as Record<string, any> | null;
   const scanResults: Record<string, any> | null = unifiedResult
     ? {
         ...unifiedResult,
@@ -518,7 +504,7 @@ const SystemExplorer = () => {
         ],
       }
     : null;
-  const detectedIssues = scanResults?.issues?.length ?? scanResults?.master_list?.total ?? scanResults?.detected_issues?.length ?? (activeSnapshot ? activeSnapshot.total_detected : latestScan?.issues_count) ?? 0;
+  const detectedIssues = scanResults?.issues?.length ?? scanResults?.master_list?.total ?? scanResults?.detected_issues?.length ?? (activeSnapshot ? activeSnapshot.total_detected : 0) ?? 0;
 
   // Regression detection: compare last 2 snapshots
   const regressions = useMemo(() => {
@@ -604,22 +590,17 @@ const SystemExplorer = () => {
     // Collect all issue targets/names across last 3 scans
     const issuedTargets = new Set<string>();
     for (const scan of last3Scans) {
-      const res = scan.results as Record<string, any> | null;
+      const res = scan.unified_result as Record<string, any> | null;
       if (!res) continue;
-      const issues = (res.issues ?? res.master_list?.items ?? []) as any[];
+      const issues: any[] = [
+        ...(res.broken_flows || []),
+        ...(res.fake_features || []),
+        ...(res.interaction_failures || []),
+        ...(res.data_issues || []),
+      ];
       for (const issue of issues) {
         const targets = [issue.target, issue.component, issue.entity_name, issue.title, issue.category].filter(Boolean);
         for (const t of targets) issuedTargets.add(String(t).toLowerCase());
-      }
-      // Also check step_results for per-step issues
-      const steps = (res.step_results ?? res) as Record<string, any>;
-      for (const [, val] of Object.entries(steps)) {
-        if (Array.isArray(val?.issues)) {
-          for (const si of val.issues) {
-            const ts = [si.target, si.component, si.entity_name, si.title].filter(Boolean);
-            for (const t of ts) issuedTargets.add(String(t).toLowerCase());
-          }
-        }
       }
     }
     // Filter structure_map entities that are NOT in unscannedAreas AND have no issues
@@ -672,9 +653,14 @@ const SystemExplorer = () => {
     // Collect issue targets from last 3 scans (reuse logic)
     const issuedTargets = new Set<string>();
     for (const scan of last3Scans) {
-      const res = scan.results as Record<string, any> | null;
+      const res = scan.unified_result as Record<string, any> | null;
       if (!res) continue;
-      const issues = (res.issues ?? res.master_list?.items ?? []) as any[];
+      const issues: any[] = [
+        ...(res.broken_flows || []),
+        ...(res.fake_features || []),
+        ...(res.interaction_failures || []),
+        ...(res.data_issues || []),
+      ];
       for (const issue of issues) {
         [issue.target, issue.component, issue.entity_name, issue.title].filter(Boolean).forEach((t: any) => issuedTargets.add(String(t).toLowerCase()));
       }
@@ -751,26 +737,17 @@ const SystemExplorer = () => {
     const recentIssueTitles = new Set<string>();
     const scansToCheck = last3Scans.slice(0, 2);
     for (const scan of scansToCheck) {
-      const res = scan.results as Record<string, any> | null;
+      const res = scan.unified_result as Record<string, any> | null;
       if (!res) continue;
-      const issues = (res.issues ?? res.detected_issues ?? []) as any[];
+      const issues: any[] = [
+        ...(res.broken_flows || []),
+        ...(res.fake_features || []),
+        ...(res.interaction_failures || []),
+        ...(res.data_issues || []),
+      ];
       for (const issue of issues) {
         if (issue.fingerprint) recentIssueFingerprints.add(issue.fingerprint.toLowerCase());
         if (issue.title) recentIssueTitles.add(issue.title.toLowerCase().trim());
-      }
-      for (const [, val] of Object.entries(res)) {
-        if (Array.isArray(val)) {
-          for (const item of val) {
-            if (item?.fingerprint) recentIssueFingerprints.add(item.fingerprint.toLowerCase());
-            if (item?.title) recentIssueTitles.add(item.title.toLowerCase().trim());
-          }
-        }
-        if (val?.issues && Array.isArray(val.issues)) {
-          for (const item of val.issues) {
-            if (item?.fingerprint) recentIssueFingerprints.add(item.fingerprint.toLowerCase());
-            if (item?.title) recentIssueTitles.add(item.title.toLowerCase().trim());
-          }
-        }
       }
     }
     const flagged = new Set<string>();
@@ -2204,11 +2181,11 @@ const SystemExplorer = () => {
                 <div className="grid grid-cols-3 gap-2 text-sm">
                   <div>
                     <span className="text-muted-foreground text-xs">Scan ID</span>
-                    <p className="font-mono text-xs">{latestScan?.id?.slice(0, 8) ?? "–"}…</p>
+                    <p className="font-mono text-xs">{latestRun?.id?.slice(0, 8) ?? "–"}…</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground text-xs">Created</span>
-                    <p className="text-xs">{latestScan ? format(new Date(latestScan.created_at), "MM-dd HH:mm") : "–"}</p>
+                    <p className="text-xs">{latestRun ? format(new Date(latestRun.created_at ?? ''), "MM-dd HH:mm") : "–"}</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground text-xs">Detected</span>
@@ -2234,7 +2211,7 @@ const SystemExplorer = () => {
                     <div className="text-[10px] text-muted-foreground">Skipped (dedup)</div>
                   </div>
                   <div className="border border-border rounded-md p-2 text-center">
-                    <div className="text-lg font-bold">{latestRun?.work_items_created ?? latestScan?.tasks_created ?? 0}</div>
+                    <div className="text-lg font-bold">{latestRun?.work_items_created ?? 0}</div>
                     <div className="text-[10px] text-muted-foreground">Created Items</div>
                   </div>
                 </div>
@@ -2847,21 +2824,21 @@ const SystemExplorer = () => {
           </CardHeader>
           {expandedSections.scanResults && (
             <CardContent>
-              {scanLoading ? (
+              {latestRunLoading ? (
                 <p className="text-sm text-muted-foreground">Laddar...</p>
-              ) : latestScan ? (
+              ) : latestRun ? (
                 <div className="space-y-2 text-sm">
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                    <div><span className="text-muted-foreground">ID:</span> {latestScan.id.slice(0, 8)}…</div>
-                    <div><span className="text-muted-foreground">Typ:</span> {latestScan.scan_type}</div>
-                    <div><span className="text-muted-foreground">Score:</span> {latestScan.overall_score ?? "–"}</div>
-                    <div><span className="text-muted-foreground">Issues:</span> {latestScan.issues_count ?? 0}</div>
-                    <div><span className="text-muted-foreground">Tasks skapade:</span> {latestScan.tasks_created ?? 0}</div>
-                    <div><span className="text-muted-foreground">Status:</span> {latestScan.overall_status ?? "–"}</div>
-                    <div className="col-span-2"><span className="text-muted-foreground">Skapad:</span> {format(new Date(latestScan.created_at), "yyyy-MM-dd HH:mm")}</div>
+                    <div><span className="text-muted-foreground">ID:</span> {latestRun.id.slice(0, 8)}…</div>
+                    <div><span className="text-muted-foreground">Typ:</span> {latestRun.scan_mode ?? "full"}</div>
+                    <div><span className="text-muted-foreground">Score:</span> {latestRun.system_health_score ?? "–"}</div>
+                    <div><span className="text-muted-foreground">Issues:</span> {detectedIssues}</div>
+                    <div><span className="text-muted-foreground">Tasks skapade:</span> {latestRun.work_items_created ?? 0}</div>
+                    <div><span className="text-muted-foreground">Status:</span> {latestRun.status ?? "–"}</div>
+                    <div className="col-span-2"><span className="text-muted-foreground">Skapad:</span> {latestRun.created_at ? format(new Date(latestRun.created_at), "yyyy-MM-dd HH:mm") : "–"}</div>
                   </div>
-                  {latestScan.executive_summary && (
-                    <p className="text-muted-foreground border-t pt-2 mt-2">{latestScan.executive_summary}</p>
+                  {latestRun.executive_summary && (
+                    <p className="text-muted-foreground border-t pt-2 mt-2">{latestRun.executive_summary}</p>
                   )}
                   {/* High Attention Areas */}
                   {scanResults?.high_attention_areas?.length > 0 && (
