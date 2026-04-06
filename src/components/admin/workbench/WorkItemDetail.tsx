@@ -44,7 +44,6 @@ interface WorkItemDetailProps {
     resolution_notes?: string;
     ignored?: boolean;
     ignored_reason?: string;
-    ai_root_causes?: any;
     human_selected_cause?: string;
     human_custom_cause?: string;
     human_custom_fix?: string;
@@ -230,7 +229,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
       toast.success('Ignorerad ✓');
       onRefresh?.();
       onOpenChange(false);
-    } catch (e) { toast.error('Fel vid ignorering'); console.error(e); }
+    } catch (e) { toast.error('Fel vid ignorering'); }
     finally { setIgnoreSaving(false); }
   };
 
@@ -238,7 +237,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
     const { error } = await supabase.from('work_items').update({
       ignored: false, ignored_reason: null, ignored_at: null, status: 'open',
     } as any).eq('id', item.id);
-    if (error) { toast.error('Fel vid återöppning'); console.error(error); return; }
+    if (error) { toast.error('Fel vid återöppning'); return; }
     toast.success('Återöppnad');
     onRefresh?.();
   };
@@ -279,9 +278,9 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
   };
 
   const dt = fmtFull(item.created_at);
-  const reanalysis = (item.ai_root_causes as any)?.refined_diagnosis ? item.ai_root_causes as any : null;
-  const rootCauses = fixSuggestion?.root_causes || (item.ai_root_causes as any)?.root_causes || [];
-  const analysisSummary = reanalysis?.refined_diagnosis?.summary || fixSuggestion?.summary || (item.ai_root_causes as any)?.summary;
+  const reanalysis = ((item as any).ai_root_causes as any)?.refined_diagnosis ? (item as any).ai_root_causes as any : null;
+  const rootCauses = fixSuggestion?.root_causes || ((item as any).ai_root_causes as any)?.root_causes || [];
+  const analysisSummary = reanalysis?.refined_diagnosis?.summary || fixSuggestion?.summary || ((item as any).ai_root_causes as any)?.summary;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

@@ -56,8 +56,6 @@ interface WorkItem {
   conflict_flag?: boolean;
   execution_order?: number;
   orchestrator_result?: any;
-  ai_type_classification?: string;
-  ai_type_reason?: string;
   review_status?: string;
   review_result?: any;
   review_at?: string;
@@ -350,8 +348,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
       if (orphanIds.length > 0) {
         supabase.from('work_items' as any)
           .update({ status: 'cancelled', updated_at: new Date().toISOString() } as any)
-          .in('id', orphanIds)
-          .then(() => console.log(`[Workbench] Auto-cancelled ${orphanIds.length} orphan tasks`));
+          .in('id', orphanIds);
       }
     })();
 
@@ -383,7 +380,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     enabled: !!user?.id,
   });
 
-  const getClassification = (item: WorkItem) => item.ai_type_classification || (item.item_type === 'bug' ? 'bug' : null);
+  const getClassification = (item: WorkItem) => item.item_type === 'bug' ? 'bug' : null;
 
   const filteredItems = items.filter(t => {
     if (viewFilter === 'active') return !['done', 'cancelled'].includes(t.status);
@@ -532,7 +529,6 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
               traceContext: { component: 'WorkbenchBoard' },
             });
             if (!cvResult.success) throw new Error(cvResult.error || 'Insert failed');
-            console.log('CREATED ITEM:', cvResult.data);
             return { ...prev, item: cvResult.data };
           },
         },
@@ -564,7 +560,6 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
       toast.success(bestUser ? `Skapad & verifierad → tilldelad ${getStaffName(bestUser as string)}` : 'Skapad & verifierad ✓');
       setNewTitle(''); setNewDesc(''); setShowCreate(false);
     } else {
-      console.error('[WorkbenchBoard] CREATE FAILED at', result.failedStep, result.failReason);
       toast.error(`Kunde inte skapa: ${result.failReason}`);
     }
     setCreating(false);
@@ -825,8 +820,8 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
               <TypeIcon className="w-2.5 h-2.5" />
               {typeMeta.label}
             </Badge>
-            {item.ai_type_classification && AI_CLASSIFICATION_META[item.ai_type_classification] && (() => {
-              const cls = AI_CLASSIFICATION_META[item.ai_type_classification!];
+            {(item as any).ai_type_classification && AI_CLASSIFICATION_META[(item as any).ai_type_classification] && (() => {
+              const cls = AI_CLASSIFICATION_META[(item as any).ai_type_classification];
               const ClsIcon = cls.icon;
               return (
                 <Badge variant="outline" className={cn('text-[9px] gap-0.5', cls.color)}>

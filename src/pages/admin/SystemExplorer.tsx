@@ -24,7 +24,6 @@ type WorkItem = {
   created_by: string | null;
   item_type: string;
   priority: string;
-  ai_detected: boolean | null;
   created_at: string;
   issue_fingerprint: string | null;
   ignored: boolean | null;
@@ -284,7 +283,7 @@ const SystemExplorer = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("work_items")
-        .select("id, title, status, source_type, source_id, created_by, item_type, priority, ai_detected, created_at, issue_fingerprint, ignored, source_path, source_file, source_component, first_seen_at, last_seen_at, occurrence_count, verification_status, verification_scans_checked, verified_at")
+        .select("id, title, status, source_type, source_id, created_by, item_type, priority, created_at, issue_fingerprint, ignored, source_path, source_file, source_component, first_seen_at, last_seen_at, occurrence_count, verification_status, verification_scans_checked, verified_at")
         .order("created_at", { ascending: false })
         .limit(200);
       if (error) throw error;
@@ -537,7 +536,7 @@ const SystemExplorer = () => {
   const activeCount = workItems.filter((w) => w.status === "open" || w.status === "in_progress").length;
   const completedCount = workItems.filter((w) => w.status === "done" || w.status === "completed").length;
   const ignoredCount = workItems.filter((w) => w.ignored).length;
-  const scanSourceCount = workItems.filter((w) => w.source_type === "scan" || w.source_type === "ai_scan").length;
+  const scanSourceCount = workItems.filter((w) => w.source_type === "scan").length;
   const manualSourceCount = workItems.filter((w) => w.source_type === "manual").length;
 
   // Scan snapshots (last 10)
@@ -865,7 +864,7 @@ const SystemExplorer = () => {
   // Scanner stats derived from scan results — organized by module groups
   const groupedScannerStats = useMemo(() => {
     const rawIssues = (scanResults?.issues as any[] | undefined) ?? [];
-    const scanItems = workItems.filter(w => w.source_type === "scan" || w.source_type === "ai_scan" || w.source_type === "ai_detection");
+    const scanItems = workItems.filter(w => w.source_type === "scan");
 
     // Build a lookup: key → { raw issues, created count }
     const keyStats: Record<string, { raw: any[]; created: number }> = {};
