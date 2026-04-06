@@ -44,8 +44,8 @@ export const useWishlistStore = create<WishlistStore>()(
           try {
             await supabase.from('wishlists').insert({
               user_id: userId,
-              product_id: item.id,
-              product_handle: item.handle,
+              shopify_product_id: item.id,
+              shopify_product_handle: item.handle,
             });
           } catch (_) {}
         }
