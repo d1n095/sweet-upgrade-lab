@@ -1,6 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, Bug, CheckCircle, ChevronDown, ChevronRight, Copy, FileText, Inbox, Layers, X, Zap } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { createWorkItemWithDedup } from '@/utils/workItemDedup';
@@ -133,7 +132,53 @@ FIX OPTIONS:
   return lines.join('\n');
 }
 
-function parseIssues(unifiedResult: any): ParsedIssue[] {
+function deriveFixSteps(issue: ParsedIssue): string[] {
+  if (issue.fix_suggestion) {
+    const numbered = issue.fix_suggestion.match(/\d+\.\s+[^\n]+/g);
+    if (numbered && numbered.length > 0) {
+      return numbered.slice(0, 3).map(s => s.replace(/^\d+\.\s+/, '').trim());
+    }
+    const sentences = issue.fix_suggestion.split(/[.;]\s+/).map(s => s.trim()).filter(Boolean);
+    if (sentences.length > 0) return sentences.slice(0, 3);
+  }
+
+  if (issue.type === 'missing_field' && issue.missing_field) {
+    return [
+      `Add "${issue.missing_field}" to the query or API response in ${issue.component || issue.file || 'the source'}`,
+      `Update the TypeScript type to include "${issue.missing_field}"`,
+      'Re-run scan to confirm the issue is resolved',
+    ];
+  }
+  if (issue.type === 'orphan_file') {
+    return [
+      `Check if ${issue.file || 'this file'} is needed anywhere in the codebase`,
+      'Import it in the correct module, or delete if unused',
+      'Re-run scan to confirm',
+    ];
+  }
+
+  return [
+    `Review ${issue.component || issue.file || 'the affected component'}`,
+    issue.description || 'Trace the data flow and restore expected behaviour',
+    'Re-run scan to confirm the issue is resolved',
+  ].filter(Boolean).slice(0, 3) as string[];
+}
+
+function deriveConsequence(issue: ParsedIssue): string {
+  if (issue._raw?.reason) return issue._raw.reason;
+  if (issue._raw?.why) return issue._raw.why;
+  if (issue._raw?.impact) return issue._raw.impact;
+  const map: Record<string, string> = {
+    missing_field: 'Downstream logic that depends on this field will break or return incorrect data.',
+    orphan_file: 'Dead code accumulates and may be confused with active code during future changes.',
+    broken_flow: 'This workflow path will fail for affected users.',
+    fake_feature: 'Users will interact with a feature that has no real implementation behind it.',
+    interaction_failure: 'UI interactions will fail silently or produce unexpected results.',
+  };
+  return map[issue.type] ?? 'Leaving this unresolved may cause further instability.';
+}
+
+
   if (!unifiedResult || typeof unifiedResult !== 'object') return [];
 
   const CATEGORY_KEYS: Array<{ key: string; label: string }> = [
@@ -339,36 +384,45 @@ function IssueDetailPanel({
   issue,
   onClose,
   onAddToWorkbench,
+  isFixed = false,
+  highlightFix = false,
 }: {
   issue: ParsedIssue;
   onClose: () => void;
   onAddToWorkbench?: (issue: ParsedIssue) => Promise<void>;
+  isFixed?: boolean;
+  highlightFix?: boolean;
 }) {
-  const [copied, setCopied] = useState(false);
   const [adding, setAdding] = useState(false);
-  const [addedMsg, setAddedMsg] = useState<string | null>(null);
+  const [showFile, setShowFile] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const fixRef = useRef<HTMLDivElement>(null);
+
+  const steps = useMemo(() => deriveFixSteps(issue), [issue]);
+  const consequence = useMemo(() => deriveConsequence(issue), [issue]);
+
+  // Scroll fix steps into view when CTA highlights them
+  useEffect(() => {
+    if (highlightFix && fixRef.current) {
+      fixRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [highlightFix]);
+
+  async function handleAddToWorkbench() {
+    if (!onAddToWorkbench || isFixed) return;
+    setAdding(true);
+    try {
+      await onAddToWorkbench(issue);
+    } finally {
+      setAdding(false);
+    }
+  }
 
   function copyPrompt() {
     navigator.clipboard.writeText(generateFixPrompt(issue)).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
-  }
-
-  async function handleAddToWorkbench() {
-    if (!onAddToWorkbench) return;
-    setAdding(true);
-    setAddedMsg(null);
-    try {
-      await onAddToWorkbench(issue);
-      setAddedMsg('Added!');
-      setTimeout(() => setAddedMsg(null), 3000);
-    } catch {
-      setAddedMsg('Failed');
-      setTimeout(() => setAddedMsg(null), 3000);
-    } finally {
-      setAdding(false);
-    }
   }
 
   return (
@@ -378,7 +432,11 @@ function IssueDetailPanel({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <SeverityBadge severity={issue.severity} />
-            <Badge variant="outline" className="text-[9px]">{issue._category}</Badge>
+            {isFixed && (
+              <span className="text-[10px] font-medium text-green-500 flex items-center gap-1">
+                <CheckCircle className="w-3 h-3" /> In progress
+              </span>
+            )}
           </div>
           <h3 className="font-semibold text-foreground mt-1 break-words">{issue.title}</h3>
         </div>
@@ -387,78 +445,79 @@ function IssueDetailPanel({
         </button>
       </div>
 
-      {/* Description */}
-      {issue.description ? (
-        <section className="space-y-1">
-          <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Description</p>
-          <p className="text-xs text-foreground leading-relaxed">{issue.description}</p>
-        </section>
-      ) : null}
-
-      {/* Why it's a problem */}
+      {/* What happens if ignored */}
       <section className="space-y-1">
         <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide flex items-center gap-1">
-          <AlertTriangle className="w-3 h-3" /> Why it's a problem
+          <AlertTriangle className="w-3 h-3" /> If ignored
         </p>
-        <p className="text-xs text-foreground leading-relaxed">
-          {issue._raw?.reason ?? issue._raw?.why ?? issue._raw?.root_cause ?? issue.description ?? '(no root cause information available)'}
-        </p>
+        <p className="text-xs text-foreground leading-relaxed">{consequence}</p>
       </section>
 
-      {/* Affected file */}
-      {issue.file ? (
+      {/* Fix steps */}
+      <section
+        ref={fixRef}
+        className={cn(
+          'space-y-2 rounded-lg p-3 transition-colors',
+          highlightFix ? 'bg-primary/10 border border-primary/30' : 'bg-muted/20',
+        )}
+      >
+        <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide flex items-center gap-1">
+          <CheckCircle className="w-3 h-3 text-green-500" /> How to fix
+        </p>
+        <ol className="space-y-1.5 list-none">
+          {steps.map((step, i) => (
+            <li key={i} className="flex items-start gap-2 text-xs text-foreground">
+              <span className="shrink-0 w-4 h-4 rounded-full bg-primary/20 text-primary text-[9px] font-bold flex items-center justify-center mt-0.5">
+                {i + 1}
+              </span>
+              <span className="leading-relaxed">{step}</span>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      {/* File path — collapsible */}
+      {issue.file && (
         <section className="space-y-1">
-          <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide flex items-center gap-1">
-            <FileText className="w-3 h-3" /> Affected file
-          </p>
-          <code className="text-[11px] font-mono bg-muted/40 border border-border rounded px-2 py-1 block break-all text-foreground">
-            {issue.file}
-          </code>
-          {(issue._raw?.line ?? issue._raw?.line_number) && (
-            <p className="text-[10px] text-muted-foreground">Line: {issue._raw.line ?? issue._raw.line_number}</p>
+          <button
+            className="text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+            onClick={() => setShowFile(v => !v)}
+          >
+            <FileText className="w-3 h-3" />
+            {showFile ? 'Hide file path' : 'Show file path'}
+            {showFile ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+          </button>
+          {showFile && (
+            <code className="text-[11px] font-mono bg-muted/40 border border-border rounded px-2 py-1 block break-all text-foreground">
+              {issue.file}
+            </code>
           )}
         </section>
-      ) : null}
-
-      {/* Fix suggestion */}
-      {issue.fix_suggestion ? (
-        <section className="space-y-1">
-          <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide flex items-center gap-1">
-            <CheckCircle className="w-3 h-3 text-green-500" /> Fix suggestion
-          </p>
-          <p className="text-xs text-foreground leading-relaxed">{issue.fix_suggestion}</p>
-        </section>
-      ) : null}
-
-      {/* Generated prompt */}
-      <section className="space-y-1">
-        <div className="flex items-center justify-between">
-          <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide flex items-center gap-1">
-            <Zap className="w-3 h-3 text-yellow-400" /> Generated prompt
-          </p>
-          <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1" onClick={copyPrompt}>
-            <Copy className="w-3 h-3" />
-            {copied ? 'Copied!' : 'Copy'}
-          </Button>
-        </div>
-        <pre className="text-[10px] font-mono bg-muted/40 border border-border rounded-md p-2 whitespace-pre-wrap break-words text-foreground overflow-auto max-h-[200px]">
-          {generateFixPrompt(issue)}
-        </pre>
-      </section>
-
-      {/* Add to Workbench */}
-      {onAddToWorkbench && (
-        <Button
-          size="sm"
-          variant="secondary"
-          className="w-full h-7 text-[11px] gap-1.5"
-          onClick={handleAddToWorkbench}
-          disabled={adding}
-        >
-          <Inbox className="w-3 h-3" />
-          {addedMsg ?? (adding ? 'Adding…' : 'Add to Workbench')}
-        </Button>
       )}
+
+      {/* Actions */}
+      <div className="flex gap-2">
+        {onAddToWorkbench && !isFixed && (
+          <Button
+            size="sm"
+            className="flex-1 gap-1.5"
+            onClick={handleAddToWorkbench}
+            disabled={adding}
+          >
+            <Inbox className="w-3 h-3" />
+            {adding ? 'Adding…' : 'Add to Workbench'}
+          </Button>
+        )}
+        {isFixed && (
+          <div className="flex-1 flex items-center justify-center gap-1.5 text-sm text-green-500 font-medium py-1.5 rounded-md border border-green-500/30 bg-green-500/10">
+            <CheckCircle className="w-4 h-4" /> In progress
+          </div>
+        )}
+        <Button variant="outline" size="sm" className="gap-1 px-3" onClick={copyPrompt}>
+          <Copy className="w-3 h-3" />
+          {copied ? 'Copied!' : 'Copy prompt'}
+        </Button>
+      </div>
     </div>
   );
 }
@@ -469,26 +528,39 @@ function RootCauseCard({
   group,
   selectedKey,
   onSelectIssue,
+  onFixCTA,
   isTop = false,
+  fixedKeys,
 }: {
   group: RootCauseGroup;
   selectedKey: string | null;
   onSelectIssue: (key: string) => void;
+  onFixCTA?: (key: string) => void;
   isTop?: boolean;
+  fixedKeys: Set<string>;
 }) {
   const [expanded, setExpanded] = useState(isTop);
 
+  const allFixed = group.symptoms.length > 0 && group.symptoms.every(s => fixedKeys.has(s._key));
+
   function handleFixClick(e: React.MouseEvent) {
     e.stopPropagation();
-    const first = group.symptoms[0];
+    const first = group.symptoms.find(s => !fixedKeys.has(s._key)) ?? group.symptoms[0];
     if (first) {
       setExpanded(true);
-      onSelectIssue(first._key);
+      if (onFixCTA) {
+        onFixCTA(first._key);
+      } else {
+        onSelectIssue(first._key);
+      }
     }
   }
 
   return (
-    <div className={cn('border rounded-lg transition-colors', severityColor(group.severity))}>
+    <div className={cn(
+      'border rounded-lg transition-all',
+      allFixed ? 'opacity-50 border-border bg-muted/10' : severityColor(group.severity),
+    )}>
       {/* Group header */}
       <button
         className="w-full text-left px-3 py-3 flex items-start gap-2"
@@ -497,7 +569,10 @@ function RootCauseCard({
         <Layers className="w-3.5 h-3.5 mt-0.5 shrink-0 opacity-70" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <SeverityBadge severity={group.severity} />
+            {allFixed
+              ? <span className="text-[10px] font-medium text-green-500 flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Done</span>
+              : <SeverityBadge severity={group.severity} />
+            }
             <span className="text-[9px] opacity-60">
               {group.symptoms.length} issue{group.symptoms.length !== 1 ? 's' : ''}
               {group.total_impact > group.symptoms.length ? ` · ${group.total_impact} occurrences` : ''}
@@ -513,7 +588,7 @@ function RootCauseCard({
       </button>
 
       {/* Top-group CTA */}
-      {isTop && (
+      {isTop && !allFixed && (
         <div className="px-3 pb-3">
           <Button
             className="w-full gap-2"
@@ -529,27 +604,36 @@ function RootCauseCard({
       {/* Symptom list */}
       {expanded && (
         <div className="border-t border-current/10 divide-y divide-current/10">
-          {group.symptoms.map(issue => (
-            <button
-              key={issue._key}
-              onClick={() => onSelectIssue(issue._key)}
-              className={cn(
-                'w-full text-left px-4 py-2 flex items-start gap-2 transition-colors',
-                selectedKey === issue._key
-                  ? 'bg-primary/10'
-                  : 'hover:bg-muted/30',
-              )}
-            >
-              <Bug className="w-3 h-3 mt-0.5 shrink-0 opacity-50" />
-              <div className="flex-1 min-w-0">
-                <p className="text-[11px] font-medium text-foreground truncate">{issue.title}</p>
-                {issue.file && (
-                  <p className="text-[9px] font-mono text-muted-foreground truncate">{issue.file}</p>
+          {group.symptoms.map(issue => {
+            const fixed = fixedKeys.has(issue._key);
+            return (
+              <button
+                key={issue._key}
+                onClick={() => onSelectIssue(issue._key)}
+                className={cn(
+                  'w-full text-left px-4 py-2 flex items-start gap-2 transition-colors',
+                  selectedKey === issue._key
+                    ? 'bg-primary/10'
+                    : 'hover:bg-muted/30',
+                  fixed && 'opacity-50',
                 )}
-              </div>
-              <ChevronRight className={cn('w-3 h-3 shrink-0 mt-0.5 text-muted-foreground transition-transform', selectedKey === issue._key && 'rotate-90')} />
-            </button>
-          ))}
+              >
+                {fixed
+                  ? <CheckCircle className="w-3 h-3 mt-0.5 shrink-0 text-green-500" />
+                  : <Bug className="w-3 h-3 mt-0.5 shrink-0 opacity-50" />
+                }
+                <div className="flex-1 min-w-0">
+                  <p className={cn('text-[11px] font-medium truncate', fixed ? 'line-through text-muted-foreground' : 'text-foreground')}>
+                    {issue.title}
+                  </p>
+                </div>
+                {fixed
+                  ? <span className="text-[9px] text-green-500 font-medium shrink-0">In progress</span>
+                  : <ChevronRight className={cn('w-3 h-3 shrink-0 mt-0.5 text-muted-foreground transition-transform', selectedKey === issue._key && 'rotate-90')} />
+                }
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
@@ -568,14 +652,34 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
   const groups = useMemo(() => groupByRootCause(issues), [issues]);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const [fixedKeys, setFixedKeys] = useState<Set<string>>(new Set());
+  const [highlightFixKey, setHighlightFixKey] = useState<string | null>(null);
+
+  const detailRef = useRef<HTMLDivElement>(null);
 
   const selectedIssue = issues.find(i => i._key === selectedKey) ?? null;
-
   const hasCritical = groups.some(g => g.severity === 'critical');
 
   const topGroup   = groups[0] ?? null;
   const nextGroups = groups.slice(1, 3);
   const restGroups = groups.slice(3);
+
+  // Progress counts
+  const totalIssues = issues.length;
+  const addressedCount = fixedKeys.size;
+  const criticalIssues = groups.filter(g => g.severity === 'critical').flatMap(g => g.symptoms);
+  const criticalFixed  = criticalIssues.filter(i => fixedKeys.has(i._key)).length;
+
+  // Auto-scroll detail panel into view when issue selected
+  useEffect(() => {
+    if (selectedKey && detailRef.current) {
+      detailRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [selectedKey]);
+
+  const markFixed = useCallback((key: string) => {
+    setFixedKeys(prev => new Set([...prev, key]));
+  }, []);
 
   async function addWorkItem(issue: ParsedIssue) {
     await createWorkItemWithDedup({
@@ -589,10 +693,17 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
       source_file: issue.path || issue.file || null,
       source_component: issue.component || null,
     });
+    markFixed(issue._key);
   }
 
   function selectIssue(key: string) {
+    setHighlightFixKey(null);
     setSelectedKey(prev => prev === key ? null : key);
+  }
+
+  function handleFixCTA(key: string) {
+    setSelectedKey(key);
+    setHighlightFixKey(key);
   }
 
   return (
@@ -613,17 +724,27 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
         <>
           {/* Status banner */}
           <div className={cn(
-            'rounded-lg px-4 py-3 flex items-center gap-3',
+            'rounded-lg px-4 py-3 flex items-center justify-between gap-3',
             hasCritical
               ? 'bg-red-500/10 border border-red-500/30 text-red-500'
               : 'bg-green-500/10 border border-green-500/30 text-green-600',
           )}>
-            <AlertTriangle className="w-4 h-4 shrink-0" />
-            <p className="text-sm font-medium">
-              {hasCritical
-                ? 'Your system has a critical issue affecting core functionality'
-                : 'System is functional but can be improved'}
-            </p>
+            <div className="flex items-center gap-3 min-w-0">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <p className="text-sm font-medium">
+                {hasCritical
+                  ? 'Your system has a critical issue affecting core functionality'
+                  : 'System is functional but can be improved'}
+              </p>
+            </div>
+            {/* Progress indicator */}
+            {addressedCount > 0 && (
+              <span className="shrink-0 text-[11px] font-medium text-green-500 whitespace-nowrap">
+                {criticalIssues.length > 0
+                  ? `${criticalFixed} of ${criticalIssues.length} critical fixed`
+                  : `${addressedCount} of ${totalIssues} addressed`}
+              </span>
+            )}
           </div>
 
           <div className={cn('grid gap-4', selectedIssue ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1')}>
@@ -638,8 +759,13 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
                   <RootCauseCard
                     group={topGroup}
                     selectedKey={selectedKey}
-                    onSelectIssue={selectIssue}
+                    onSelectIssue={key => {
+                      setHighlightFixKey(null);
+                      setSelectedKey(prev => prev === key ? null : key);
+                    }}
+                    onFixCTA={handleFixCTA}
                     isTop
+                    fixedKeys={fixedKeys}
                   />
                 </div>
               )}
@@ -656,6 +782,7 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
                       group={group}
                       selectedKey={selectedKey}
                       onSelectIssue={selectIssue}
+                      fixedKeys={fixedKeys}
                     />
                   ))}
                 </div>
@@ -670,6 +797,7 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
                       group={group}
                       selectedKey={selectedKey}
                       onSelectIssue={selectIssue}
+                      fixedKeys={fixedKeys}
                     />
                   ))}
                   <button
@@ -684,11 +812,15 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
 
             {/* Detail panel */}
             {selectedIssue && (
-              <IssueDetailPanel
-                issue={selectedIssue}
-                onClose={() => setSelectedKey(null)}
-                onAddToWorkbench={addWorkItem}
-              />
+              <div ref={detailRef}>
+                <IssueDetailPanel
+                  issue={selectedIssue}
+                  onClose={() => { setSelectedKey(null); setHighlightFixKey(null); }}
+                  onAddToWorkbench={addWorkItem}
+                  isFixed={fixedKeys.has(selectedIssue._key)}
+                  highlightFix={highlightFixKey === selectedIssue._key}
+                />
+              </div>
             )}
           </div>
         </>
