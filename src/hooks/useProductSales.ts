@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/context/LanguageContext';
 
 interface ProductSale {
-  shopify_product_id: string;
+  product_id: string;
   total_quantity_sold: number;
   product_title: string;
 }
