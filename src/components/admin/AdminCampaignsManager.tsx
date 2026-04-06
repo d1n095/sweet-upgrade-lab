@@ -724,7 +724,7 @@ const BundlesTab = () => {
       await supabase.from('bundle_items').delete().eq('bundle_id', editingBundle.id);
       if (selectedProducts.length > 0) {
         await supabase.from('bundle_items').insert(
-          selectedProducts.map(sp => ({ bundle_id: editingBundle.id, shopify_product_id: sp.productId, quantity: sp.quantity }))
+          selectedProducts.map(sp => ({ bundle_id: editingBundle.id, product_id: sp.productId, quantity: sp.quantity }))
         );
       }
       toast.success('Paket uppdaterat');
