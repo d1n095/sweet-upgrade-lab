@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
-import { startScanJob, loadLatestScanRun, onScanComplete } from '@/lib/scanEngine';
-import type { ScanStep, ScanResult } from '@/lib/scanEngine';
+import { startScanJob, loadLatestScanRun, onScanComplete, type ScanStep, type ScanResult } from '@/lib/scanEngine';
 
 export type { ScanStep, ScanResult };
 
@@ -48,7 +47,6 @@ export function useScanRunner() {
     return onScanComplete((result) => {
       setState({ running: false, steps: result.steps, lastResult: result, scanRunId: result.scanRunId, startedAt: result.startedAt ?? null, completedAt: result.completedAt ?? null });
       const score = result.systemHealthScore;
-      console.log(`[scan] id=${result.scanRunId} completed_at=${result.completedAt} issues=${result.workItemsCreated}`);
       toast.success(`Skanning klar — ${score}/100 — ${result.workItemsCreated} nya uppgifter`, { duration: 6000 });
       for (const key of ['admin-scan-results', 'admin-work-items', 'admin-bugs', 'mini-workbench-items', 'scan-history', 'work-items', 'system-explorer-latest-run', 'system-explorer-latest-scan', 'backend-scan-latest']) {
         queryClient.invalidateQueries({ queryKey: [key] });

@@ -161,10 +161,11 @@ export async function startScanJob(options?: StartScanOptions): Promise<string> 
 
   const { data, error } = await safeInvoke<{ scan_run_id?: string; error?: string }>('run-full-scan', {
     body: { action: 'start' },
+    isAdmin: true,
   });
 
   if (error) {
-    throw new Error(error?.message ?? 'Kunde inte starta skanning');
+    throw new Error(error?.message || (error as any)?.error || 'Kunde inte starta skanning');
   }
 
   const scanRunId = data?.scan_run_id;

@@ -160,6 +160,7 @@ const App = () => (
                 <Route path="warehouse" element={<ScanPackingMode />} />
                 <Route path="system-explorer" element={<SystemExplorer />} />
                 <Route path="debug" element={<AdminDebug />} />
+                <Route path="ai" element={<Navigate to="/admin/system-explorer" replace />} />
                 <Route path="security" element={<AdminSecurity />} />
               </Route>
 

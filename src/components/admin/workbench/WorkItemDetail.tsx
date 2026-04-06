@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Sparkles, Tag, Copy, Loader2 as Loader2Icon, EyeOff, RotateCcw, PenLine, ChevronDown, ChevronUp } from 'lucide-react';
+import {
+  Sparkles, Tag, Copy, Loader2 as Loader2Icon, EyeOff, RotateCcw, PenLine, ChevronDown, ChevronUp,
+  Bug, ShieldAlert, Package, Clock, User, MapPin, FileText, AlertCircle,
+  CheckCircle2, Loader2, ExternalLink, Wrench, Bot,
+} from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -11,10 +15,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
-import {
-  Bug, ShieldAlert, Package, Clock, User, MapPin, FileText, AlertCircle,
-  CheckCircle2, Loader2, ExternalLink, Wrench, Bot,
-} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { toast } from 'sonner';

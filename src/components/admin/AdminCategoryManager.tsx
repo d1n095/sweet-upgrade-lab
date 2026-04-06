@@ -1,10 +1,12 @@
-import { useState, useMemo } from 'react';
-import { useLanguage } from '@/context/LanguageContext';
+import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
   Grid, Plus, Eye, EyeOff, Trash2, Loader2, Save, ChevronRight, ChevronDown,
   Cpu, Shirt, Droplets, Flame, Sparkles, Gem, Bed, Tag, Leaf, GripVertical, Pencil,
+  Wand2, CheckCircle, AlertTriangle, Info, XCircle, ShieldCheck, type LucideIcon,
 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useLanguage } from '@/context/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,7 +27,6 @@ import {
   fetchCategories, buildCategoryTree, createCategory, updateCategory, deleteCategory,
   DbCategory,
 } from '@/lib/categories';
-import type { LucideIcon } from 'lucide-react';
 
 const iconMap: Record<string, LucideIcon> = {
   Cpu, Shirt, Droplets, Flame, Sparkles, Gem, Bed, Grid, Tag, Leaf,
@@ -243,173 +244,18 @@ const content: Record<string, {
 
 const AdminCategoryManager = () => {
   const { language } = useLanguage();
+  const c = content[language] ?? content['sv'];
   const queryClient = useQueryClient();
   const [isAddOpen, setIsAddOpen] = useState(false);
-
-  const content: Record<string, {
-    title: string;
-    subtitle: string;
-    newCategory: string;
-    editCategory: string;
-    nameSv: string;
-    nameEn: string;
-    slug: string;
-    icon: string;
-    parentCategory: string;
-    noParent: string;
-    cancel: string;
-    create: string;
-    update: string;
-    noCategories: string;
-    visible: string;
-    hidden: string;
-    deleteTitle: string;
-    deleteConfirm: string;
-    deleteButton: string;
-    created: string;
-    updated: string;
-    deleted: string;
-    error: string;
-    subcategories: string;
-  }> = {
-    sv: {
-      title: 'Kategorihantering',
-      subtitle: 'kategorier',
-      newCategory: 'Ny kategori',
-      editCategory: 'Redigera kategori',
-      nameSv: 'Namn (svenska) *',
-      nameEn: 'Namn (engelska)',
-      slug: 'Slug',
-      icon: 'Ikon',
-      parentCategory: 'Förälder-kategori',
-      noParent: 'Ingen (toppnivå)',
-      cancel: 'Avbryt',
-      create: 'Skapa',
-      update: 'Uppdatera',
-      noCategories: 'Inga kategorier ännu',
-      visible: 'Synlig',
-      hidden: 'Dold',
-      deleteTitle: 'Ta bort kategori?',
-      deleteConfirm: 'tas bort. Underkategorier flyttas till toppnivå. Produktkopplingar tas bort.',
-      deleteButton: 'Ta bort',
-      created: 'Kategori skapad!',
-      updated: 'Kategori uppdaterad!',
-      deleted: 'Kategori borttagen!',
-      error: 'Fel: ',
-      subcategories: 'under',
-    },
-    en: {
-      title: 'Category Management',
-      subtitle: 'categories',
-      newCategory: 'New category',
-      editCategory: 'Edit category',
-      nameSv: 'Name (Swedish) *',
-      nameEn: 'Name (English)',
-      slug: 'Slug',
-      icon: 'Icon',
-      parentCategory: 'Parent category',
-      noParent: 'None (top level)',
-      cancel: 'Cancel',
-      create: 'Create',
-      update: 'Update',
-      noCategories: 'No categories yet',
-      visible: 'Visible',
-      hidden: 'Hidden',
-      deleteTitle: 'Delete category?',
-      deleteConfirm: 'will be deleted. Subcategories are moved to top level. Product links are removed.',
-      deleteButton: 'Delete',
-      created: 'Category created!',
-      updated: 'Category updated!',
-      deleted: 'Category deleted!',
-      error: 'Error: ',
-      subcategories: 'sub',
-    },
-    no: {
-      title: 'Kategorihåndtering',
-      subtitle: 'kategorier',
-      newCategory: 'Ny kategori',
-      editCategory: 'Rediger kategori',
-      nameSv: 'Navn (svensk) *',
-      nameEn: 'Navn (engelsk)',
-      slug: 'Slug',
-      icon: 'Ikon',
-      parentCategory: 'Overordnet kategori',
-      noParent: 'Ingen (toppnivå)',
-      cancel: 'Avbryt',
-      create: 'Opprett',
-      update: 'Oppdater',
-      noCategories: 'Ingen kategorier ennå',
-      visible: 'Synlig',
-      hidden: 'Skjult',
-      deleteTitle: 'Slett kategori?',
-      deleteConfirm: 'slettes. Underkategorier flyttes til toppnivå. Produktkoblinger fjernes.',
-      deleteButton: 'Slett',
-      created: 'Kategori opprettet!',
-      updated: 'Kategori oppdatert!',
-      deleted: 'Kategori slettet!',
-      error: 'Feil: ',
-      subcategories: 'under',
-    },
-    da: {
-      title: 'Kategoristyring',
-      subtitle: 'kategorier',
-      newCategory: 'Ny kategori',
-      editCategory: 'Rediger kategori',
-      nameSv: 'Navn (svensk) *',
-      nameEn: 'Navn (engelsk)',
-      slug: 'Slug',
-      icon: 'Ikon',
-      parentCategory: 'Overordnet kategori',
-      noParent: 'Ingen (topniveau)',
-      cancel: 'Annuller',
-      create: 'Opret',
-      update: 'Opdater',
-      noCategories: 'Ingen kategorier endnu',
-      visible: 'Synlig',
-      hidden: 'Skjult',
-      deleteTitle: 'Slet kategori?',
-      deleteConfirm: 'slettes. Underkategorier flyttes til topniveau. Produktlinks fjernes.',
-      deleteButton: 'Slet',
-      created: 'Kategori oprettet!',
-      updated: 'Kategori opdateret!',
-      deleted: 'Kategori slettet!',
-      error: 'Fejl: ',
-      subcategories: 'under',
-    },
-    de: {
-      title: 'Kategorieverwaltung',
-      subtitle: 'Kategorien',
-      newCategory: 'Neue Kategorie',
-      editCategory: 'Kategorie bearbeiten',
-      nameSv: 'Name (Schwedisch) *',
-      nameEn: 'Name (Englisch)',
-      slug: 'Slug',
-      icon: 'Symbol',
-      parentCategory: 'Übergeordnete Kategorie',
-      noParent: 'Keine (oberste Ebene)',
-      cancel: 'Abbrechen',
-      create: 'Erstellen',
-      update: 'Aktualisieren',
-      noCategories: 'Noch keine Kategorien',
-      visible: 'Sichtbar',
-      hidden: 'Ausgeblendet',
-      deleteTitle: 'Kategorie löschen?',
-      deleteConfirm: 'wird gelöscht. Unterkategorien werden auf oberste Ebene verschoben. Produktverknüpfungen werden entfernt.',
-      deleteButton: 'Löschen',
-      created: 'Kategorie erstellt!',
-      updated: 'Kategorie aktualisiert!',
-      deleted: 'Kategorie gelöscht!',
-      error: 'Fehler: ',
-      subcategories: 'unter',
-    },
-  };
-
-  const t = content[language as keyof typeof content] || content.en;
   const [editingCat, setEditingCat] = useState<DbCategory | null>(null);
   const [deletingCat, setDeletingCat] = useState<DbCategory | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [form, setForm] = useState({ name_sv: '', name_en: '', slug: '', icon: 'Tag', parent_id: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [aiSyncing, setAiSyncing] = useState(false);
+  const [aiResult, setAiResult] = useState<any>(null);
+  const [aiValidating, setAiValidating] = useState(false);
+  const [validationResult, setValidationResult] = useState<any>(null);
 
   const { data: categories = [], isLoading } = useQuery({
     queryKey: ['admin-categories'],
@@ -448,12 +294,12 @@ const AdminCategoryManager = () => {
         display_order: categories.length,
         is_visible: true,
       });
-      toast.success(t.created);
+      toast.success(c.categoryCreated);
       queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
       setIsAddOpen(false);
       resetForm();
     } catch (err: any) {
-      toast.error(t.error + (err?.message || ''));
+      toast.error(c.error + ': ' + (err?.message || ''));
     } finally {
       setIsSubmitting(false);
     }
@@ -470,12 +316,12 @@ const AdminCategoryManager = () => {
         icon: form.icon || editingCat.icon,
         parent_id: form.parent_id || null,
       });
-      toast.success(t.updated);
+      toast.success(c.categoryUpdated);
       queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
       setEditingCat(null);
       resetForm();
     } catch (err: any) {
-      toast.error(t.error + (err?.message || ''));
+      toast.error(c.error + ': ' + (err?.message || ''));
     } finally {
       setIsSubmitting(false);
     }
@@ -485,10 +331,10 @@ const AdminCategoryManager = () => {
     if (!deletingCat) return;
     try {
       await deleteCategory(deletingCat.id);
-      toast.success(t.deleted);
+      toast.success(c.categoryDeleted);
       queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
     } catch (err: any) {
-      toast.error(t.error + (err?.message || ''));
+      toast.error(c.error + ': ' + (err?.message || ''));
     } finally {
       setDeletingCat(null);
     }
@@ -498,9 +344,9 @@ const AdminCategoryManager = () => {
     try {
       await updateCategory(cat.id, { is_visible: !cat.is_visible });
       queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
-      toast.success(cat.is_visible ? t.hidden : t.visible);
+      toast.success(cat.is_visible ? c.categoryHidden : c.categoryVisible);
     } catch (err: any) {
-      toast.error(t.error + (err?.message || ''));
+      toast.error(c.error + ': ' + (err?.message || ''));
     }
   };
 
@@ -513,6 +359,44 @@ const AdminCategoryManager = () => {
       parent_id: cat.parent_id || '',
     });
     setEditingCat(cat);
+  };
+  const runAiSync = async () => {
+    // AI permanently removed
+    toast.info('AI-synk är borttagen');
+  };
+
+  const acceptPendingSuggestion = async (suggestion: any) => {
+    try {
+      const categories_list = categories;
+      let parentId = null;
+      if (suggestion.parent_slug && suggestion.parent_slug !== 'root') {
+        const parent = categories_list.find(c => c.slug === suggestion.parent_slug);
+        if (parent) parentId = parent.id;
+      }
+      const maxOrder = Math.max(0, ...categories_list.map(c => c.display_order || 0));
+      await createCategory({
+        name_sv: suggestion.name_sv,
+        name_en: suggestion.name_en,
+        slug: suggestion.slug,
+        icon: suggestion.icon,
+        parent_id: parentId,
+        display_order: maxOrder + 1,
+        is_visible: true,
+      });
+      toast.success(`"${suggestion.name_sv}" skapad!`);
+      queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
+      setAiResult((prev: any) => prev ? {
+        ...prev,
+        pending_review: (prev.pending_review || []).filter((s: any) => s.slug !== suggestion.slug),
+      } : prev);
+    } catch (err: any) {
+      toast.error('Kunde inte skapa: ' + (err?.message || ''));
+    }
+  };
+
+  const runAiValidate = async () => {
+    // AI permanently removed
+    toast.info('AI-validering är borttagen');
   };
 
   const renderCategoryRow = (cat: DbCategory, depth = 0) => {
@@ -552,12 +436,12 @@ const AdminCategoryManager = () => {
 
           {hasChildren && (
             <Badge variant="secondary" className="text-xs">
-              {cat.children!.length} {t.subcategories}
+              {cat.children!.length} {c.subcategories}
             </Badge>
           )}
 
           <Badge variant={cat.is_visible ? 'default' : 'outline'} className="text-xs shrink-0">
-            {cat.is_visible ? t.visible : t.hidden}
+            {cat.is_visible ? c.visible : c.hidden}
           </Badge>
 
           <div className="flex items-center gap-0.5 shrink-0">
@@ -581,7 +465,7 @@ const AdminCategoryManager = () => {
   const CategoryForm = ({ onSubmit, submitLabel }: { onSubmit: () => void; submitLabel: string }) => (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label>{t.nameSv}</Label>
+        <Label>{c.nameSv}</Label>
         <Input
           value={form.name_sv}
           onChange={e => {
@@ -595,7 +479,7 @@ const AdminCategoryManager = () => {
         />
       </div>
       <div className="space-y-2">
-        <Label>{t.nameEn}</Label>
+        <Label>{c.nameEn}</Label>
         <Input
           value={form.name_en}
           onChange={e => setForm(prev => ({ ...prev, name_en: e.target.value }))}
@@ -604,7 +488,7 @@ const AdminCategoryManager = () => {
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">
-          <Label>{t.slug}</Label>
+          <Label>{c.slug}</Label>
           <Input
             value={form.slug}
             onChange={e => setForm(prev => ({ ...prev, slug: e.target.value }))}
@@ -612,7 +496,7 @@ const AdminCategoryManager = () => {
           />
         </div>
         <div className="space-y-2">
-          <Label>{t.icon}</Label>
+          <Label>{c.icon}</Label>
           <Select value={form.icon} onValueChange={v => setForm(prev => ({ ...prev, icon: v }))}>
             <SelectTrigger>
               <SelectValue />
@@ -634,13 +518,13 @@ const AdminCategoryManager = () => {
         </div>
       </div>
       <div className="space-y-2">
-        <Label>{t.parentCategory}</Label>
+        <Label>{c.parentCategory}</Label>
         <Select value={form.parent_id} onValueChange={v => setForm(prev => ({ ...prev, parent_id: v }))}>
           <SelectTrigger>
-            <SelectValue placeholder={t.noParent} />
+            <SelectValue placeholder={c.noParent} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">{t.noParent}</SelectItem>
+            <SelectItem value="">{c.noParent}</SelectItem>
             {parentOptions
               .filter(p => p.id !== editingCat?.id)
               .map(p => (
@@ -655,7 +539,7 @@ const AdminCategoryManager = () => {
           className="flex-1"
           onClick={() => { setIsAddOpen(false); setEditingCat(null); resetForm(); }}
         >
-          {t.cancel}
+          {c.cancel}
         </Button>
         <Button className="flex-1 gap-2" onClick={onSubmit} disabled={isSubmitting || !form.name_sv.trim()}>
           {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
@@ -681,36 +565,179 @@ const AdminCategoryManager = () => {
             <Grid className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <h3 className="font-semibold">{t.title}</h3>
+            <h3 className="font-semibold">{c.title}</h3>
             <p className="text-sm text-muted-foreground">
-              {categories.length} {t.subtitle} · {categories.filter(c => c.parent_id).length} {t.subcategories}
+              {categories.length} {c.subtitle_categories} · {categories.filter(cat => cat.parent_id).length} {c.subtitle_subcategories}
             </p>
           </div>
         </div>
 
         <div className="flex gap-2">
+          <Button size="sm" variant="outline" className="gap-2" onClick={runAiValidate} disabled={aiValidating}>
+            {aiValidating ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+            {aiValidating ? c.validating : c.validate}
+          </Button>
+          <Button size="sm" variant="outline" className="gap-2" onClick={runAiSync} disabled={aiSyncing}>
+            {aiSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
+            {aiSyncing ? c.analyzing : c.aiSync}
+          </Button>
+
           <Dialog open={isAddOpen} onOpenChange={open => { setIsAddOpen(open); if (!open) resetForm(); }}>
             <DialogTrigger asChild>
               <Button size="sm" className="gap-2">
-                <Plus className="w-4 h-4" /> {t.newCategory}
+                <Plus className="w-4 h-4" /> {c.newCategory}
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
-                  <Grid className="w-5 h-5 text-primary" /> {t.newCategory}
+                  <Grid className="w-5 h-5 text-primary" /> {c.newCategory}
                 </DialogTitle>
               </DialogHeader>
-              <CategoryForm onSubmit={handleAdd} submitLabel={t.create} />
+              <CategoryForm onSubmit={handleAdd} submitLabel={c.create} />
             </DialogContent>
           </Dialog>
         </div>
       </div>
 
+      {/* AI Sync Results */}
+      {aiResult && (
+        <div className="border border-border rounded-lg p-4 space-y-3 bg-secondary/20">
+          <div className="flex items-center gap-2">
+            <Wand2 className="w-4 h-4 text-primary" />
+            <h4 className="text-sm font-semibold">AI Kategorianalys</h4>
+          </div>
+          
+          {aiResult.analysis && (
+            <p className="text-xs text-muted-foreground">{aiResult.analysis}</p>
+          )}
+
+          {aiResult.no_changes_needed && (
+            <div className="flex items-center gap-2 text-accent text-xs">
+              <CheckCircle className="w-4 h-4" />
+              Alla produkter är korrekt kategoriserade
+            </div>
+          )}
+
+          {aiResult.created?.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Skapade automatiskt</p>
+              {aiResult.created.map((c: any) => (
+                <div key={c.id || c.slug} className="flex items-center gap-2 p-2 rounded-lg bg-accent/10 border border-accent/20">
+                  <CheckCircle className="w-3.5 h-3.5 text-accent shrink-0" />
+                  <span className="text-xs font-medium">{c.name_sv}</span>
+                  <span className="text-[10px] text-muted-foreground">({c.slug})</span>
+                  {c.reason && <span className="text-[10px] text-muted-foreground ml-auto">{c.reason}</span>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {aiResult.pending_review?.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Behöver granskning</p>
+              {aiResult.pending_review.map((s: any) => (
+                <div key={s.slug} className="flex items-center gap-2 p-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                  <AlertTriangle className="w-3.5 h-3.5 text-yellow-600 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-xs font-medium">{s.name_sv}</span>
+                    <span className="text-[10px] text-muted-foreground ml-1">({s.name_en})</span>
+                    <p className="text-[10px] text-muted-foreground truncate">{s.reason}</p>
+                  </div>
+                  <Badge variant="secondary" className="text-[9px] shrink-0">{s.confidence}</Badge>
+                  <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1 shrink-0" onClick={() => acceptPendingSuggestion(s)}>
+                    <Plus className="w-3 h-3" /> Skapa
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {aiResult.already_exists?.length > 0 && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Info className="w-3.5 h-3.5" />
+              {aiResult.already_exists.length} förslag redan existerande
+            </div>
+          )}
+
+          <div className="flex gap-3 text-[10px] text-muted-foreground">
+            <span>{aiResult.total_products_analyzed} produkter analyserade</span>
+            <span>{aiResult.total_categories} befintliga kategorier</span>
+          </div>
+
+          <Button size="sm" variant="ghost" className="text-xs" onClick={() => setAiResult(null)}>
+            <XCircle className="w-3.5 h-3.5 mr-1" /> {c.close}
+          </Button>
+        </div>
+      )}
+
+      {/* Validation Results */}
+      {validationResult && (
+        <div className="border border-border rounded-lg p-4 space-y-3 bg-secondary/20">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-primary" />
+            <h4 className="text-sm font-semibold">Kategorivalidering</h4>
+          </div>
+
+          {validationResult.issues_found === 0 && (
+            <div className="flex items-center gap-2 text-accent text-xs">
+              <CheckCircle className="w-4 h-4" />
+              Inga problem hittades — kategoristrukturen är ren
+            </div>
+          )}
+
+          {validationResult.auto_fixed?.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Åtgärdat automatiskt</p>
+              {validationResult.auto_fixed.map((f: any, i: number) => (
+                <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-accent/10 border border-accent/20">
+                  <CheckCircle className="w-3.5 h-3.5 text-accent shrink-0" />
+                  <span className="text-xs">
+                    {f.action === 'hidden_empty' && `Dold tom kategori: ${f.category}`}
+                    {f.action === 'cleared_broken_parent' && `Rensad trasig förälder: ${f.category}`}
+                    {f.action === 'removed_orphan_links' && `${f.count} föräldralösa produktkopplingar borttagna`}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {validationResult.issues?.filter((i: any) => i.type === 'duplicate_slug' || i.type === 'duplicate_name').length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Kräver manuell granskning</p>
+              {validationResult.issues.filter((i: any) => i.type === 'duplicate_slug' || i.type === 'duplicate_name').map((issue: any, i: number) => (
+                <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20">
+                  <AlertTriangle className="w-3.5 h-3.5 text-destructive shrink-0" />
+                  <span className="text-xs">
+                    {issue.type === 'duplicate_slug' ? `Duplicerad slug: "${issue.slug}" (${issue.count} st)` : `Duplicerat namn: "${issue.name}" (${issue.count} st)`}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {validationResult.tasks_created?.length > 0 && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Info className="w-3.5 h-3.5" />
+              {validationResult.tasks_created.length} uppgifter skapade i Workbench
+            </div>
+          )}
+
+          <div className="flex gap-3 text-[10px] text-muted-foreground">
+            <span>{validationResult.total_categories} kategorier</span>
+            <span>{validationResult.total_product_links} produktkopplingar</span>
+          </div>
+
+          <Button size="sm" variant="ghost" className="text-xs" onClick={() => setValidationResult(null)}>
+            <XCircle className="w-3.5 h-3.5 mr-1" /> {c.close}
+          </Button>
+        </div>
+      )}
+
       {/* Tree */}
       <div className="border border-border rounded-lg divide-y divide-border/50">
         {tree.length === 0 ? (
-          <p className="text-center text-muted-foreground py-6 text-sm">{t.noCategories}</p>
+          <p className="text-center text-muted-foreground py-6 text-sm">{c.noCategories}</p>
         ) : (
           tree.map(cat => renderCategoryRow(cat))
         )}
@@ -721,10 +748,10 @@ const AdminCategoryManager = () => {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Pencil className="w-5 h-5 text-primary" /> {t.editCategory}
+              <Pencil className="w-5 h-5 text-primary" /> {c.editCategory}
             </DialogTitle>
           </DialogHeader>
-          <CategoryForm onSubmit={handleUpdate} submitLabel={t.update} />
+          <CategoryForm onSubmit={handleUpdate} submitLabel={c.update} />
         </DialogContent>
       </Dialog>
 
@@ -732,15 +759,15 @@ const AdminCategoryManager = () => {
       <AlertDialog open={!!deletingCat} onOpenChange={open => { if (!open) setDeletingCat(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t.deleteTitle}</AlertDialogTitle>
+            <AlertDialogTitle>{c.deleteCategory}</AlertDialogTitle>
             <AlertDialogDescription>
-              "{deletingCat?.name_sv}" {t.deleteConfirm}
+              "{deletingCat?.name_sv}" {c.deleteDescription}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{t.cancel}</AlertDialogCancel>
+            <AlertDialogCancel>{c.cancel}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
-              {t.deleteButton}
+              {c.delete}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
