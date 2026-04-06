@@ -84,7 +84,7 @@ interface Order {
   created_at: string;
   total_amount: number;
   status: string;
-  external_order_number: string | null;
+  order_number: string | null;
 }
 
 interface Review {
