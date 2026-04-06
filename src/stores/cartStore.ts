@@ -114,6 +114,8 @@ export const useCartStore = create<CartStore>()(
   persist(
     (set, get) => ({
       items: [],
+      cartId: null,
+      checkoutUrl: null,
       isLoading: false,
       isHydrated: false,
       _hasHydrated: false,

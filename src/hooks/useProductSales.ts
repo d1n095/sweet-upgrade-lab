@@ -51,7 +51,7 @@ const initializeRealtimeSubscription = async () => {
       (payload) => {
         const newRecord = payload.new as ProductSale | null;
         if (newRecord) {
-          salesCache[newRecord.product_id] = newRecord.total_quantity_sold;
+          salesCache[(newRecord as any).shopify_product_id] = newRecord.total_quantity_sold;
           notifyListeners();
         }
       }

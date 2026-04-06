@@ -87,22 +87,22 @@ export const useWishlistStore = create<WishlistStore>()(
         try {
           const { data: dbWishlist, error } = await supabase
             .from('wishlists')
-            .select('product_id, product_handle')
+            .select('shopify_product_id, shopify_product_handle')
             .eq('user_id', userId);
 
           if (error) throw error;
 
           const { items: localItems } = get();
-          const dbIds = new Set((dbWishlist || []).map(w => w.product_id));
+          const dbIds = new Set((dbWishlist || []).map(w => w.shopify_product_id));
 
           // Sync local items not yet in DB
           for (const item of localItems) {
             if (!dbIds.has(item.id)) {
               const { error: insertError } = await supabase.from('wishlists').upsert({
                 user_id: userId,
-                product_id: item.id,
-                product_handle: item.handle,
-              }, { onConflict: 'user_id,product_id' });
+                shopify_product_id: item.id,
+                shopify_product_handle: item.handle,
+              }, { onConflict: 'user_id,shopify_product_id' } as any);
               if (insertError) {}
             }
           }

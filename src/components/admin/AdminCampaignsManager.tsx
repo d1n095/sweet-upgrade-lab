@@ -274,7 +274,7 @@ const VolumeDiscountsTab = () => {
 
   const deleteAllProductTiers = async (productId: string) => {
     if (!confirm('Ta bort alla nivåer för denna produkt?')) return;
-    await supabase.from('volume_discounts').delete().eq('product_id', productId);
+    await (supabase.from('volume_discounts') as any).delete().eq('product_id', productId);
     toast.success('Alla nivåer borttagna');
     resetForm();
     fetchData();
