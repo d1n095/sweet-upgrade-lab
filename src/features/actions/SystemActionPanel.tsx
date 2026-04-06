@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Loader2, Zap } from 'lucide-react';
+import { CheckCircle2, ChevronDown, ChevronRight, Loader2, RotateCcw, Zap } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -24,6 +24,14 @@ export interface ActionIssue {
 interface Props {
   issue: ActionIssue;
   scanRunId?: string;
+}
+
+interface ExecResult {
+  workItemUpdated: boolean;
+  workItemId: string | null;
+  previousStatus: string | null;
+  changeLogCreated: boolean;
+  applyFixStatus: 'executed' | 'skipped' | 'disabled';
 }
 
 // Fix types that are eligible for safeInvoke('apply-fix') call
@@ -54,10 +62,12 @@ export function SystemActionPanel({ issue, scanRunId }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [simulating, setSimulating] = useState(false);
   const [executing, setExecuting] = useState(false);
+  const [undoing, setUndoing] = useState(false);
   const [simResult, setSimResult] = useState<string | null>(null);
-  const [executed, setExecuted] = useState(false);
+  const [execResult, setExecResult] = useState<ExecResult | null>(null);
 
   const action = buildFixAction(issue._category, issue.title);
+  const isExecuted = execResult !== null;
 
   const handleSimulate = async () => {
     setSimulating(true);
@@ -71,16 +81,31 @@ export function SystemActionPanel({ issue, scanRunId }: Props) {
     setExecuting(true);
     setSimResult(null);
     try {
-      // 1. Look up matching work_item by title (source_type = 'scanner')
-      const { data: workItems } = await supabase
+      // 1. Find work_item: prefer source_id match, fallback to title match
+      let workItem: { id: string; title: string; status: string } | null = null;
+
+      const { data: bySourceId } = await supabase
         .from('work_items')
-        .select('id, title, source_id, source_type')
-        .ilike('title', issue.title)
+        .select('id, title, status')
+        .eq('source_id', issue.id)
         .eq('source_type', 'scanner')
         .in('status', ['open', 'claimed', 'in_progress'])
         .limit(1);
 
-      const workItem = workItems?.[0] ?? null;
+      if (bySourceId?.[0]) {
+        workItem = bySourceId[0];
+      } else {
+        const { data: byTitle } = await supabase
+          .from('work_items')
+          .select('id, title, status')
+          .ilike('title', issue.title)
+          .eq('source_type', 'scanner')
+          .in('status', ['open', 'claimed', 'in_progress'])
+          .limit(1);
+        workItem = byTitle?.[0] ?? null;
+      }
+
+      const previousStatus = workItem?.status ?? null;
 
       // 2. Update work_item status to 'done' if found
       if (workItem) {
@@ -104,11 +129,15 @@ export function SystemActionPanel({ issue, scanRunId }: Props) {
           issue_severity: issue.severity,
           issue_category: issue._category,
           work_item_found: !!workItem,
+          previous_status: previousStatus,
+          match_method: bySourceId?.[0] ? 'source_id' : 'title',
         },
       });
 
       // 4. Optional: call apply-fix if fix_type is supported
+      let applyFixStatus: ExecResult['applyFixStatus'] = 'disabled';
       if (SUPPORTED_FIX_TYPES.includes(action.fix_type)) {
+        applyFixStatus = 'skipped';
         safeInvoke('apply-fix', {
           body: {
             fix_text: issue.fix_suggestion || action.description,
@@ -117,21 +146,60 @@ export function SystemActionPanel({ issue, scanRunId }: Props) {
             issue_severity: issue.severity,
             source_work_item_id: workItem?.id,
           },
-        }).catch(() => {/* silently ignore — optional */});
+        })
+          .then((res: any) => {
+            if (!res?.skipped) {
+              setExecResult((prev) => prev ? { ...prev, applyFixStatus: 'executed' } : prev);
+            }
+          })
+          .catch(() => {/* silently ignore */});
       }
 
-      setExecuted(true);
-      setSimResult(
-        workItem
-          ? `✅ Work item uppdaterat till "done": ${workItem.title}`
-          : `✅ Loggad i change_log (inget matchande work item hittades)`
-      );
+      setExecResult({
+        workItemUpdated: !!workItem,
+        workItemId: workItem?.id ?? null,
+        previousStatus,
+        changeLogCreated: true,
+        applyFixStatus,
+      });
       toast.success(`Åtgärd utförd: ${action.label}`);
     } catch (err: any) {
       setSimResult(`❌ Fel: ${err?.message || 'Okänt fel'}`);
       toast.error('Utförande misslyckades');
     } finally {
       setExecuting(false);
+    }
+  };
+
+  const handleUndo = async () => {
+    if (!execResult?.workItemId || !execResult.previousStatus) return;
+    setUndoing(true);
+    try {
+      await supabase
+        .from('work_items')
+        .update({ status: execResult.previousStatus, completed_at: null })
+        .eq('id', execResult.workItemId);
+
+      await supabase.from('change_log').insert({
+        change_type: 'fix_reverted',
+        description: `Återställd: ${action.label} — ${issue.title}`,
+        affected_components: [issue._category, action.fix_type],
+        source: 'system_action_panel',
+        work_item_id: execResult.workItemId,
+        scan_id: scanRunId ?? null,
+        metadata: {
+          fix_type: action.fix_type,
+          issue_id: issue.id,
+          reverted_to: execResult.previousStatus,
+        },
+      });
+
+      setExecResult(null);
+      toast.info(`Återställd: ${issue.title}`);
+    } catch (err: any) {
+      toast.error('Återställning misslyckades');
+    } finally {
+      setUndoing(false);
     }
   };
 
@@ -147,6 +215,11 @@ export function SystemActionPanel({ issue, scanRunId }: Props) {
           {issue.severity}
         </Badge>
         <span className="text-xs font-medium truncate flex-1">{issue.title}</span>
+        {isExecuted && (
+          <Badge variant="outline" className="text-[9px] shrink-0 bg-green-500/10 text-green-700 border-green-400/20">
+            utförd
+          </Badge>
+        )}
         <Badge variant="outline" className={cn('text-[9px] shrink-0', EFFORT_BADGE[action.estimated_effort])}>
           {action.estimated_effort}
         </Badge>
@@ -175,7 +248,7 @@ export function SystemActionPanel({ issue, scanRunId }: Props) {
               size="sm"
               variant="outline"
               className="flex-1 gap-1.5 h-7 text-xs"
-              disabled={simulating || executed || executing}
+              disabled={simulating || isExecuted || executing}
               onClick={handleSimulate}
             >
               {simulating ? (
@@ -185,21 +258,60 @@ export function SystemActionPanel({ issue, scanRunId }: Props) {
               )}
               Simulera
             </Button>
-            <Button
-              size="sm"
-              variant="default"
-              className="flex-1 gap-1.5 h-7 text-xs"
-              disabled={executed || executing || simulating}
-              onClick={handleExecute}
-            >
-              {executing ? (
-                <Loader2 className="w-3 h-3 animate-spin" />
-              ) : (
-                <CheckCircle2 className="w-3 h-3" />
-              )}
-              {executing ? 'Utför...' : 'Utför'}
-            </Button>
+            {!isExecuted ? (
+              <Button
+                size="sm"
+                variant="default"
+                className="flex-1 gap-1.5 h-7 text-xs"
+                disabled={executing || simulating}
+                onClick={handleExecute}
+              >
+                {executing ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="w-3 h-3" />
+                )}
+                {executing ? 'Utför...' : 'Utför'}
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1 gap-1.5 h-7 text-xs text-muted-foreground"
+                disabled={undoing || !execResult?.workItemId || !execResult?.previousStatus}
+                onClick={handleUndo}
+              >
+                {undoing ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <RotateCcw className="w-3 h-3" />
+                )}
+                {undoing ? 'Återställer...' : 'Ångra'}
+              </Button>
+            )}
           </div>
+
+          {/* Execution result panel */}
+          {execResult && (
+            <div className="rounded-md border border-green-400/20 bg-green-500/5 p-2 space-y-1">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Utföranderesultat</p>
+              <div className="flex items-center gap-1.5">
+                <span className={cn('text-[10px]', execResult.workItemUpdated ? 'text-green-700' : 'text-muted-foreground')}>
+                  {execResult.workItemUpdated ? '✓' : '–'} Work item uppdaterat: {execResult.workItemUpdated ? 'ja' : 'nej'}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-green-700">✓ change_log skapad: ja</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className={cn('text-[10px]', execResult.applyFixStatus === 'executed' ? 'text-green-700' : 'text-muted-foreground')}>
+                  {execResult.applyFixStatus === 'executed' && '✓ apply-fix: utförd'}
+                  {execResult.applyFixStatus === 'skipped' && '– apply-fix: hoppades över (AI av)'}
+                  {execResult.applyFixStatus === 'disabled' && '– Auto-fix disabled (AI off)'}
+                </span>
+              </div>
+            </div>
+          )}
 
           {simResult && (
             <p className="text-[11px] text-muted-foreground bg-muted rounded px-2 py-1">{simResult}</p>
