@@ -38,8 +38,8 @@ export const useMemberPrices = () => {
 
         if (pricesData) {
           const priceMap = new Map<string, number>();
-          pricesData.forEach((p: MemberPrice) => {
-            priceMap.set(p.variant_id, Number(p.member_price));
+          pricesData.forEach((p) => {
+            priceMap.set((p as any).shopify_variant_id, Number(p.member_price));
           });
           setMemberPrices(priceMap);
         }
