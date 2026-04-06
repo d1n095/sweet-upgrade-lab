@@ -51,7 +51,7 @@ async function autoAssignCriticalItems(): Promise<number> {
   let assigned = 0;
 
   const { data: unassigned } = await supabase
-    .from('work_items' as any)
+    .from('work_items')
     .select('id, item_type, priority')
     .in('priority', ['critical', 'high'])
     .eq('status', 'open')
@@ -67,7 +67,7 @@ async function autoAssignCriticalItems(): Promise<number> {
       });
 
       if (bestUser) {
-        await (supabase.from('work_items' as any) as any)
+        await supabase.from('work_items')
           .update({ assigned_to: bestUser, status: 'open' })
           .eq('id', item.id);
         assigned++;
@@ -85,7 +85,7 @@ async function escalateStaleItems(): Promise<number> {
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
 
   const { data: stale } = await supabase
-    .from('work_items' as any)
+    .from('work_items')
     .select('id, title, created_at, source_type, source_id')
     .eq('priority', 'critical')
     .eq('status', 'open')
@@ -98,7 +98,7 @@ async function escalateStaleItems(): Promise<number> {
   let escalated = 0;
 
   for (const item of stale as any[]) {
-    const { error } = await (supabase.from('work_items' as any) as any)
+    const { error } = await supabase.from('work_items')
       .update({
         status: 'escalated',
         description: (item.description || '') + `\n\n⏰ Auto-eskalerad: öppen > 1h utan åtgärd (${new Date().toISOString()})`,
@@ -147,7 +147,7 @@ async function escalateStaleItems(): Promise<number> {
 /** Deduplicate critical items with near-identical titles */
 async function deduplicateCriticalItems(): Promise<number> {
   const { data: criticals } = await supabase
-    .from('work_items' as any)
+    .from('work_items')
     .select('id, title, created_at')
     .eq('priority', 'critical')
     .in('status', ['open', 'in_progress'])
@@ -173,7 +173,7 @@ async function deduplicateCriticalItems(): Promise<number> {
 
   if (toCancel.length === 0) return 0;
 
-  const { error } = await (supabase.from('work_items' as any) as any)
+  const { error } = await supabase.from('work_items')
     .update({ status: 'cancelled', description: 'Auto-deduplicerad — duplicat av befintlig uppgift' })
     .in('id', toCancel);
 

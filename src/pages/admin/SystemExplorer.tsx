@@ -107,7 +107,7 @@ const RuntimeTraceSection = ({ traceId }: { traceId?: string }) => {
   useEffect(() => {
     if (!traceId) return;
     setLoading(true);
-    supabase.from("runtime_traces" as any).select("*").eq("id", traceId).maybeSingle().then(({ data }) => {
+    supabase.from("runtime_traces").select("*").eq("id", traceId).maybeSingle().then(({ data }) => {
       setTrace(data);
       setLoading(false);
     });
@@ -261,12 +261,13 @@ const SystemExplorer = () => {
     queryKey: ["system-explorer-structure-map"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("system_structure_map" as any)
+        .from("system_structure_map")
         .select("entity_type, entity_name, last_seen_at, scan_count")
         .order("last_seen_at", { ascending: false })
         .limit(200);
       if (error) throw error;
-      return (data || []) as any[];
+      if (!Array.isArray(data)) throw new Error("Invalid data shape");
+      return data;
     },
   });
 
@@ -275,11 +276,12 @@ const SystemExplorer = () => {
     queryKey: ["system-explorer-expectations"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("system_expectations" as any)
+        .from("system_expectations")
         .select("entity_type, entity_name, required")
         .eq("required", true);
       if (error) throw error;
-      return (data || []) as any[];
+      if (!Array.isArray(data)) throw new Error("Invalid data shape");
+      return data;
     },
   });
 
@@ -297,14 +299,14 @@ const SystemExplorer = () => {
     queryFn: async () => {
       const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const { data } = await supabase
-        .from("runtime_traces" as any)
+        .from("runtime_traces")
         .select("id, function_name, endpoint, error_message, created_at, source")
         .gte("created_at", cutoff)
         .order("created_at", { ascending: false })
         .limit(200);
       if (!data?.length) return [];
       const clusters: Record<string, { function_name: string; endpoint: string; error_message: string; count: number; latest: string; source: string }> = {};
-      for (const t of data as any[]) {
+      for (const t of data) {
         const key = `${t.function_name}::${(t.error_message || "").slice(0, 100)}`;
         if (!clusters[key]) {
           clusters[key] = { function_name: t.function_name, endpoint: t.endpoint || "", error_message: t.error_message || "", count: 0, latest: t.created_at, source: t.source || "" };
@@ -323,12 +325,12 @@ const SystemExplorer = () => {
     queryFn: async () => {
       const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const { data } = await supabase
-        .from("runtime_traces" as any)
+        .from("runtime_traces")
         .select("id, function_name, endpoint, error_message, created_at, request_trace_id, source")
         .gte("created_at", cutoff)
         .order("created_at", { ascending: false })
         .limit(50);
-      return (data || []) as any[];
+      return data || [];
     },
     staleTime: 30_000,
   });
@@ -359,19 +361,19 @@ const SystemExplorer = () => {
     queryFn: async () => {
       const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
       const [tracesRes, obsRes] = await Promise.all([
-        supabase.from("runtime_traces" as any).select("id, function_name, endpoint, error_message, created_at, request_trace_id").gte("created_at", cutoff).order("created_at", { ascending: false }).limit(50),
-        supabase.from("system_observability_log" as any).select("id, event_type, source, message, created_at, component").gte("created_at", cutoff).order("created_at", { ascending: false }).limit(50),
+        supabase.from("runtime_traces").select("id, function_name, endpoint, error_message, created_at, request_trace_id").gte("created_at", cutoff).order("created_at", { ascending: false }).limit(50),
+        supabase.from("system_observability_log").select("id, event_type, source, message, created_at, component").gte("created_at", cutoff).order("created_at", { ascending: false }).limit(50),
       ]);
-      const traces = ((tracesRes.data || []) as any[]).map((t: any) => ({
+      const traces = (tracesRes.data || []).map((t) => ({
         ts: t.created_at, source: `trace:${t.function_name || "unknown"}`, message: t.error_message || `${t.endpoint || ""} OK`, id: t.id,
       }));
-      const obs = ((obsRes.data || []) as any[]).map((o: any) => ({
+      const obs = (obsRes.data || []).map((o) => ({
         ts: o.created_at, source: `${o.source || o.component || "system"}`, message: o.message || o.event_type, id: o.id,
       }));
-      const combined = [...traces, ...obs].sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime()).slice(0, 100);
+      const combined = [...traces, ...obs].sort((a, b) => new Date(b.ts ?? 0).getTime() - new Date(a.ts ?? 0).getTime()).slice(0, 100);
       // Fallback: if no logs in last 2h, fetch from last scan snapshot
       if (combined.length === 0) {
-        const { data: snapshot } = await supabase.from("scan_snapshots" as any).select("diagnosis_summary, created_at, scan_confidence_score, total_detected, total_created").order("created_at", { ascending: false }).limit(1).maybeSingle() as any;
+        const { data: snapshot } = await supabase.from("scan_snapshots").select("diagnosis_summary, created_at, scan_confidence_score, total_detected, total_created").order("created_at", { ascending: false }).limit(1).maybeSingle();
         if (snapshot) {
           const lines = (snapshot.diagnosis_summary || "").split("\n").filter(Boolean);
           return lines.map((line: string, idx: number) => ({
@@ -486,7 +488,8 @@ const SystemExplorer = () => {
         .order("created_at", { ascending: false })
         .limit(10);
       if (error) throw error;
-      return (data || []) as any[];
+      if (!Array.isArray(data)) throw new Error("Invalid data shape");
+      return data;
     },
   });
 
@@ -811,7 +814,7 @@ const SystemExplorer = () => {
     }
 
     // Step results from scan for executed status
-    const stepResults = ((latestRun as any)?.steps_results ?? scanResults?.step_results ?? scanResults) as Record<string, any> | null;
+    const stepResults = (latestRun?.steps_results ?? scanResults?.step_results ?? scanResults) as Record<string, any> | null;
     const createTrace: any[] = scanResults?._create_trace ?? [];
 
     return SCANNER_GROUPS.map(group => {
@@ -948,8 +951,8 @@ const SystemExplorer = () => {
   };
 
   const systemTruth = {
-    scanWorking: latestRun != null && ((latestRun as any)?.work_items_created > 0 || (latestRun as any)?.total_new_issues > 0),
-    workItemsCreated: (latestRun as any)?.work_items_created > 0,
+    scanWorking: latestRun != null && ((latestRun.work_items_created ?? 0) > 0 || (latestRun.total_new_issues ?? 0) > 0),
+    workItemsCreated: (latestRun?.work_items_created ?? 0) > 0,
   };
 
   return (
@@ -963,7 +966,7 @@ const SystemExplorer = () => {
           onSelectItem={(item) => setSelectedItem(item as any)}
           onMarkInProgress={async (itemId) => {
             await supabase
-              .from("work_items" as any)
+              .from("work_items")
               .update({ status: "in_progress" })
               .eq("id", itemId);
             queryClient.invalidateQueries({ queryKey: ["system-explorer-work-items"] });
@@ -1057,8 +1060,8 @@ const SystemExplorer = () => {
 
         {/* BACKEND SCAN TAB */}
         {mainTab === "backendscan" && (() => {
-          const run = latestRun as any;
-          const r = run?.unified_result as any;
+          const run = latestRun;
+          const r = run?.unified_result as Record<string, any> | null;
           const issuesList: any[] = [
             ...(r?.broken_flows || []),
             ...(r?.fake_features || []),
@@ -1209,8 +1212,8 @@ const SystemExplorer = () => {
         {/* CODE INDEX TAB */}
         {mainTab === "analysis" && (
           <IssueAnalysisPanel
-            scanRunId={(latestRun as any)?.id ?? null}
-            unifiedResult={(latestRun as any)?.unified_result ?? null}
+            scanRunId={latestRun?.id ?? null}
+            unifiedResult={latestRun?.unified_result ?? null}
           />
         )}
 
@@ -1342,8 +1345,8 @@ const SystemExplorer = () => {
 
             {/* Scan Input */}
             {latestRun && (() => {
-              const ur = latestRun.unified_result as any;
-              const si = ur?.steps_results?._scan_input || (latestRun as any).steps_results?._scan_input;
+              const ur = latestRun.unified_result as Record<string, any> | null;
+              const si = ur?.steps_results?._scan_input || (latestRun.steps_results as Record<string, any> | null)?._scan_input;
               if (!si) return null;
               return (
                 <Card className="mt-3">
@@ -3759,7 +3762,7 @@ const SystemExplorer = () => {
                     setVerifyResult(null);
                     try {
                       // 1. Mark as done
-                      await supabase.from("work_items" as any).update({
+                      await supabase.from("work_items").update({
                         status: "done",
                         completed_at: new Date().toISOString(),
                       }).eq("id", selectedItem.id);
@@ -3790,7 +3793,7 @@ const SystemExplorer = () => {
                       const vStatus = stillFound ? "failed" : "confirmed";
 
                       // 4. Update work item with verification result
-                      await supabase.from("work_items" as any).update({
+                      await supabase.from("work_items").update({
                         verification_status: vStatus,
                         verified_at: new Date().toISOString(),
                       }).eq("id", selectedItem.id);

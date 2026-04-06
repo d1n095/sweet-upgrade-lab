@@ -40,13 +40,14 @@ export async function runCriticalPathCheck(): Promise<CriticalPathReport> {
   // 1. scan → issue: Recent scans should create tasks
   try {
     const { data: recentScans } = await supabase
-      .from('ai_scan_results')
-      .select('id, issues_count, tasks_created')
+      .from('scan_runs')
+      .select('id, total_new_issues, work_items_created')
+      .in('status', ['done', 'completed'])
       .order('created_at', { ascending: false })
       .limit(5);
 
-    const scansWithIssues = (recentScans || []).filter((s: any) => (s.issues_count || 0) > 0);
-    const scansWithTasks = (recentScans || []).filter((s: any) => (s.tasks_created || 0) > 0);
+    const scansWithIssues = (recentScans || []).filter((s: any) => (s.total_new_issues || 0) > 0);
+    const scansWithTasks = (recentScans || []).filter((s: any) => (s.work_items_created || 0) > 0);
     const ok = scansWithIssues.length === 0 || scansWithTasks.length > 0;
 
     checks.push({
@@ -72,7 +73,7 @@ export async function runCriticalPathCheck(): Promise<CriticalPathReport> {
     let unlinked = 0;
     for (const bug of (openBugs || []).slice(0, 20)) {
       const { data: wi } = await supabase
-        .from('work_items' as any)
+        .from('work_items')
         .select('id')
         .eq('source_type', 'bug_report')
         .eq('source_id', bug.id)
@@ -97,7 +98,7 @@ export async function runCriticalPathCheck(): Promise<CriticalPathReport> {
   // 3. work_item → change_log: Completed items should have log entries
   try {
     const { data: doneItems } = await supabase
-      .from('work_items' as any)
+      .from('work_items')
       .select('id')
       .eq('status', 'done')
       .order('completed_at', { ascending: false })
@@ -163,7 +164,7 @@ export async function runCriticalPathCheck(): Promise<CriticalPathReport> {
   // 5. bug → verification: Resolved bugs should have AI review
   try {
     const { data: resolvedItems } = await supabase
-      .from('work_items' as any)
+      .from('work_items')
       .select('id, review_status')
       .eq('status', 'done')
       .order('completed_at', { ascending: false })
@@ -227,7 +228,7 @@ async function handleCriticalBreak(report: CriticalPathReport): Promise<void> {
 
     // Dedup check
     const { data: existing } = await supabase
-      .from('work_items' as any)
+      .from('work_items')
       .select('id')
       .eq('priority', 'critical')
       .ilike('title', '%CRITICAL PATH%')
@@ -235,7 +236,7 @@ async function handleCriticalBreak(report: CriticalPathReport): Promise<void> {
       .limit(1);
 
     if (!existing || existing.length === 0) {
-      await (supabase.from('work_items' as any) as any).insert({
+      await supabase.from('work_items').insert({
         title,
         description: `${description}\n\nScore: ${report.score}/100\nTimestamp: ${report.timestamp}`,
         status: 'open',
@@ -249,7 +250,7 @@ async function handleCriticalBreak(report: CriticalPathReport): Promise<void> {
 
   // Pause non-critical work items
   try {
-    await (supabase.from('work_items' as any) as any)
+    await supabase.from('work_items')
       .update({ status: 'blocked' })
       .in('priority', ['low', 'medium'])
       .eq('status', 'open');

@@ -133,7 +133,7 @@ export const useAdminWorkItems = (options?: { enabled?: boolean }) =>
       // on explicit user action or scheduled automation, not on every query.
 
       const { data, error } = await supabase
-        .from('work_items' as any)
+        .from('work_items')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(500);

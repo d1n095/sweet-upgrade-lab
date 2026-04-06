@@ -331,7 +331,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
       });
 
       if (orphanIds.length > 0) {
-        supabase.from('work_items' as any)
+        supabase.from('work_items')
           .update({ status: 'cancelled', updated_at: new Date().toISOString() } as any)
           .in('id', orphanIds)
           .then(() => {});
@@ -405,7 +405,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     if (!user) return;
     setEscalating(itemId);
     try {
-      await supabase.from('work_items' as any).update({
+      await supabase.from('work_items').update({
         status: 'escalated',
         priority: 'high',
         updated_at: new Date().toISOString(),
@@ -413,7 +413,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
 
       const { data: adminUser } = await supabase.rpc('auto_assign_work_item', { p_item_type: 'support' });
       if (adminUser) {
-        await supabase.from('work_items' as any).update({ assigned_to: adminUser }).eq('id', itemId);
+        await supabase.from('work_items').update({ assigned_to: adminUser }).eq('id', itemId);
       }
 
       const { data: admins } = await supabase
@@ -453,7 +453,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const autoAssignSingle = async (itemId: string, itemType: string) => {
     const { data, error } = await supabase.rpc('auto_assign_work_item', { p_item_type: itemType });
     if (error || !data) { toast.error('Ingen tillgänglig personal'); return; }
-    await supabase.from('work_items' as any).update({ assigned_to: data, status: 'claimed', claimed_by: data, claimed_at: new Date().toISOString() }).eq('id', itemId);
+    await supabase.from('work_items').update({ assigned_to: data, status: 'claimed', claimed_by: data, claimed_at: new Date().toISOString() }).eq('id', itemId);
     toast.success(`Tilldelad till ${getStaffName(data as string) || 'personal'}`);
     queryClient.invalidateQueries({ queryKey: ['work-items'] });
   };
@@ -466,7 +466,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     for (const item of openItems) {
       const { data } = await supabase.rpc('auto_assign_work_item', { p_item_type: item.item_type });
       if (data) {
-        await supabase.from('work_items' as any).update({ assigned_to: data, status: 'claimed', claimed_by: data, claimed_at: new Date().toISOString() }).eq('id', item.id);
+        await supabase.from('work_items').update({ assigned_to: data, status: 'claimed', claimed_by: data, claimed_at: new Date().toISOString() }).eq('id', item.id);
         assigned++;
       }
     }
@@ -523,7 +523,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
           run: async (prev: any) => {
             const id = (prev.item as any)?.id;
             if (!id) throw new Error('No ID returned from insert');
-            const { data, error } = await supabase.from('work_items' as any).select('id, title, status').eq('id', id).maybeSingle();
+            const { data, error } = await supabase.from('work_items').select('id, title, status').eq('id', id).maybeSingle();
             if (error || !data) throw new Error(`Verify failed: ${error?.message || 'not found'}`);
             trace('db_verify_confirmed', 'WorkbenchBoard', `Verified in DB: ${id}`, { traceId: createTraceId, entityId: id });
             return prev;
@@ -553,7 +553,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
 
   const unclaimItem = async (itemId: string) => {
     if (!user) return;
-    await supabase.from('work_items' as any).update({
+    await supabase.from('work_items').update({
       status: 'open', assigned_to: null, claimed_by: null, claimed_at: null, updated_at: new Date().toISOString(),
     }).eq('id', itemId);
     toast.success('Uppdrag släppt');
@@ -616,7 +616,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
             if (newStatus === 'claimed') { updates.claimed_by = user!.id; updates.claimed_at = now; }
             if (newStatus === 'in_progress') { updates.claimed_by = user!.id; if (!updates.claimed_at) updates.claimed_at = now; }
             if (newStatus === 'done') updates.completed_at = now;
-            const { error } = await supabase.from('work_items' as any).update(updates).eq('id', itemId);
+            const { error } = await supabase.from('work_items').update(updates).eq('id', itemId);
             if (error) throw new Error(error.message);
             return { itemId, newStatus };
           },
@@ -624,7 +624,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
         {
           step: 'db_confirm',
           run: async () => {
-            const { data, error } = await supabase.from('work_items' as any).select('id, status').eq('id', itemId).maybeSingle();
+            const { data, error } = await supabase.from('work_items').select('id, status').eq('id', itemId).maybeSingle();
             if (error || !data) throw new Error('Verify fetch failed');
             if ((data as any).status !== newStatus) throw new Error(`Status mismatch: expected ${newStatus}, got ${(data as any).status}`);
             return data;
@@ -755,7 +755,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     if (!user || bulkSelected.size === 0) return;
     const now = new Date().toISOString();
     for (const itemId of bulkSelected) {
-      await supabase.from('work_items' as any).update({
+      await supabase.from('work_items').update({
         status: 'claimed', claimed_by: user.id, assigned_to: user.id, claimed_at: now, updated_at: now,
       }).eq('id', itemId);
     }
@@ -1167,7 +1167,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
           queryClient.invalidateQueries({ queryKey: ['work-items'] });
           // Re-fetch the detail item
           if (detailItem) {
-            supabase.from('work_items' as any).select('*').eq('id', detailItem.id).maybeSingle().then(({ data }) => {
+            supabase.from('work_items').select('*').eq('id', detailItem.id).maybeSingle().then(({ data }) => {
               if (data) setDetailItem(data as any);
             });
           }

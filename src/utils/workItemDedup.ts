@@ -69,7 +69,7 @@ export async function createWorkItemWithDedup(payload: WorkItemPayload): Promise
   // 1. Check by issue_fingerprint if provided
   if (payload.issue_fingerprint) {
     const { data: byFp } = await supabase
-      .from('work_items' as any)
+      .from('work_items')
       .select('id, title, status, created_at')
       .eq('issue_fingerprint', payload.issue_fingerprint)
       .in('status', ACTIVE_STATUSES)
@@ -102,7 +102,7 @@ export async function createWorkItemWithDedup(payload: WorkItemPayload): Promise
   
   if (corePart.length >= 30) {
     const { data: byTitle } = await supabase
-      .from('work_items' as any)
+      .from('work_items')
       .select('id, title, status')
       .ilike('title', `%${corePart}%`)
       .in('status', ACTIVE_STATUSES)

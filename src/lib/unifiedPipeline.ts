@@ -81,26 +81,27 @@ export const runUnifiedPipeline = async (
     // ─── STAGE 1: SCAN → ISSUES ───
     // Find recent scan results that created tasks but haven't been linked
     const { data: recentScans } = await supabase
-      .from('ai_scan_results')
-      .select('id, scan_type, issues_count, tasks_created, created_at')
+      .from('scan_runs')
+      .select('id, scan_mode, total_new_issues, work_items_created, created_at')
+      .in('status', ['done', 'completed'])
       .order('created_at', { ascending: false })
       .limit(10);
 
     for (const scan of recentScans || []) {
-      emit(makeEvent('scan', 'check', scan.id, 'scan_results', true,
-        `Scan ${scan.scan_type}: ${scan.issues_count || 0} issues, ${scan.tasks_created || 0} tasks`));
+      emit(makeEvent('scan', 'check', scan.id, 'scan_runs', true,
+        `Scan ${scan.scan_mode ?? 'full'}: ${scan.total_new_issues || 0} issues, ${scan.work_items_created || 0} tasks`));
 
       // Check if scan has linked work items
       const { data: linkedItems } = await supabase
-        .from('work_items' as any)
+        .from('work_items')
         .select('id')
         .in('source_type', ['ai_scan', 'ai_detection'])
         .eq('source_id', scan.id)
         .limit(5);
 
-      if ((scan.tasks_created || 0) > 0 && (!linkedItems || linkedItems.length === 0)) {
-        emit(makeEvent('scan', 'gap_detected', scan.id, 'scan_results', false,
-          `Scan skapade ${scan.tasks_created} uppgifter men inga work_items finns länkade`,
+      if ((scan.work_items_created || 0) > 0 && (!linkedItems || linkedItems.length === 0)) {
+        emit(makeEvent('scan', 'gap_detected', scan.id, 'scan_runs', false,
+          `Scan skapade ${scan.work_items_created} uppgifter men inga work_items finns länkade`,
           { scan_id: scan.id }));
       }
     }
@@ -115,7 +116,7 @@ export const runUnifiedPipeline = async (
 
     for (const bug of unlinkedBugs || []) {
       const { data: existingWI } = await supabase
-        .from('work_items' as any)
+        .from('work_items')
         .select('id')
         .eq('source_type', 'bug_report')
         .eq('source_id', bug.id)
@@ -133,7 +134,7 @@ export const runUnifiedPipeline = async (
           ? `${bug.description}\n\n🧠 Känt mönster (sett ${knownFix.recurrence_count}x): ${knownFix.root_cause}\n💡 Tidigare fix: ${knownFix.fix_applied}`
           : bug.description;
 
-        const { data: newWI, error } = await (supabase.from('work_items' as any) as any)
+        const { data: newWI, error } = await supabase.from('work_items')
           .insert({
             title: `Bug: ${(bug.description || '').slice(0, 80)}`,
             description,
@@ -163,7 +164,7 @@ export const runUnifiedPipeline = async (
     // ─── STAGE 3: WORK ITEMS → CHANGE LOG ───
     // Find completed work items without change_log entries
     const { data: doneItems } = await supabase
-      .from('work_items' as any)
+      .from('work_items')
       .select('id, title, source_type, source_id, completed_at')
       .eq('status', 'done')
       .order('completed_at', { ascending: false })
@@ -244,7 +245,7 @@ export const runUnifiedPipeline = async (
     // ─── STAGE 5: VERIFICATION ───
     // Trigger rule-based review on recently completed work items that lack verification
     const { data: unverified } = await supabase
-      .from('work_items' as any)
+      .from('work_items')
       .select('id, title, review_status')
       .eq('status', 'done')
       .in('review_status', ['pending', null as any])

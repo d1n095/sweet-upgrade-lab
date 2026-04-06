@@ -222,7 +222,7 @@ async function createChangeLogForTask(task: QueueTask) {
 /** Retroactive fix: create change_log for all completed work_items missing entries */
 export async function backfillChangeLog() {
   const { data: workItems } = await supabase
-    .from('work_items' as any)
+    .from('work_items')
     .select('id, title, source_type, source_id, completed_at')
     .eq('status', 'done');
 
