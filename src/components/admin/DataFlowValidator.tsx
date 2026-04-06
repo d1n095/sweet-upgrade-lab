@@ -126,7 +126,7 @@ const DataFlowValidator = () => {
       setProgress(10);
       const { data: scans } = await supabase
         .from('scan_runs')
-        .select('id, status, created_at, completed_at')
+        .select('id, status, created_at, completed_at, scan_mode')
         .order('created_at', { ascending: false })
         .limit(50);
 
