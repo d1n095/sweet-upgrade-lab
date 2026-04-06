@@ -22,8 +22,8 @@ import { Link } from 'react-router-dom';
 interface Review {
   id: string;
   user_id: string;
-  shopify_product_id: string;
-  shopify_product_handle: string;
+  product_id: string;
+  product_handle: string;
   product_title: string;
   rating: number;
   comment: string;

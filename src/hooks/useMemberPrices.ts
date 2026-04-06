@@ -99,7 +99,7 @@ export const useMemberPrices = () => {
   const getVolumeDiscount = (productId: string | null, quantity: number): number => {
     // Check product-specific discounts first
     const productDiscounts = volumeDiscounts.filter(
-      v => v.shopify_product_id === productId && quantity >= v.min_quantity
+      v => v.product_id === productId && quantity >= v.min_quantity
     );
 
     if (productDiscounts.length > 0) {
