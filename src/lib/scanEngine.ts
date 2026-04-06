@@ -66,11 +66,11 @@ function stopPolling() {
   _currentJob = null;
 }
 
-async function pollScanRun(scanRunId: string, onProgress?: (steps: ScanStep[]) => void) {
+async function pollScanRun(scanRunId: string, onProgress?: (update: ScanProgressUpdate) => void) {
   try {
     const { data } = await supabase
       .from('scan_runs' as any)
-      .select('*')
+      .select('id, status, current_step, current_step_label, total_steps, progress, steps_results, unified_result, work_items_created, system_health_score, started_at, completed_at')
       .eq('id', scanRunId)
       .single();
 
@@ -78,9 +78,33 @@ async function pollScanRun(scanRunId: string, onProgress?: (steps: ScanStep[]) =
     const run = data as any;
 
     const steps = buildStepsFromRun(run);
-    onProgress?.(steps);
+    const progress: number = run.progress ?? 0;
+    const currentStepLabel: string = run.current_step_label ?? '';
+
+    // ── SCAN PROOF: live poll trace ───────────────────────────────────────────
+    console.log('[SCAN POLL]', {
+      scan_run_id: scanRunId,
+      status: run.status,
+      progress,
+      current_step: run.current_step ?? 0,
+      current_step_label: currentStepLabel,
+      total_steps: run.total_steps ?? 0,
+    });
+    // ─────────────────────────────────────────────────────────────────────────
+
+    onProgress?.({ steps, progress, currentStepLabel, scanRunId, status: run.status });
 
     if (run.status === 'done' || run.status === 'completed') {
+      console.log('[SCAN DONE]', {
+        scan_run_id: scanRunId,
+        status: run.status,
+        progress,
+        completed_at: run.completed_at,
+        system_health_score: run.system_health_score,
+        work_items_created: run.work_items_created,
+        data_source: 'scan_runs.unified_result',
+        has_unified_result: run.unified_result != null,
+      });
       stopPolling();
       notifyListeners({
         scanRunId,
@@ -92,6 +116,7 @@ async function pollScanRun(scanRunId: string, onProgress?: (steps: ScanStep[]) =
         completedAt: run.completed_at ?? undefined,
       });
     } else if (run.status === 'error' || run.status === 'failed') {
+      console.log('[SCAN ERROR]', { scan_run_id: scanRunId, status: run.status });
       stopPolling();
     }
   } catch (_) {
@@ -145,9 +170,19 @@ function buildStepsFromRun(run: any): ScanStep[] {
   });
 }
 
+export interface ScanProgressUpdate {
+  steps: ScanStep[];
+  /** 0-100 progress value written by the backend to scan_runs.progress */
+  progress: number;
+  /** Human-readable label for the current step */
+  currentStepLabel: string;
+  scanRunId: string;
+  status: string;
+}
+
 export interface StartScanOptions {
   /** Optional callback for live step progress updates */
-  onProgress?: (steps: ScanStep[]) => void;
+  onProgress?: (update: ScanProgressUpdate) => void;
 }
 
 /**
@@ -173,6 +208,11 @@ export async function startScanJob(options?: StartScanOptions): Promise<string> 
   }
 
   _currentJob = { id: scanRunId, type: 'full', status: 'running' };
+
+  // ── SCAN PROOF: lifecycle start ───────────────────────────────────────────
+  console.log('[SCAN START]', { scan_run_id: scanRunId, timestamp: new Date().toISOString() });
+  // ─────────────────────────────────────────────────────────────────────────
+
   _pollInterval = setInterval(() => pollScanRun(scanRunId, options?.onProgress), 2000);
   return scanRunId;
 }
