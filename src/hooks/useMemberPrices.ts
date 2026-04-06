@@ -70,13 +70,13 @@ export const useMemberPrices = () => {
             bundleData.map(async (bundle) => {
               const { data: products } = await supabase
                 .from('bundle_products')
-                .select('shopify_product_id')
+                .select('product_id')
                 .eq('bundle_id', bundle.id);
 
               return {
                 ...bundle,
                 discount_percent: Number(bundle.discount_percent),
-                product_ids: products?.map(p => p.shopify_product_id) || []
+                product_ids: products?.map(p => p.product_id) || []
               };
             })
           );
