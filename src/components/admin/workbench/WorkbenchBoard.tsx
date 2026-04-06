@@ -55,8 +55,8 @@ interface WorkItem {
   conflict_flag?: boolean;
   execution_order?: number;
   orchestrator_result?: any;
-  ai_type_classification?: string;
-  ai_type_reason?: string;
+  type_classification?: string;
+  type_reason?: string;
   review_status?: string;
   review_result?: any;
   review_at?: string;
@@ -366,7 +366,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     enabled: !!user?.id,
   });
 
-  const getClassification = (item: WorkItem) => item.ai_type_classification || (item.item_type === 'bug' ? 'bug' : null);
+  const getClassification = (item: WorkItem) => item.type_classification || (item.item_type === 'bug' ? 'bug' : null);
 
   const filteredItems = items.filter(t => {
     if (viewFilter === 'active') return !['done', 'cancelled'].includes(t.status);
@@ -806,8 +806,8 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
               <TypeIcon className="w-2.5 h-2.5" />
               {typeMeta.label}
             </Badge>
-            {item.ai_type_classification && AI_CLASSIFICATION_META[item.ai_type_classification] && (() => {
-              const cls = AI_CLASSIFICATION_META[item.ai_type_classification!];
+            {item.type_classification && AI_CLASSIFICATION_META[item.type_classification] && (() => {
+              const cls = AI_CLASSIFICATION_META[item.type_classification!];
               const ClsIcon = cls.icon;
               return (
                 <Badge variant="outline" className={cn('text-[9px] gap-0.5', cls.color)}>

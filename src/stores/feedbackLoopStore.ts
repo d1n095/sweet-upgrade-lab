@@ -71,7 +71,7 @@ function buildSuggestion(verdict: FeedbackVerdict, delta: FeedbackDelta): string
 /** Capture a live snapshot of system health metrics */
 export async function captureSnapshot(): Promise<FeedbackSnapshot> {
   const [bugsRes, workRes, scansRes] = await Promise.all([
-    supabase.from('bug_reports').select('status, ai_severity').in('status', ['open', 'new', 'triaged']).limit(500),
+    supabase.from('bug_reports').select('status').in('status', ['open', 'new', 'triaged']).limit(500),
     supabase.from('work_items' as any).select('status').in('status', ['open', 'claimed', 'in_progress', 'escalated']).limit(500),
     supabase.from('scan_results').select('overall_score').order('created_at', { ascending: false }).limit(5),
   ]);
@@ -82,7 +82,7 @@ export async function captureSnapshot(): Promise<FeedbackSnapshot> {
 
   return {
     openBugs: bugs.length,
-    criticalBugs: bugs.filter((b: any) => b.ai_severity === 'critical').length,
+    criticalBugs: 0, // ai_severity column removed; use status-based tracking
     openWorkItems: workItems.length,
     avgScanScore: scans.length > 0
       ? Math.round(scans.reduce((s: number, x: any) => s + (x.overall_score || 0), 0) / scans.length)

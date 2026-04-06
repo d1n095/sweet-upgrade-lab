@@ -223,7 +223,7 @@ const DataFlowValidator = () => {
           // Work Item → Verification (system_history)
           const { data: shLinks } = await supabase
             .from('system_history')
-            .select('id, ai_review_status')
+            .select('id, review_status')
             .eq('work_item_id', wi.id)
             .limit(1);
 
@@ -232,7 +232,7 @@ const DataFlowValidator = () => {
             to: 'verification', toId: shLinks?.[0]?.id || null,
             status: shLinks?.length ? 'ok' : (wi.status === 'done' ? 'missing' : 'ok'),
             detail: shLinks?.length
-              ? `Verifierad: ${shLinks[0].ai_review_status || 'pending'}`
+              ? `Verifierad: ${shLinks[0].review_status || 'pending'}`
               : (wi.status === 'done' ? 'Klar men aldrig verifierad' : 'Ej klar'),
           });
         }
