@@ -20,7 +20,7 @@ interface Order {
   total_amount: number;
   currency: string;
   created_at: string;
-  external_order_number: string | null;
+  order_number: string | null;
 }
 
 interface Review {
