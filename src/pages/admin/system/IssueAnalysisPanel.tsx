@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { AlertTriangle, Bug, CheckCircle, ChevronRight, Copy, FileText, Inbox, X, Zap } from 'lucide-react';
+import { AlertTriangle, Bug, CheckCircle, ChevronDown, ChevronRight, Copy, FileText, Inbox, Layers, X, Zap } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -33,6 +33,26 @@ export interface ParsedIssue {
   prompt: string;
   /** raw original object for deep inspection */
   _raw: any;
+}
+
+/** A cluster of related issues sharing the same root cause. */
+export interface RootCauseGroup {
+  /** stable key for React */
+  _key: string;
+  /** Human-readable root cause label, e.g. "Broken data mapping in orders pipeline" */
+  root_cause: string;
+  /** Short description of what went wrong */
+  description: string;
+  /** Dominant issue type in this group */
+  type: string;
+  /** Shared component / data source */
+  component: string;
+  /** All symptoms (individual issues) belonging to this root cause */
+  symptoms: ParsedIssue[];
+  /** Sum of occurrence counts across all symptoms */
+  total_impact: number;
+  /** Worst severity across all symptoms */
+  severity: ParsedIssue['severity'];
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -191,6 +211,108 @@ function parseIssues(unifiedResult: any): ParsedIssue[] {
   return parsed;
 }
 
+// ── Root-cause grouping ───────────────────────────────────────────────────────
+
+const SEVERITY_RANK: Record<ParsedIssue['severity'], number> = {
+  critical: 4, high: 3, medium: 2, low: 1, info: 0,
+};
+
+function worstSeverity(issues: ParsedIssue[]): ParsedIssue['severity'] {
+  return issues.reduce<ParsedIssue['severity']>((worst, issue) => {
+    return SEVERITY_RANK[issue.severity] > SEVERITY_RANK[worst] ? issue.severity : worst;
+  }, 'info');
+}
+
+function deriveGroupKey(issue: ParsedIssue): string {
+  const comp = (issue.component || '').trim();
+  const type = (issue.type || '').trim();
+  // Use component as primary axis; fall back to category if blank
+  const bucket = comp || issue._category;
+  return `${type}::${bucket}`;
+}
+
+function deriveRootCauseLabel(type: string, component: string, category: string, symptoms: ParsedIssue[]): string {
+  const loc = component || category;
+
+  if (type === 'missing_field' || type === 'data_issue') {
+    return `Broken data mapping in ${loc}`;
+  }
+  if (type === 'broken_flow' || type === 'broken_flows') {
+    return `${loc} pipeline broken`;
+  }
+  if (type === 'fake_feature' || type === 'fake_features') {
+    return `Fake feature in ${loc}`;
+  }
+  if (type === 'interaction_failure' || type === 'interaction_failures') {
+    return `UI interaction layer broken: ${loc}`;
+  }
+  if (type === 'orphan_file') {
+    return `Orphan files in ${loc}`;
+  }
+
+  // Generic fallback
+  const n = symptoms.length;
+  return `${n} issue${n !== 1 ? 's' : ''} in ${loc}`;
+}
+
+function deriveGroupDescription(type: string, symptoms: ParsedIssue[]): string {
+  if (type === 'missing_field') {
+    const fields = [...new Set(symptoms.map(s => s.missing_field).filter(Boolean))];
+    if (fields.length > 0) {
+      return `Missing field${fields.length > 1 ? 's' : ''}: ${fields.slice(0, 4).join(', ')}${fields.length > 4 ? ', …' : ''}`;
+    }
+  }
+  // Use the most common description across symptoms
+  const descs = symptoms.map(s => s.description).filter(Boolean);
+  return descs[0] ?? `${symptoms.length} related issue${symptoms.length !== 1 ? 's' : ''} detected`;
+}
+
+export function groupByRootCause(issues: ParsedIssue[]): RootCauseGroup[] {
+  // Accumulate issues per group key
+  const buckets = new Map<string, ParsedIssue[]>();
+  for (const issue of issues) {
+    const key = deriveGroupKey(issue);
+    const bucket = buckets.get(key);
+    if (bucket) {
+      bucket.push(issue);
+    } else {
+      buckets.set(key, [issue]);
+    }
+  }
+
+  const groups: RootCauseGroup[] = [];
+  for (const [key, symptoms] of buckets.entries()) {
+    const [type, bucket] = key.split('::');
+    const component = symptoms[0]?.component || '';
+    const category = symptoms[0]?._category || '';
+    const loc = component || bucket;
+
+    const root_cause = deriveRootCauseLabel(type, loc, category, symptoms);
+    const description = deriveGroupDescription(type, symptoms);
+    const total_impact = symptoms.reduce((sum, s) => sum + s.count, 0);
+    const severity = worstSeverity(symptoms);
+
+    groups.push({
+      _key: key,
+      root_cause,
+      description,
+      type,
+      component: loc,
+      symptoms,
+      total_impact,
+      severity,
+    });
+  }
+
+  // Sort: worst severity first, then by symptom count descending
+  groups.sort((a, b) => {
+    const rankDiff = SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity];
+    return rankDiff !== 0 ? rankDiff : b.symptoms.length - a.symptoms.length;
+  });
+
+  return groups;
+}
+
 // ── Severity styling ──────────────────────────────────────────────────────────
 
 function severityColor(s: ParsedIssue['severity']): string {
@@ -341,6 +463,79 @@ function IssueDetailPanel({
   );
 }
 
+// ── Root Cause Card ───────────────────────────────────────────────────────────
+
+function RootCauseCard({
+  group,
+  selectedKey,
+  onSelectIssue,
+}: {
+  group: RootCauseGroup;
+  selectedKey: string | null;
+  onSelectIssue: (key: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className={cn('border rounded-lg transition-colors', severityColor(group.severity))}>
+      {/* Group header */}
+      <button
+        className="w-full text-left px-3 py-2.5 flex items-start gap-2"
+        onClick={() => setExpanded(v => !v)}
+      >
+        <Layers className="w-3.5 h-3.5 mt-0.5 shrink-0 opacity-70" />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <SeverityBadge severity={group.severity} />
+            <span className="text-[9px] font-mono opacity-60">{group.type || group.symptoms[0]?._category}</span>
+            <span className="text-[9px] opacity-50">·</span>
+            <span className="text-[9px] opacity-60">{group.symptoms.length} symptom{group.symptoms.length !== 1 ? 's' : ''}</span>
+            {group.total_impact > group.symptoms.length && (
+              <>
+                <span className="text-[9px] opacity-50">·</span>
+                <span className="text-[9px] opacity-60">{group.total_impact} occurrences</span>
+              </>
+            )}
+          </div>
+          <p className="text-xs font-semibold text-foreground mt-0.5">{group.root_cause}</p>
+          <p className="text-[10px] opacity-70 mt-0.5 truncate">{group.description}</p>
+        </div>
+        {expanded
+          ? <ChevronDown className="w-3 h-3 shrink-0 mt-1 opacity-50" />
+          : <ChevronRight className="w-3 h-3 shrink-0 mt-1 opacity-50" />
+        }
+      </button>
+
+      {/* Symptom list */}
+      {expanded && (
+        <div className="border-t border-current/10 divide-y divide-current/10">
+          {group.symptoms.map(issue => (
+            <button
+              key={issue._key}
+              onClick={() => onSelectIssue(issue._key)}
+              className={cn(
+                'w-full text-left px-4 py-2 flex items-start gap-2 transition-colors',
+                selectedKey === issue._key
+                  ? 'bg-primary/10'
+                  : 'hover:bg-muted/30',
+              )}
+            >
+              <Bug className="w-3 h-3 mt-0.5 shrink-0 opacity-50" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] font-medium text-foreground truncate">{issue.title}</p>
+                {issue.file && (
+                  <p className="text-[9px] font-mono text-muted-foreground truncate">{issue.file}</p>
+                )}
+              </div>
+              <ChevronRight className={cn('w-3 h-3 shrink-0 mt-0.5 text-muted-foreground transition-transform', selectedKey === issue._key && 'rotate-90')} />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export interface IssueAnalysisPanelProps {
@@ -350,6 +545,7 @@ export interface IssueAnalysisPanelProps {
 
 export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPanelProps) {
   const issues = useMemo(() => parseIssues(unifiedResult), [unifiedResult]);
+  const groups = useMemo(() => groupByRootCause(issues), [issues]);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
   const selectedIssue = issues.find(i => i._key === selectedKey) ?? null;
@@ -368,9 +564,11 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
     });
   }
 
-  // ── Severity filter ──────────────────────────────────────────────────────────
+  // ── Severity filter (operates on group's worst severity) ─────────────────────
   const [severityFilter, setSeverityFilter] = useState<ParsedIssue['severity'] | 'all'>('all');
-  const visible = severityFilter === 'all' ? issues : issues.filter(i => i.severity === severityFilter);
+  const visibleGroups = severityFilter === 'all'
+    ? groups
+    : groups.filter(g => g.severity === severityFilter);
 
   return (
     <div className="space-y-3">
@@ -379,6 +577,7 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
         <div><span className="text-muted-foreground">scan_run_id:</span> <span className="text-foreground">{scanRunId ?? '—'}</span></div>
         <div><span className="text-muted-foreground">data_source:</span> <span className="text-green-500">scan_runs.unified_result</span></div>
         <div><span className="text-muted-foreground">parsed_issues:</span> <span className="text-foreground">{issues.length}</span></div>
+        <div><span className="text-muted-foreground">root_cause_groups:</span> <span className="text-foreground">{groups.length}</span></div>
       </div>
 
       {/* Failsafe */}
@@ -393,7 +592,7 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
         </div>
       )}
 
-      {issues.length > 0 && (
+      {groups.length > 0 && (
         <>
           {/* Severity filter */}
           <div className="flex gap-1 flex-wrap">
@@ -408,41 +607,26 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
                     : 'border-border text-muted-foreground hover:bg-muted/50',
                 )}
               >
-                {s === 'all' ? `All (${issues.length})` : `${s} (${issues.filter(i => i.severity === s).length})`}
+                {s === 'all'
+                  ? `All (${groups.length} groups)`
+                  : `${s} (${groups.filter(g => g.severity === s).length})`}
               </button>
             ))}
           </div>
 
           <div className={cn('grid gap-3', selectedIssue ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1')}>
-            {/* Issue list */}
-            <div className="space-y-1">
-              {visible.length === 0 && (
-                <p className="text-[10px] text-muted-foreground">No issues at this severity level.</p>
+            {/* Grouped issue list */}
+            <div className="space-y-2">
+              {visibleGroups.length === 0 && (
+                <p className="text-[10px] text-muted-foreground">No issue groups at this severity level.</p>
               )}
-              {visible.map(issue => (
-                <button
-                  key={issue._key}
-                  onClick={() => setSelectedKey(prev => prev === issue._key ? null : issue._key)}
-                  className={cn(
-                    'w-full text-left rounded-md border px-3 py-2 transition-colors group flex items-start gap-2',
-                    selectedKey === issue._key
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border hover:border-primary/40 hover:bg-muted/30',
-                  )}
-                >
-                  <Bug className="w-3.5 h-3.5 mt-0.5 shrink-0 text-muted-foreground group-hover:text-primary" />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <SeverityBadge severity={issue.severity} />
-                      <span className="text-[9px] text-muted-foreground">{issue._category}</span>
-                    </div>
-                    <p className="text-xs font-medium text-foreground mt-0.5 truncate">{issue.title}</p>
-                    {issue.file && (
-                      <p className="text-[10px] text-muted-foreground font-mono truncate">{issue.file}</p>
-                    )}
-                  </div>
-                  <ChevronRight className={cn('w-3 h-3 shrink-0 mt-0.5 text-muted-foreground transition-transform', selectedKey === issue._key && 'rotate-90')} />
-                </button>
+              {visibleGroups.map(group => (
+                <RootCauseCard
+                  key={group._key}
+                  group={group}
+                  selectedKey={selectedKey}
+                  onSelectIssue={key => setSelectedKey(prev => prev === key ? null : key)}
+                />
               ))}
             </div>
 
