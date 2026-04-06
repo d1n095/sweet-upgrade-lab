@@ -63,7 +63,7 @@ serve(async (req) => {
     } else if (query) {
       const orFilters = [
         `order_number.eq.${query}`,
-        `shopify_order_number.eq.${query}`,
+        `external_order_number.eq.${query}`,
         `tracking_number.eq.${query}`,
       ];
       // Only allow session/payment ID lookup with email match
