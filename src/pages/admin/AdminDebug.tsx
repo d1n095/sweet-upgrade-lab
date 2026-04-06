@@ -122,9 +122,9 @@ const ApiLogTab = () => {
 
   const refresh = async () => {
     // Trigger a lightweight call so the log is populated, then expose via getApiLog if available
-    const { getApiLog } = await import('@/lib/safeInvoke').catch(() => ({ getApiLog: undefined }));
-    if (typeof (getApiLog as any) === 'function') {
-      setEntries((getApiLog as any)());
+    const mod = await import('@/lib/safeInvoke').catch(() => ({}));
+    if (typeof (mod as any).getApiLog === 'function') {
+      setEntries((mod as any).getApiLog());
     }
   };
 

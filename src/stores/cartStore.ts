@@ -71,6 +71,8 @@ interface CartStore {
   removeItem: (variantId: string) => void;
   clearCart: () => void;
   setLoading: (loading: boolean) => void;
+  setCartId: (id: string | null) => void;
+  setCheckoutUrl: (url: string | null) => void;
   totalItems: () => number;
   totalPrice: () => number;
 }
