@@ -739,7 +739,7 @@ const BundlesTab = () => {
       if (error || !newBundle) { toast.error('Kunde inte skapa: ' + (error?.message || '')); setSaving(false); return; }
 
       await supabase.from('bundle_items').insert(
-        selectedProducts.map(sp => ({ bundle_id: newBundle.id, shopify_product_id: sp.productId, quantity: sp.quantity }))
+        selectedProducts.map(sp => ({ bundle_id: newBundle.id, product_id: sp.productId, quantity: sp.quantity }))
       );
       toast.success('Paket skapat');
     }
