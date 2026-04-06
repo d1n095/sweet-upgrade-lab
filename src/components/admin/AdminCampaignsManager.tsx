@@ -1009,8 +1009,8 @@ const BundlesTab = () => {
                       <p className="text-xs font-medium">Produkter i paketet:</p>
                       {items.map(item => (
                         <div key={item.id} className="flex items-center gap-2 p-2 rounded-lg bg-secondary/30">
-                          <span className="text-sm flex-1 truncate">{getProductName(item.product_id)}</span>
-                          <span className="text-xs text-muted-foreground">{item.quantity}x {getProductPrice(item.product_id)} kr</span>
+                          <span className="text-sm flex-1 truncate">{getProductName(item.shopify_product_id)}</span>
+                          <span className="text-xs text-muted-foreground">{item.quantity}x {getProductPrice(item.shopify_product_id)} kr</span>
                           <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeItemFromBundle(item.id)}>
                             <X className="w-3 h-3" />
                           </Button>
