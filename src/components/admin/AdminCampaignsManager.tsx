@@ -1020,7 +1020,7 @@ const BundlesTab = () => {
                       <Select onValueChange={val => addProductToBundle(b.id, val)}>
                         <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="+ Lägg till produkt..." /></SelectTrigger>
                         <SelectContent>
-                          {allProducts.filter(p => !items.find(i => i.product_id === p.id)).map(p => (
+                          {allProducts.filter(p => !items.find(i => i.shopify_product_id === p.id)).map(p => (
                             <SelectItem key={p.id} value={p.id} className="text-xs">{p.title_sv} — {p.price} kr</SelectItem>
                           ))}
                         </SelectContent>
