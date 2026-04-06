@@ -196,7 +196,7 @@ export function SystemSummaryPanel({ latestRun }: Props) {
             {open && (
               <div className="px-3 pb-3 pt-1 space-y-2 bg-muted/10 border-t border-border">
                 {issues.map((issue) => (
-                  <SystemActionPanel key={issue._key} issue={issue} />
+                  <SystemActionPanel key={issue._key} issue={issue} scanRunId={latestRun.id} />
                 ))}
               </div>
             )}

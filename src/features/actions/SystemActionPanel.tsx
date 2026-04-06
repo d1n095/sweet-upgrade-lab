@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
-import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Zap } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Loader2, Zap } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { buildFixAction, simulateFix, type FixAction } from './AutoFixEngine';
+import { buildFixAction, simulateFix, type FixAction, type FixType } from './AutoFixEngine';
+import { supabase } from '@/integrations/supabase/client';
+import { safeInvoke } from '@/lib/safeInvoke';
+import { toast } from 'sonner';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -20,7 +23,14 @@ export interface ActionIssue {
 
 interface Props {
   issue: ActionIssue;
+  scanRunId?: string;
 }
+
+// Fix types that are eligible for safeInvoke('apply-fix') call
+const SUPPORTED_FIX_TYPES: FixType[] = [
+  'fix_route', 'fix_data_mapping', 'fix_validation', 'add_null_guard',
+  'restore_handler', 'add_loading_state', 'remove_dead_code',
+];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -40,9 +50,10 @@ const EFFORT_BADGE: Record<FixAction['estimated_effort'], string> = {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function SystemActionPanel({ issue }: Props) {
+export function SystemActionPanel({ issue, scanRunId }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [simulating, setSimulating] = useState(false);
+  const [executing, setExecuting] = useState(false);
   const [simResult, setSimResult] = useState<string | null>(null);
   const [executed, setExecuted] = useState(false);
 
@@ -56,9 +67,72 @@ export function SystemActionPanel({ issue }: Props) {
     setSimulating(false);
   };
 
-  const handleExecute = () => {
-    setExecuted(true);
-    setSimResult(`✅ Markerad för åtgärd: ${action.label} — Local mode, inga externa ändringar`);
+  const handleExecute = async () => {
+    setExecuting(true);
+    setSimResult(null);
+    try {
+      // 1. Look up matching work_item by title (source_type = 'scanner')
+      const { data: workItems } = await supabase
+        .from('work_items')
+        .select('id, title, source_id, source_type')
+        .ilike('title', issue.title)
+        .eq('source_type', 'scanner')
+        .in('status', ['open', 'claimed', 'in_progress'])
+        .limit(1);
+
+      const workItem = workItems?.[0] ?? null;
+
+      // 2. Update work_item status to 'done' if found
+      if (workItem) {
+        await supabase
+          .from('work_items')
+          .update({ status: 'done', completed_at: new Date().toISOString() })
+          .eq('id', workItem.id);
+      }
+
+      // 3. Log execution in change_log
+      await supabase.from('change_log').insert({
+        change_type: 'fix_execution',
+        description: `Åtgärd utförd: ${action.label} — ${issue.title}`,
+        affected_components: [issue._category, action.fix_type],
+        source: 'system_action_panel',
+        work_item_id: workItem?.id ?? null,
+        scan_id: scanRunId ?? null,
+        metadata: {
+          fix_type: action.fix_type,
+          issue_id: issue.id,
+          issue_severity: issue.severity,
+          issue_category: issue._category,
+          work_item_found: !!workItem,
+        },
+      });
+
+      // 4. Optional: call apply-fix if fix_type is supported
+      if (SUPPORTED_FIX_TYPES.includes(action.fix_type)) {
+        safeInvoke('apply-fix', {
+          body: {
+            fix_text: issue.fix_suggestion || action.description,
+            issue_title: issue.title,
+            issue_category: issue._category,
+            issue_severity: issue.severity,
+            source_work_item_id: workItem?.id,
+          },
+        }).catch(() => {/* silently ignore — optional */});
+      }
+
+      setExecuted(true);
+      setSimResult(
+        workItem
+          ? `✅ Work item uppdaterat till "done": ${workItem.title}`
+          : `✅ Loggad i change_log (inget matchande work item hittades)`
+      );
+      toast.success(`Åtgärd utförd: ${action.label}`);
+    } catch (err: any) {
+      setSimResult(`❌ Fel: ${err?.message || 'Okänt fel'}`);
+      toast.error('Utförande misslyckades');
+    } finally {
+      setExecuting(false);
+    }
   };
 
   return (
@@ -101,7 +175,7 @@ export function SystemActionPanel({ issue }: Props) {
               size="sm"
               variant="outline"
               className="flex-1 gap-1.5 h-7 text-xs"
-              disabled={simulating || executed}
+              disabled={simulating || executed || executing}
               onClick={handleSimulate}
             >
               {simulating ? (
@@ -113,20 +187,23 @@ export function SystemActionPanel({ issue }: Props) {
             </Button>
             <Button
               size="sm"
-              variant="outline"
+              variant="default"
               className="flex-1 gap-1.5 h-7 text-xs"
-              disabled={executed}
+              disabled={executed || executing || simulating}
               onClick={handleExecute}
             >
-              <CheckCircle2 className="w-3 h-3" />
-              Utför (Local)
+              {executing ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <CheckCircle2 className="w-3 h-3" />
+              )}
+              {executing ? 'Utför...' : 'Utför'}
             </Button>
           </div>
 
           {simResult && (
             <p className="text-[11px] text-muted-foreground bg-muted rounded px-2 py-1">{simResult}</p>
           )}
-          <p className="text-[9px] text-muted-foreground/60">Local mode – inga externa ändringar görs</p>
         </div>
       )}
     </div>
