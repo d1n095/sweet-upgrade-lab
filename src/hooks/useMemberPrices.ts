@@ -52,7 +52,7 @@ export const useMemberPrices = () => {
 
         if (volumeData) {
           setVolumeDiscounts(volumeData.map((v) => ({
-            shopify_product_id: (v as any).shopify_product_id,
+            product_id: (v as any).product_id,
             min_quantity: v.min_quantity,
             discount_percent: Number(v.discount_percent),
             is_global: v.is_global,
