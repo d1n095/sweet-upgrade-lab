@@ -61,7 +61,6 @@ const emptyForm = (): ProductFormData => ({
 const AdminDbProductManager = () => {
   const { language } = useLanguage();
   const queryClient = useQueryClient();
-  const sv = language === 'sv';
 
   // State
   const [activeTab, setActiveTab] = useState<ProductStatus>('active');
@@ -101,43 +100,138 @@ const AdminDbProductManager = () => {
     refetchOnWindowFocus: true,
   });
 
-  const t = sv ? {
-    title: 'Produkthantering', subtitle: `${allProducts.length} produkter totalt`,
-    addProduct: 'Lägg till', editProduct: 'Redigera produkt',
-    productName: 'Produktnamn (svenska)', description: 'Beskrivning (svenska)',
-    price: 'Pris (SEK)', category: 'Kategori', selectCategory: 'Välj kategori',
-    tags: 'Taggar', tagsPlaceholder: 'Klicka på förslag eller skriv egna',
-    suggestedTags: 'Föreslagna taggar:', vendor: 'Leverantör',
-    save: 'Spara produkt', update: 'Uppdatera', cancel: 'Avbryt',
-    delete: 'Ta bort', noProducts: 'Inga produkter', loading: 'Laddar...',
-    deleteConfirm: 'Är du säker?', deleteDescription: 'Produkten tas bort permanent.',
-    productAdded: 'Produkt tillagd!', productUpdated: 'Produkt uppdaterad!',
-    productDeleted: 'Produkt borttagen!', error: 'Något gick fel',
-    inStock: 'I lager', outOfStock: 'Slut',
-    visibility: 'Synlighet', visibleInStore: 'Synlig i butiken', hiddenFromStore: 'Dold från butiken',
-    inventory: 'Lager', currentStock: 'Nuvarande lager',
-    allowOverselling: 'Tillåt försäljning när slut', oversellHint: 'Kunder kan köpa även när lagret är 0',
-    search: 'Sök produkter...', allCategories: 'Alla kategorier',
-    allStock: 'Alla', lowStock: 'Lågt lager', outStock: 'Slut i lager',
-  } : {
-    title: 'Product Management', subtitle: `${allProducts.length} products total`,
-    addProduct: 'Add', editProduct: 'Edit Product',
-    productName: 'Product name (Swedish)', description: 'Description (Swedish)',
-    price: 'Price (SEK)', category: 'Category', selectCategory: 'Select category',
-    tags: 'Tags', tagsPlaceholder: 'Click suggestions or type your own',
-    suggestedTags: 'Suggested tags:', vendor: 'Vendor',
-    save: 'Save Product', update: 'Update', cancel: 'Cancel',
-    delete: 'Delete', noProducts: 'No products', loading: 'Loading...',
-    deleteConfirm: 'Are you sure?', deleteDescription: 'Product will be permanently deleted.',
-    productAdded: 'Product added!', productUpdated: 'Product updated!',
-    productDeleted: 'Product deleted!', error: 'Something went wrong',
-    inStock: 'In stock', outOfStock: 'Out of stock',
-    visibility: 'Visibility', visibleInStore: 'Visible in store', hiddenFromStore: 'Hidden from store',
-    inventory: 'Inventory', currentStock: 'Current stock',
-    allowOverselling: 'Allow overselling', oversellHint: 'Customers can buy even when stock is 0',
-    search: 'Search products...', allCategories: 'All categories',
-    allStock: 'All', lowStock: 'Low stock', outStock: 'Out of stock',
+  const content: Record<string, {
+    title: string; subtitle: string; addProduct: string; editProduct: string;
+    productName: string; description: string; price: string; category: string;
+    selectCategory: string; tags: string; tagsPlaceholder: string; suggestedTags: string;
+    vendor: string; save: string; update: string; cancel: string; delete: string;
+    noProducts: string; loading: string; deleteConfirm: string; deleteDescription: string;
+    productAdded: string; productUpdated: string; productDeleted: string; error: string;
+    inStock: string; outOfStock: string; visibility: string; visibleInStore: string;
+    hiddenFromStore: string; inventory: string; currentStock: string;
+    allowOverselling: string; oversellHint: string; search: string; allCategories: string;
+    allStock: string; lowStock: string; outStock: string;
+    product: string; status: string; active: string; priceLabel: string; stockLabel: string;
+    updatedLabel: string; hidden: string; edit: string; duplicate: string;
+    hide: string; show: string; draft: string; archive: string; activate: string;
+    clearAll: string; selected: string; deselect: string; noMatch: string; productsShown: string;
+    filtered: string; productActivated: string; productDeactivated: string;
+    updated: string; statusChanged: string; duplicated: string; bulkDeleted: string; bulkUpdated: string;
+    bulkDeleteDescription: string;
+  }> = {
+    sv: {
+      title: 'Produkthantering', subtitle: `${allProducts.length} produkter totalt`,
+      addProduct: 'Lägg till', editProduct: 'Redigera produkt',
+      productName: 'Produktnamn (svenska)', description: 'Beskrivning (svenska)',
+      price: 'Pris (SEK)', category: 'Kategori', selectCategory: 'Välj kategori',
+      tags: 'Taggar', tagsPlaceholder: 'Klicka på förslag eller skriv egna',
+      suggestedTags: 'Föreslagna taggar:', vendor: 'Leverantör',
+      save: 'Spara produkt', update: 'Uppdatera', cancel: 'Avbryt',
+      delete: 'Ta bort', noProducts: 'Inga produkter', loading: 'Laddar...',
+      deleteConfirm: 'Är du säker?', deleteDescription: 'Produkten tas bort permanent.',
+      productAdded: 'Produkt tillagd!', productUpdated: 'Produkt uppdaterad!',
+      productDeleted: 'Produkt borttagen!', error: 'Något gick fel',
+      inStock: 'I lager', outOfStock: 'Slut',
+      visibility: 'Synlighet', visibleInStore: 'Synlig i butiken', hiddenFromStore: 'Dold från butiken',
+      inventory: 'Lager', currentStock: 'Nuvarande lager',
+      allowOverselling: 'Tillåt försäljning när slut', oversellHint: 'Kunder kan köpa även när lagret är 0',
+      search: 'Sök produkter...', allCategories: 'Alla kategorier',
+      allStock: 'Alla', lowStock: 'Lågt lager', outStock: 'Slut i lager',
+      product: 'Produkt', status: 'Status', active: 'Aktiv', priceLabel: 'Pris', stockLabel: 'Lager',
+      updatedLabel: 'Uppdaterad', hidden: 'Dold', edit: 'Redigera', duplicate: 'Duplicera',
+      hide: 'Dölj', show: 'Visa', draft: 'Utkast', archive: 'Arkivera', activate: 'Aktivera',
+      clearAll: 'Rensa alla', selected: 'valda', deselect: 'Avmarkera',
+      noMatch: 'Inga produkter matchar filtren', productsShown: 'produkter visas',
+      filtered: '(filtrerat)', productActivated: 'Produkt aktiverad', productDeactivated: 'Produkt inaktiverad',
+      updated: 'Uppdaterad', statusChanged: 'Status ändrad', duplicated: 'Duplicerad',
+      bulkDeleted: 'borttagna', bulkUpdated: 'uppdaterade',
+      bulkDeleteDescription: 'produkter tas bort permanent.',
+    },
+    en: {
+      title: 'Product Management', subtitle: `${allProducts.length} products total`,
+      addProduct: 'Add', editProduct: 'Edit Product',
+      productName: 'Product name (Swedish)', description: 'Description (Swedish)',
+      price: 'Price (SEK)', category: 'Category', selectCategory: 'Select category',
+      tags: 'Tags', tagsPlaceholder: 'Click suggestions or type your own',
+      suggestedTags: 'Suggested tags:', vendor: 'Vendor',
+      save: 'Save Product', update: 'Update', cancel: 'Cancel',
+      delete: 'Delete', noProducts: 'No products', loading: 'Loading...',
+      deleteConfirm: 'Are you sure?', deleteDescription: 'Product will be permanently deleted.',
+      productAdded: 'Product added!', productUpdated: 'Product updated!',
+      productDeleted: 'Product deleted!', error: 'Something went wrong',
+      inStock: 'In stock', outOfStock: 'Out of stock',
+      visibility: 'Visibility', visibleInStore: 'Visible in store', hiddenFromStore: 'Hidden from store',
+      inventory: 'Inventory', currentStock: 'Current stock',
+      allowOverselling: 'Allow overselling', oversellHint: 'Customers can buy even when stock is 0',
+      search: 'Search products...', allCategories: 'All categories',
+      allStock: 'All', lowStock: 'Low stock', outStock: 'Out of stock',
+      product: 'Product', status: 'Status', active: 'Active', priceLabel: 'Price', stockLabel: 'Stock',
+      updatedLabel: 'Updated', hidden: 'Hidden', edit: 'Edit', duplicate: 'Duplicate',
+      hide: 'Hide', show: 'Show', draft: 'Draft', archive: 'Archive', activate: 'Activate',
+      clearAll: 'Clear all', selected: 'selected', deselect: 'Deselect',
+      noMatch: 'No products match filters', productsShown: 'products shown',
+      filtered: '(filtered)', productActivated: 'Product activated', productDeactivated: 'Product deactivated',
+      updated: 'Updated', statusChanged: 'Status changed', duplicated: 'Duplicated',
+      bulkDeleted: 'deleted', bulkUpdated: 'updated',
+      bulkDeleteDescription: 'products will be permanently deleted.',
+      title: 'Produkthåndtering', subtitle: `${allProducts.length} produkter totalt`,
+      addProduct: 'Legg til', editProduct: 'Rediger produkt',
+      productName: 'Produktnavn (svensk)', description: 'Beskrivelse (svensk)',
+      price: 'Pris (SEK)', category: 'Kategori', selectCategory: 'Velg kategori',
+      tags: 'Tagger', tagsPlaceholder: 'Klikk på forslag eller skriv egne',
+      suggestedTags: 'Foreslåtte tagger:', vendor: 'Leverandør',
+      save: 'Lagre produkt', update: 'Oppdater', cancel: 'Avbryt',
+      delete: 'Slett', noProducts: 'Ingen produkter', loading: 'Laster...',
+      deleteConfirm: 'Er du sikker?', deleteDescription: 'Produkten slettes permanent.',
+      productAdded: 'Produkt lagt til!', productUpdated: 'Produkt oppdatert!',
+      productDeleted: 'Produkt slettet!', error: 'Noe gikk galt',
+      inStock: 'På lager', outOfStock: 'Utsolgt',
+      visibility: 'Synlighet', visibleInStore: 'Synlig i butikken', hiddenFromStore: 'Skjult fra butikken',
+      inventory: 'Lager', currentStock: 'Nåværende lager',
+      allowOverselling: 'Tillat salg ved utsolgt', oversellHint: 'Kunder kan kjøpe selv om lageret er 0',
+      search: 'Søk produkter...', allCategories: 'Alle kategorier',
+      allStock: 'Alle', lowStock: 'Lavt lager', outStock: 'Tomt på lager',
+    },
+    da: {
+      title: 'Produkthåndtering', subtitle: `${allProducts.length} produkter i alt`,
+      addProduct: 'Tilføj', editProduct: 'Rediger produkt',
+      productName: 'Produktnavn (svensk)', description: 'Beskrivelse (svensk)',
+      price: 'Pris (SEK)', category: 'Kategori', selectCategory: 'Vælg kategori',
+      tags: 'Tags', tagsPlaceholder: 'Klik på forslag eller skriv egne',
+      suggestedTags: 'Foreslåede tags:', vendor: 'Leverandør',
+      save: 'Gem produkt', update: 'Opdater', cancel: 'Annuller',
+      delete: 'Slet', noProducts: 'Ingen produkter', loading: 'Indlæser...',
+      deleteConfirm: 'Er du sikker?', deleteDescription: 'Produktet slettes permanent.',
+      productAdded: 'Produkt tilføjet!', productUpdated: 'Produkt opdateret!',
+      productDeleted: 'Produkt slettet!', error: 'Noget gik galt',
+      inStock: 'På lager', outOfStock: 'Udsolgt',
+      visibility: 'Synlighed', visibleInStore: 'Synlig i butikken', hiddenFromStore: 'Skjult fra butikken',
+      inventory: 'Lager', currentStock: 'Nuværende lager',
+      allowOverselling: 'Tillad salg ved udsolgt', oversellHint: 'Kunder kan købe selvom lageret er 0',
+      search: 'Søg produkter...', allCategories: 'Alle kategorier',
+      allStock: 'Alle', lowStock: 'Lavt lager', outStock: 'Tomt på lager',
+    },
+    de: {
+      title: 'Produktverwaltung', subtitle: `${allProducts.length} Produkte insgesamt`,
+      addProduct: 'Hinzufügen', editProduct: 'Produkt bearbeiten',
+      productName: 'Produktname (Schwedisch)', description: 'Beschreibung (Schwedisch)',
+      price: 'Preis (SEK)', category: 'Kategorie', selectCategory: 'Kategorie wählen',
+      tags: 'Tags', tagsPlaceholder: 'Vorschläge anklicken oder eigene eingeben',
+      suggestedTags: 'Vorgeschlagene Tags:', vendor: 'Lieferant',
+      save: 'Produkt speichern', update: 'Aktualisieren', cancel: 'Abbrechen',
+      delete: 'Löschen', noProducts: 'Keine Produkte', loading: 'Lädt...',
+      deleteConfirm: 'Sind Sie sicher?', deleteDescription: 'Das Produkt wird dauerhaft gelöscht.',
+      productAdded: 'Produkt hinzugefügt!', productUpdated: 'Produkt aktualisiert!',
+      productDeleted: 'Produkt gelöscht!', error: 'Etwas ist schiefgelaufen',
+      inStock: 'Auf Lager', outOfStock: 'Ausverkauft',
+      visibility: 'Sichtbarkeit', visibleInStore: 'Im Shop sichtbar', hiddenFromStore: 'Im Shop versteckt',
+      inventory: 'Lager', currentStock: 'Aktueller Bestand',
+      allowOverselling: 'Verkauf bei Ausverkauf erlauben', oversellHint: 'Kunden können kaufen, auch wenn der Bestand 0 ist',
+      search: 'Produkte suchen...', allCategories: 'Alle Kategorien',
+      allStock: 'Alle', lowStock: 'Niedriger Bestand', outStock: 'Kein Bestand',
+    },
   };
+  const t = content[language] || content.en;
 
   // Filter + sort pipeline
   const filteredProducts = useMemo(() => {
