@@ -47,7 +47,7 @@ const SystemTrustScore = () => {
       const [workItemsRes, bugsRes, scansRes, changeLogRes] = await Promise.all([
         supabase.from('work_items' as any).select('status, review_status, priority').limit(500),
         supabase.from('bug_reports').select('status, ai_severity').limit(500),
-        supabase.from('scan_results').select('overall_score, issues_count, tasks_created').order('created_at', { ascending: false }).limit(20),
+        supabase.from('ai_scan_results').select('overall_score, issues_count, tasks_created').order('created_at', { ascending: false }).limit(20),
         supabase.from('change_log').select('change_type, source').order('created_at', { ascending: false }).limit(200),
       ]);
 

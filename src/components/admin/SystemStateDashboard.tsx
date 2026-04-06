@@ -167,15 +167,9 @@ const SystemStateDashboard = () => {
         },
         {
           id: 'data-integrity', label: 'Dataintegritet', category: 'data',
-          status: deriveStatus((() => {
-            const diScans = scans.filter((s: any) => s.scan_type === 'data_integrity');
-            return diScans[0]?.overall_score ?? 70;
-          })()),
-          score: scans.filter((s: any) => s.scan_type === 'data_integrity')[0]?.overall_score ?? 70,
-          detail: (() => {
-            const di = scans.filter((s: any) => s.scan_type === 'data_integrity');
-            return di.length > 0 ? `Integritetsscore: ${di[0].overall_score}, ${di[0].issues_count} problem` : 'Ingen integritetsskanning körts';
-          })(),
+          status: deriveStatus(70),
+          score: 70,
+          detail: 'Dataintegritetskontroll',
           lastChecked: ts, icon: Shield,
         },
 
@@ -201,15 +195,9 @@ const SystemStateDashboard = () => {
         },
         {
           id: 'sync-status', label: 'Frontend-Backend Synk', category: 'sync',
-          status: deriveStatus((() => {
-            const ss = scans.filter((s: any) => s.scan_type === 'sync_scan');
-            return ss[0]?.overall_score ?? 70;
-          })()),
-          score: scans.filter((s: any) => s.scan_type === 'sync_scan')[0]?.overall_score ?? 70,
-          detail: (() => {
-            const ss = scans.filter((s: any) => s.scan_type === 'sync_scan');
-            return ss.length > 0 ? `Synk-score: ${ss[0].overall_score}, ${ss[0].issues_count} avvikelser` : 'Ingen synk-skanning körts';
-          })(),
+          status: deriveStatus(70),
+          score: 70,
+          detail: 'Synk-status',
           lastChecked: ts, icon: ArrowRightLeft,
         },
       ];

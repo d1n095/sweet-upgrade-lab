@@ -25,7 +25,7 @@ export const useProductReviewStats = (productHandle: string | undefined) => {
           .from('reviews')
           .select('rating')
           .eq('is_approved', true)
-          .eq('product_handle', productHandle);
+          .eq('shopify_product_handle', productHandle);
 
         if (data && data.length > 0) {
           const sum = data.reduce((acc, r) => acc + r.rating, 0);

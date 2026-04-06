@@ -65,10 +65,10 @@ export const useInfluencerCode = () => {
         // Load already received products
         const { data: products } = await supabase
           .from('influencer_products')
-          .select('product_id, product_title')
+          .select('shopify_product_id, product_title')
           .eq('influencer_id', result.influencer_id);
         
-        setReceivedProducts((products || []) as ReceivedProduct[]);
+        setReceivedProducts((products || []).map(p => ({ product_id: p.shopify_product_id, product_title: p.product_title })) as ReceivedProduct[]);
         
         return result;
       } else {
@@ -108,8 +108,8 @@ export const useInfluencerCode = () => {
         .from('influencer_products')
         .insert({
           influencer_id: validatedInfluencer.influencer_id,
-          product_id: productId,
-          variant_id: variantId,
+          shopify_product_id: productId,
+          shopify_variant_id: variantId,
           product_title: productTitle,
         });
 

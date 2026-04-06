@@ -81,7 +81,7 @@ export const runUnifiedPipeline = async (
     // ─── STAGE 1: SCAN → ISSUES ───
     // Find recent scan results that created tasks but haven't been linked
     const { data: recentScans } = await supabase
-      .from('scan_results')
+      .from('ai_scan_results')
       .select('id, scan_type, issues_count, tasks_created, created_at')
       .order('created_at', { ascending: false })
       .limit(10);

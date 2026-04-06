@@ -11,7 +11,6 @@ import {
 } from '@/components/ui/select';
 import { safeInvoke } from '@/lib/safeInvoke';
 import { supabase } from '@/integrations/supabase/client';
-import { safeInvoke } from '@/lib/safeInvoke';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { logActivity } from '@/utils/activityLogger';

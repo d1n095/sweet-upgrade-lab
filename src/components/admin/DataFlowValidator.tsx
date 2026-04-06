@@ -126,7 +126,7 @@ const DataFlowValidator = () => {
       setProgress(10);
       const { data: scans } = await supabase
         .from('scan_runs')
-        .select('id, status, created_at, completed_at')
+        .select('id, status, created_at, completed_at, scan_mode')
         .order('created_at', { ascending: false })
         .limit(50);
 
@@ -170,7 +170,7 @@ const DataFlowValidator = () => {
             id: scan.id, origin: 'scan', originId: scan.id,
             links,
             status: hasBroken ? 'broken' : hasMissing ? 'partial' : 'intact',
-            summary: `Scan ${scan.scan_type} (${scan.id.slice(0, 8)}) → ${links.length} kopplingar`,
+            summary: `Scan ${(scan as any).scan_mode || 'unknown'} (${scan.id.slice(0, 8)}) → ${links.length} kopplingar`,
             checkedAt: now,
           });
         }
@@ -223,7 +223,7 @@ const DataFlowValidator = () => {
           // Work Item → Verification (system_history)
           const { data: shLinks } = await supabase
             .from('system_history')
-            .select('id, review_status')
+            .select('id, ai_review_status')
             .eq('work_item_id', wi.id)
             .limit(1);
 
@@ -232,7 +232,7 @@ const DataFlowValidator = () => {
             to: 'verification', toId: shLinks?.[0]?.id || null,
             status: shLinks?.length ? 'ok' : (wi.status === 'done' ? 'missing' : 'ok'),
             detail: shLinks?.length
-              ? `Verifierad: ${shLinks[0].review_status || 'pending'}`
+              ? `Verifierad: ${shLinks[0].ai_review_status || 'pending'}`
               : (wi.status === 'done' ? 'Klar men aldrig verifierad' : 'Ej klar'),
           });
         }
