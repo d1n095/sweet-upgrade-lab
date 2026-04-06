@@ -2377,7 +2377,6 @@ serve(async (req) => {
         if (realScanner) {
           console.log(`[scan] Running REAL DB scanner for ${step.scanType}`);
           const dbResult = await realScanner(supabase, scan_run_id);
-          const aiEnrichment: any = null;
           stepResult = { ...dbResult, ai_suggestions: [], ai_summary: null };
         } else {
           console.log(`[scan] AI-only scanner skipped (AI isolated): ${step.scanType}`);
