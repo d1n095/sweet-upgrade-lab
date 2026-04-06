@@ -304,10 +304,10 @@ export function groupByRootCause(issues: ParsedIssue[]): RootCauseGroup[] {
     });
   }
 
-  // Sort: worst severity first, then by symptom count descending
+  // Sort: worst severity first, then by total_impact descending
   groups.sort((a, b) => {
     const rankDiff = SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity];
-    return rankDiff !== 0 ? rankDiff : b.symptoms.length - a.symptoms.length;
+    return rankDiff !== 0 ? rankDiff : b.total_impact - a.total_impact;
   });
 
   return groups;
@@ -469,42 +469,62 @@ function RootCauseCard({
   group,
   selectedKey,
   onSelectIssue,
+  isTop = false,
 }: {
   group: RootCauseGroup;
   selectedKey: string | null;
   onSelectIssue: (key: string) => void;
+  isTop?: boolean;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(isTop);
+
+  function handleFixClick(e: React.MouseEvent) {
+    e.stopPropagation();
+    const first = group.symptoms[0];
+    if (first) {
+      setExpanded(true);
+      onSelectIssue(first._key);
+    }
+  }
 
   return (
     <div className={cn('border rounded-lg transition-colors', severityColor(group.severity))}>
       {/* Group header */}
       <button
-        className="w-full text-left px-3 py-2.5 flex items-start gap-2"
+        className="w-full text-left px-3 py-3 flex items-start gap-2"
         onClick={() => setExpanded(v => !v)}
       >
         <Layers className="w-3.5 h-3.5 mt-0.5 shrink-0 opacity-70" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
             <SeverityBadge severity={group.severity} />
-            <span className="text-[9px] font-mono opacity-60">{group.type || group.symptoms[0]?._category}</span>
-            <span className="text-[9px] opacity-50">·</span>
-            <span className="text-[9px] opacity-60">{group.symptoms.length} symptom{group.symptoms.length !== 1 ? 's' : ''}</span>
-            {group.total_impact > group.symptoms.length && (
-              <>
-                <span className="text-[9px] opacity-50">·</span>
-                <span className="text-[9px] opacity-60">{group.total_impact} occurrences</span>
-              </>
-            )}
+            <span className="text-[9px] opacity-60">
+              {group.symptoms.length} issue{group.symptoms.length !== 1 ? 's' : ''}
+              {group.total_impact > group.symptoms.length ? ` · ${group.total_impact} occurrences` : ''}
+            </span>
           </div>
-          <p className="text-xs font-semibold text-foreground mt-0.5">{group.root_cause}</p>
-          <p className="text-[10px] opacity-70 mt-0.5 truncate">{group.description}</p>
+          <p className="text-sm font-semibold text-foreground mt-1">{group.root_cause}</p>
+          <p className="text-xs opacity-70 mt-0.5">{group.description}</p>
         </div>
         {expanded
-          ? <ChevronDown className="w-3 h-3 shrink-0 mt-1 opacity-50" />
-          : <ChevronRight className="w-3 h-3 shrink-0 mt-1 opacity-50" />
+          ? <ChevronDown className="w-3.5 h-3.5 shrink-0 mt-1 opacity-50" />
+          : <ChevronRight className="w-3.5 h-3.5 shrink-0 mt-1 opacity-50" />
         }
       </button>
+
+      {/* Top-group CTA */}
+      {isTop && (
+        <div className="px-3 pb-3">
+          <Button
+            className="w-full gap-2"
+            size="sm"
+            onClick={handleFixClick}
+          >
+            <Zap className="w-3.5 h-3.5" />
+            Fix this issue
+          </Button>
+        </div>
+      )}
 
       {/* Symptom list */}
       {expanded && (
@@ -547,8 +567,15 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
   const issues = useMemo(() => parseIssues(unifiedResult), [unifiedResult]);
   const groups = useMemo(() => groupByRootCause(issues), [issues]);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
 
   const selectedIssue = issues.find(i => i._key === selectedKey) ?? null;
+
+  const hasCritical = groups.some(g => g.severity === 'critical');
+
+  const topGroup   = groups[0] ?? null;
+  const nextGroups = groups.slice(1, 3);
+  const restGroups = groups.slice(3);
 
   async function addWorkItem(issue: ParsedIssue) {
     await createWorkItemWithDedup({
@@ -564,75 +591,104 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
     });
   }
 
-  // ── Severity filter (operates on group's worst severity) ─────────────────────
-  const [severityFilter, setSeverityFilter] = useState<ParsedIssue['severity'] | 'all'>('all');
-  const visibleGroups = severityFilter === 'all'
-    ? groups
-    : groups.filter(g => g.severity === severityFilter);
+  function selectIssue(key: string) {
+    setSelectedKey(prev => prev === key ? null : key);
+  }
 
   return (
-    <div className="space-y-3">
-      {/* Debug header */}
-      <div className="border border-border/50 rounded-md bg-muted/20 px-3 py-2 text-[10px] font-mono space-y-0.5">
-        <div><span className="text-muted-foreground">scan_run_id:</span> <span className="text-foreground">{scanRunId ?? '—'}</span></div>
-        <div><span className="text-muted-foreground">data_source:</span> <span className="text-green-500">scan_runs.unified_result</span></div>
-        <div><span className="text-muted-foreground">parsed_issues:</span> <span className="text-foreground">{issues.length}</span></div>
-        <div><span className="text-muted-foreground">root_cause_groups:</span> <span className="text-foreground">{groups.length}</span></div>
-      </div>
-
-      {/* Failsafe */}
+    <div className="space-y-4">
+      {/* Failsafe — no data yet */}
       {!unifiedResult && (
         <div className="border border-yellow-500/40 rounded-md bg-yellow-500/10 px-3 py-2 text-xs text-yellow-500 font-medium">
-          No unified_result available — run a scan first.
+          No scan data available — run a scan first.
         </div>
       )}
       {unifiedResult && issues.length === 0 && (
-        <div className="border border-red-500/40 rounded-md bg-red-500/10 px-3 py-2 text-xs text-red-500 font-mono font-medium">
-          NO PARSEABLE ISSUES FOUND – CHECK unified_result STRUCTURE
+        <div className="border border-red-500/40 rounded-md bg-red-500/10 px-3 py-2 text-xs text-red-500 font-medium">
+          No issues found in scan results.
         </div>
       )}
 
       {groups.length > 0 && (
         <>
-          {/* Severity filter */}
-          <div className="flex gap-1 flex-wrap">
-            {(['all', 'critical', 'high', 'medium', 'low', 'info'] as const).map(s => (
-              <button
-                key={s}
-                onClick={() => { setSeverityFilter(s); setSelectedKey(null); }}
-                className={cn(
-                  'text-[10px] px-2 py-0.5 rounded border transition-colors',
-                  severityFilter === s
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : 'border-border text-muted-foreground hover:bg-muted/50',
-                )}
-              >
-                {s === 'all'
-                  ? `All (${groups.length} groups)`
-                  : `${s} (${groups.filter(g => g.severity === s).length})`}
-              </button>
-            ))}
+          {/* Status banner */}
+          <div className={cn(
+            'rounded-lg px-4 py-3 flex items-center gap-3',
+            hasCritical
+              ? 'bg-red-500/10 border border-red-500/30 text-red-500'
+              : 'bg-green-500/10 border border-green-500/30 text-green-600',
+          )}>
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <p className="text-sm font-medium">
+              {hasCritical
+                ? 'Your system has a critical issue affecting core functionality'
+                : 'System is functional but can be improved'}
+            </p>
           </div>
 
-          <div className={cn('grid gap-3', selectedIssue ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1')}>
-            {/* Grouped issue list */}
-            <div className="space-y-2">
-              {visibleGroups.length === 0 && (
-                <p className="text-[10px] text-muted-foreground">No issue groups at this severity level.</p>
+          <div className={cn('grid gap-4', selectedIssue ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1')}>
+            {/* Left column — prioritised groups */}
+            <div className="space-y-4">
+              {/* Fix this first */}
+              {topGroup && (
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    🔥 Fix this first
+                  </p>
+                  <RootCauseCard
+                    group={topGroup}
+                    selectedKey={selectedKey}
+                    onSelectIssue={selectIssue}
+                    isTop
+                  />
+                </div>
               )}
-              {visibleGroups.map(group => (
-                <RootCauseCard
-                  key={group._key}
-                  group={group}
-                  selectedKey={selectedKey}
-                  onSelectIssue={key => setSelectedKey(prev => prev === key ? null : key)}
-                />
-              ))}
+
+              {/* Next */}
+              {nextGroups.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                    ⚠️ Next
+                  </p>
+                  {nextGroups.map(group => (
+                    <RootCauseCard
+                      key={group._key}
+                      group={group}
+                      selectedKey={selectedKey}
+                      onSelectIssue={selectIssue}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* Remaining groups */}
+              {restGroups.length > 0 && (
+                <div className="space-y-1.5">
+                  {showAll && restGroups.map(group => (
+                    <RootCauseCard
+                      key={group._key}
+                      group={group}
+                      selectedKey={selectedKey}
+                      onSelectIssue={selectIssue}
+                    />
+                  ))}
+                  <button
+                    onClick={() => setShowAll(v => !v)}
+                    className="w-full text-xs text-muted-foreground hover:text-foreground border border-dashed border-border rounded-md py-2 transition-colors"
+                  >
+                    {showAll ? 'Hide extra issues' : `Show all issues (${restGroups.length} more)`}
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Detail panel */}
             {selectedIssue && (
-              <IssueDetailPanel issue={selectedIssue} onClose={() => setSelectedKey(null)} onAddToWorkbench={addWorkItem} />
+              <IssueDetailPanel
+                issue={selectedIssue}
+                onClose={() => setSelectedKey(null)}
+                onAddToWorkbench={addWorkItem}
+              />
             )}
           </div>
         </>
