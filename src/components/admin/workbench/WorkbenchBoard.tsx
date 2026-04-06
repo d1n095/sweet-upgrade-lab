@@ -504,6 +504,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
               item_type: newType,
               status: 'open',
               source_type: 'manual',
+              source_id: user!.id || 'lovable_manual',
               created_by: user!.id,
               ...(prev.bestUser ? { assigned_to: prev.bestUser } : {}),
             };

@@ -1657,7 +1657,7 @@ function classifyIssueType(issue: any, category: string): "bug" | "improvement" 
   return "bug";
 }
 
-async function createWorkItems(supabase: any, unified: any, stage: SystemStage): Promise<{ created: number; createTrace: any[] }> {
+async function createWorkItems(supabase: any, unified: any, stage: SystemStage, scanRunId?: string): Promise<{ created: number; createTrace: any[] }> {
   let workItemsCreated = 0;
   const createTrace: any[] = [];
   const allWorkIssues: { title: string; priority: string; item_type: string; description?: string; fingerprint: string; source_path?: string; source_file?: string; source_component?: string; issue_type?: string; suggested_fix?: string; affected_area?: { type: string; target: string } }[] = [];
@@ -1963,6 +1963,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
       priority: issue.priority,
       item_type: issue.item_type,
       source_type: "scanner",
+      source_id: scanRunId || "lovable_manual",
       issue_fingerprint: issue.fingerprint,
       source_path: source_file_path || issue.source_path || null,
       source_file: source_file_path || issue.source_file || null,
@@ -2484,7 +2485,7 @@ serve(async (req) => {
       await persistStepResults(supabase, STEPS, updatedResults, scanRun.started_by);
 
       // Create work items with context awareness and fingerprint dedup
-      const createResult = await createWorkItems(supabase, unified, systemStage);
+      const createResult = await createWorkItems(supabase, unified, systemStage, scan_run_id);
       let workItemsCreated = createResult.created;
       unified._create_trace = createResult.createTrace;
       trace(scan_run_id, `createWorkItems: detected=${issuesCount} created=${workItemsCreated}`);

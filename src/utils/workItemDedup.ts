@@ -134,6 +134,8 @@ export async function createWorkItemWithDedup(payload: WorkItemPayload): Promise
       priority: 'medium',
       item_type: 'general',
       ...payload,
+      // Guarantee source_id is never null/undefined
+      source_id: payload.source_id || 'lovable_manual',
     },
     selectColumns: 'id, title, status',
     maxRetries: 2,
