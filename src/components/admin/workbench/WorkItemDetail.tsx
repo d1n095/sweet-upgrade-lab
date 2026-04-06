@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Sparkles, Tag, Copy, Loader2 as Loader2Icon, EyeOff, RotateCcw, PenLine, ChevronDown, ChevronUp,
+  Sparkles, Copy, Loader2 as Loader2Icon, EyeOff, RotateCcw, PenLine, ChevronDown, ChevronUp,
   Bug, ShieldAlert, Package, Clock, User, MapPin, FileText, AlertCircle,
   CheckCircle2, Loader2, ExternalLink, Wrench, Bot,
 } from 'lucide-react';
@@ -248,7 +248,6 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
       const override = { type: 'select_cause', cause: causeText, at: new Date().toISOString(), by: user?.id };
       await supabase.from('work_items').update({
         human_selected_cause: causeText,
-        ai_overrides: [...((item as any).ai_overrides || []), override],
       } as any).eq('id', item.id);
       toast.success('Orsak vald');
       onRefresh?.();
@@ -264,7 +263,6 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
       await supabase.from('work_items').update({
         human_custom_cause: customCause.trim(),
         human_custom_fix: customFix.trim() || null,
-        ai_overrides: [...((item as any).ai_overrides || []), override],
       } as any).eq('id', item.id);
       toast.success('Egen orsak sparad');
       setShowCustomCause(false);
@@ -278,9 +276,8 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
   };
 
   const dt = fmtFull(item.created_at);
-  const reanalysis = ((item as any).ai_root_causes as any)?.refined_diagnosis ? (item as any).ai_root_causes as any : null;
-  const rootCauses = fixSuggestion?.root_causes || ((item as any).ai_root_causes as any)?.root_causes || [];
-  const analysisSummary = reanalysis?.refined_diagnosis?.summary || fixSuggestion?.summary || ((item as any).ai_root_causes as any)?.summary;
+  const rootCauses = fixSuggestion?.root_causes || [];
+  const analysisSummary = fixSuggestion?.summary;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -387,47 +384,6 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                 )}
                 {item.human_custom_fix && (
                   <div><span className="text-[10px] text-muted-foreground">Egen fix:</span><p className="text-xs">{item.human_custom_fix}</p></div>
-                )}
-              </div>
-            )}
-
-            {/* AI Analysis for bugs */}
-            {bugData && (bugData as any).ai_processed_at && (
-              <div className="space-y-2 border border-primary/20 rounded-lg p-3 bg-primary/5">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  AI-analys
-                  {(bugData as any).ai_approved && (
-                    <Badge variant="outline" className="text-[9px] ml-1 border-accent/30 text-accent">✓ Godkänd</Badge>
-                  )}
-                </div>
-                {(bugData as any).ai_summary && (
-                  <div><span className="text-[10px] text-muted-foreground">Sammanfattning</span><p className="text-xs font-medium">{(bugData as any).ai_summary}</p></div>
-                )}
-                <div className="flex gap-1.5 flex-wrap">
-                  {(bugData as any).ai_severity && <Badge variant="outline" className="text-[10px]">{(bugData as any).ai_severity}</Badge>}
-                  {(bugData as any).ai_category && <Badge variant="outline" className="text-[10px]">{(bugData as any).ai_category}</Badge>}
-                </div>
-                {(bugData as any).ai_tags?.length > 0 && (
-                  <div className="flex gap-1 flex-wrap">
-                    {((bugData as any).ai_tags as string[]).map((tag: string) => (
-                      <span key={tag} className="text-[9px] bg-muted px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-                        <Tag className="w-2.5 h-2.5" />{tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                {(bugData as any).ai_repro_steps && (
-                  <div>
-                    <span className="text-[10px] text-muted-foreground">Reproduktionssteg</span>
-                    <div className="text-xs bg-background rounded-md p-2 whitespace-pre-wrap border mt-0.5">{(bugData as any).ai_repro_steps}</div>
-                  </div>
-                )}
-                {(bugData as any).ai_clean_prompt && (
-                  <div>
-                    <span className="text-[10px] text-muted-foreground">Strukturerad prompt</span>
-                    <div className="text-xs bg-background rounded-md p-2 whitespace-pre-wrap border mt-0.5 font-mono">{(bugData as any).ai_clean_prompt}</div>
-                  </div>
                 )}
               </div>
             )}
@@ -669,7 +625,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                           source: 'human_confirmation',
                           work_item_id: item.id,
                           bug_report_id: item.source_type === 'bug_report' ? item.source_id : null,
-                          metadata: { ai_confidence: item.pre_verify_result?.confidence, action: 'confirm' },
+                          metadata: { confidence: item.pre_verify_result?.confidence, action: 'confirm' },
                         });
                         // 4. Trigger post-verify review
                         triggerReviewForWorkItem(item.id, { context: 'human_confirmed_pre_verify' });
@@ -709,7 +665,7 @@ const WorkItemDetail = ({ item, open, onOpenChange, onStatusChange, onRefresh }:
                           source: 'human_rejection',
                           work_item_id: item.id,
                           bug_report_id: item.source_type === 'bug_report' ? item.source_id : null,
-                          metadata: { ai_confidence: item.pre_verify_result?.confidence, action: 'reject', escalated_to: newPriority },
+                          metadata: { confidence: item.pre_verify_result?.confidence, action: 'reject', escalated_to: newPriority },
                         });
                         toast.info('🔍 Avvisad — eskalerad för manuell granskning', { duration: 4000 });
                         onRefresh?.();

@@ -95,7 +95,6 @@ async function pollScanRun(scanRunId: string, onProgress?: (steps: ScanStep[]) =
       stopPolling();
     }
   } catch (e) {
-    console.warn('[scanEngine] poll error', e);
   }
 }
 
@@ -225,7 +224,6 @@ export async function loadLatestScanRun(): Promise<{
 
     if (runningRow) {
       const run = runningRow as any;
-      console.log('[scanEngine] loadLatestScanRun — running scan_id:', run.id, 'started_at:', run.started_at);
       return {
         running: true,
         steps: buildStepsFromRun(run),
@@ -249,7 +247,6 @@ export async function loadLatestScanRun(): Promise<{
 
     const run = completedRow as any;
     const issueCount = run.work_items_created ?? 0;
-    console.log('[scanEngine] loadLatestScanRun — scan_id:', run.id, 'completed_at:', run.completed_at, 'issues:', issueCount);
     return {
       running: false,
       steps: buildStepsFromRun(run),
@@ -259,7 +256,6 @@ export async function loadLatestScanRun(): Promise<{
       completedAt: run.completed_at ?? null,
     };
   } catch (e) {
-    console.warn('[scanEngine] loadLatestScanRun error', e);
     return empty;
   }
 }

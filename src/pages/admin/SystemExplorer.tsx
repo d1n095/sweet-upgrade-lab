@@ -2647,7 +2647,7 @@ const SystemExplorer = () => {
                                           {issue._issue_type && <Badge variant={issue._issue_type === "bug" ? "destructive" : issue._issue_type === "upgrade" ? "default" : "secondary"} className="text-[8px] px-1 py-0">{issue._issue_type}</Badge>}
                                           {issue._viewport && <Badge variant="outline" className="text-[8px] px-1 py-0">📱 {issue._viewport}{issue._viewport_width ? ` (${issue._viewport_width}px)` : ''}</Badge>}
                                            {issue._affected_area && <Badge variant="outline" className="text-[8px] px-1 py-0">📍 {issue._affected_area.type}/{issue._affected_area.target}</Badge>}
-                                            {issue._origin_source && <Badge variant="outline" className="text-[8px] px-1 py-0">{issue._origin_source === "ai_scan" ? "🤖" : issue._origin_source === "manual" ? "👤" : "🔧"} {issue._origin_source}</Badge>}
+                                            {issue._origin_source && <Badge variant="outline" className="text-[8px] px-1 py-0">{issue._origin_source === "manual" ? "👤" : "🔧"} {issue._origin_source}</Badge>}
                                             {issue._impact_score && <Badge variant={issue._impact_label === "critical" ? "destructive" : "outline"} className="text-[8px] px-1 py-0">{issue._impact_label === "critical" ? "💥" : issue._impact_label === "high" ? "🔴" : issue._impact_label === "medium" ? "🟡" : "🟢"} impact:{issue._impact_score}/5</Badge>}
                                             {issue._occurrence_count > 1 && <Badge variant="outline" className="text-[8px] px-1 py-0 border-orange-500 text-orange-600">🔁 ×{issue._occurrence_count}</Badge>}
                                             {issue._status && <Badge variant={issue._status === "created" ? "default" : issue._status === "error" ? "destructive" : "secondary"} className="text-[8px] px-1 py-0">{issue._status === "created" ? "✅ created" : issue._status === "skipped_dedup" ? "🔁 skipped_dedup" : issue._status === "filtered" ? "🚫 filtered" : issue._status === "error" ? "❌ error" : issue._status}</Badge>}
@@ -3649,8 +3649,8 @@ const SystemExplorer = () => {
                 <span className="text-muted-foreground text-xs">Origin Source</span>
                 <p>
                   <Badge variant="outline" className="text-[10px]">
-                    {selectedItem.source_type === "scan" || selectedItem.source_type === "ai_scan" || selectedItem.source_type === "ai_detection"
-                      ? "🤖 ai_scan"
+                    {selectedItem.source_type === "scan"
+                      ? "🔧 scan"
                       : selectedItem.source_type === "manual"
                       ? "👤 manual"
                       : selectedItem.source_type === "lovable_build" || selectedItem.source_type === "system"
@@ -4088,10 +4088,6 @@ const SystemExplorer = () => {
               <div>
                 <span className="text-muted-foreground text-xs">Created By</span>
                 <p className="font-mono text-xs break-all">{selectedItem.created_by ?? "–"}</p>
-              </div>
-              <div>
-                <span className="text-muted-foreground text-xs">AI Detected</span>
-                <p>{selectedItem.ai_detected ? "Yes" : "No"}</p>
               </div>
               <div>
                 <span className="text-muted-foreground text-xs">Created</span>

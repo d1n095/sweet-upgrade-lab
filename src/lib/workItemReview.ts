@@ -64,7 +64,6 @@ export const triggerReviewForWorkItem = async (
     return { ok: true, status: reviewResult.status as ReviewStatus, review: reviewResult };
   } catch (err: any) {
     const message = err?.message || 'Unknown review error';
-    console.error('[review] failed', { workItemId, context, message });
 
     await supabase
       .from('work_items')

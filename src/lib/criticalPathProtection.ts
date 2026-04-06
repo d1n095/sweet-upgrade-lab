@@ -246,7 +246,6 @@ async function handleCriticalBreak(report: CriticalPathReport): Promise<void> {
       });
     }
   } catch (e) {
-    console.warn('[CriticalPath] Failed to create work item:', e);
   }
 
   // Pause non-critical work items
@@ -256,7 +255,6 @@ async function handleCriticalBreak(report: CriticalPathReport): Promise<void> {
       .in('priority', ['low', 'medium'])
       .eq('status', 'open');
   } catch (e) {
-    console.warn('[CriticalPath] Failed to pause non-critical items:', e);
   }
 
   toast.error(

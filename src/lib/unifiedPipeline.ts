@@ -94,7 +94,7 @@ export const runUnifiedPipeline = async (
       const { data: linkedItems } = await supabase
         .from('work_items' as any)
         .select('id')
-        .in('source_type', ['ai_scan', 'ai_detection'])
+        .in('source_type', ['scan'])
         .eq('source_id', scan.id)
         .limit(5);
 
@@ -109,7 +109,7 @@ export const runUnifiedPipeline = async (
     // Find bugs without work items
     const { data: unlinkedBugs } = await supabase
       .from('bug_reports')
-      .select('id, description, ai_severity, status')
+      .select('id, description, status')
       .in('status', ['open', 'new', 'triaged'])
       .limit(50);
 
@@ -126,8 +126,7 @@ export const runUnifiedPipeline = async (
         const patterns = await checkKnownPatterns(bug.description || '');
         const knownFix = patterns.matches.length > 0 ? patterns.matches[0] : null;
 
-        const priority = bug.ai_severity === 'critical' ? 'critical' :
-          bug.ai_severity === 'high' ? 'high' : 'medium';
+        const priority = 'medium';
 
         const description = knownFix
           ? `${bug.description}\n\n🧠 Känt mönster (sett ${knownFix.recurrence_count}x): ${knownFix.root_cause}\n💡 Tidigare fix: ${knownFix.fix_applied}`
@@ -206,7 +205,6 @@ export const runUnifiedPipeline = async (
       } else {
         emit(makeEvent('work_items', 'log_exists', item.id, 'work_item', true,
           'Ändringslogg finns redan'));
-        console.log("📊 EVENT:", { stage: 'work_items', action: 'log_exists', itemId: item.id });
       }
     }
 
@@ -253,7 +251,6 @@ export const runUnifiedPipeline = async (
       } else if (bug) {
         emit(makeEvent('change_log', 'bug_already_resolved', change.id, 'change_log', true,
           'Bugg redan löst'));
-        console.log("📊 EVENT:", { stage: 'change_log', action: 'bug_already_resolved', changeId: change.id, bugId: bug.id });
       }
     }
 

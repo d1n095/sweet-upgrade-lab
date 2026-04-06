@@ -424,7 +424,6 @@ async function runPostChecks(
   try {
     await createChangeLogForTask(task);
   } catch (e) {
-    console.warn('Auto change_log failed:', e);
   }
 
   // Feedback loop — evaluate after successful fix
@@ -492,7 +491,6 @@ export const useWorkQueueStore = create<WorkQueueState>((set, get) => ({
     // Deadlock protection: if _isProcessing has been stuck for too long, force-release
     if (state._isProcessing) {
       if (state._processingStartedAt && Date.now() - state._processingStartedAt > PROCESSING_TIMEOUT_MS) {
-        console.warn('[WorkQueue] Processing lock stuck for >60s, force-releasing');
         set({ _isProcessing: false, _processingStartedAt: null });
       } else {
         return;
@@ -569,7 +567,6 @@ export const useWorkQueueStore = create<WorkQueueState>((set, get) => ({
           try {
             preSnapshot = await nextTask.snapshotBefore();
           } catch (err) {
-            console.warn('Pre-snapshot failed', err);
           }
         }
         await useFeedbackLoopStore.getState().captureBeforeAction();

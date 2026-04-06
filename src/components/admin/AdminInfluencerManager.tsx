@@ -162,7 +162,6 @@ const AdminInfluencerManager = () => {
       if (error) throw error;
       setInfluencers((data || []) as unknown as Influencer[]);
     } catch (error) {
-      console.error('Failed to load influencers:', error);
     } finally {
       setIsLoading(false);
     }
@@ -190,7 +189,6 @@ const AdminInfluencerManager = () => {
       
       setProductStats(stats);
     } catch (error) {
-      console.error('Failed to load product stats:', error);
     }
   };
 
@@ -208,7 +206,6 @@ const AdminInfluencerManager = () => {
         [influencerId]: (data || []) as InfluencerProduct[]
       }));
     } catch (error) {
-      console.error('Failed to load history:', error);
     }
   };
 
@@ -263,7 +260,6 @@ const AdminInfluencerManager = () => {
         });
         toast.success(language === 'sv' ? 'Email skickad till influencer!' : 'Email sent to influencer!');
       } catch (emailError) {
-        console.error('Failed to send email:', emailError);
         // Don't fail the whole operation if email fails
       }
 
@@ -272,7 +268,6 @@ const AdminInfluencerManager = () => {
       setIsAddDialogOpen(false);
       loadInfluencers();
     } catch (error) {
-      console.error('Failed to create influencer:', error);
       toast.error(t.error);
     } finally {
       setIsSubmitting(false);
@@ -290,7 +285,6 @@ const AdminInfluencerManager = () => {
       toast.success(t.influencerUpdated);
       loadInfluencers();
     } catch (error) {
-      console.error('Failed to update:', error);
       toast.error(t.error);
     }
   };
@@ -308,7 +302,6 @@ const AdminInfluencerManager = () => {
       toast.success(t.influencerDeleted);
       loadInfluencers();
     } catch (error) {
-      console.error('Failed to delete:', error);
       toast.error(t.error);
     }
   };
@@ -327,7 +320,6 @@ const AdminInfluencerManager = () => {
       });
       toast.success(t.emailSent);
     } catch (error) {
-      console.error('Failed to resend email:', error);
       toast.error(t.error);
     }
   };

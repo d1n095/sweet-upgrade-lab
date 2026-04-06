@@ -444,7 +444,6 @@ function AiMetadataSuggestor({
 
       toast.success(sv ? 'Kategorier & taggar föreslagna!' : 'Categories & tags suggested!');
     } catch (err: any) {
-      console.error('AI suggest failed:', err);
       toast.error(sv ? 'Kunde inte hämta förslag' : 'Failed to get suggestions');
     } finally {
       setSuggesting(false);
