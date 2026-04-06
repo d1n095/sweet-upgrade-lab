@@ -1,8 +1,75 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Bug, CheckCircle, ChevronDown, ChevronRight, Copy, FileText, Inbox, Layers, X, Zap } from 'lucide-react';
+import { AlertTriangle, Bug, CheckCircle, ChevronDown, ChevronRight, Copy, FileText, Inbox, Layers, ThumbsUp, X, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { createWorkItemWithDedup } from '@/utils/workItemDedup';
+
+// ── Persisted fix store ────────────────────────────────────────────────────────
+
+type FixStatus = 'in_progress' | 'fixed';
+interface FixEntry { status: FixStatus; timestamp: number; }
+type FixStore = Record<string, FixEntry>;
+
+const LS_KEY_PREFIX = 'issue_fix_state_v1_';
+
+function loadStore(scanRunId: string | null): FixStore {
+  if (!scanRunId) return {};
+  try {
+    const raw = localStorage.getItem(LS_KEY_PREFIX + scanRunId);
+    return raw ? (JSON.parse(raw) as FixStore) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveStore(scanRunId: string | null, store: FixStore): void {
+  if (!scanRunId) return;
+  try {
+    localStorage.setItem(LS_KEY_PREFIX + scanRunId, JSON.stringify(store));
+  } catch {
+    // storage unavailable — silently ignore
+  }
+}
+
+function useIssueFixStore(scanRunId: string | null) {
+  const [store, setStore] = useState<FixStore>(() => loadStore(scanRunId));
+
+  // When scanRunId changes (new scan), reload from storage
+  useEffect(() => {
+    setStore(loadStore(scanRunId));
+  }, [scanRunId]);
+
+  const setInProgress = useCallback((key: string) => {
+    setStore(prev => {
+      if (prev[key]?.status === 'fixed') return prev; // don't downgrade
+      const next = { ...prev, [key]: { status: 'in_progress' as const, timestamp: Date.now() } };
+      saveStore(scanRunId, next);
+      return next;
+    });
+  }, [scanRunId]);
+
+  const setFixed = useCallback((key: string) => {
+    setStore(prev => {
+      const next = { ...prev, [key]: { status: 'fixed' as const, timestamp: Date.now() } };
+      saveStore(scanRunId, next);
+      return next;
+    });
+  }, [scanRunId]);
+
+  const fixedKeys = useMemo(() => {
+    const s = new Set<string>();
+    for (const [k, v] of Object.entries(store)) if (v.status === 'in_progress' || v.status === 'fixed') s.add(k);
+    return s;
+  }, [store]);
+
+  const doneKeys = useMemo(() => {
+    const s = new Set<string>();
+    for (const [k, v] of Object.entries(store)) if (v.status === 'fixed') s.add(k);
+    return s;
+  }, [store]);
+
+  return { fixedKeys, doneKeys, setInProgress, setFixed };
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -384,6 +451,7 @@ function IssueDetailPanel({
   issue,
   onClose,
   onAddToWorkbench,
+  onMarkDone,
   isFixed = false,
   isDone = false,
   highlightFix = false,
@@ -391,6 +459,7 @@ function IssueDetailPanel({
   issue: ParsedIssue;
   onClose: () => void;
   onAddToWorkbench?: (issue: ParsedIssue) => Promise<void>;
+  onMarkDone?: (issue: ParsedIssue) => void;
   isFixed?: boolean;
   isDone?: boolean;
   highlightFix?: boolean;
@@ -514,15 +583,27 @@ function IssueDetailPanel({
             {adding ? 'Adding…' : 'Add to Workbench'}
           </Button>
         )}
-        {isFixed && (
-          <div className={cn(
-            'flex-1 flex items-center justify-center gap-1.5 text-sm font-medium py-1.5 rounded-md border transition-colors',
-            isDone
-              ? 'text-green-500 border-green-500/30 bg-green-500/10'
-              : 'text-muted-foreground border-border bg-muted/10',
-          )}>
+        {isFixed && !isDone && onMarkDone && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="flex-1 gap-1.5 border-green-500/40 text-green-600 hover:bg-green-500/10"
+            onClick={() => onMarkDone(issue)}
+          >
+            <ThumbsUp className="w-3 h-3" />
+            Mark as fixed
+          </Button>
+        )}
+        {isDone && (
+          <div className="flex-1 flex items-center justify-center gap-1.5 text-sm font-medium py-1.5 rounded-md border text-green-500 border-green-500/30 bg-green-500/10">
             <CheckCircle className="w-4 h-4" />
-            {isDone ? '✔ Fixed' : 'In progress…'}
+            ✔ Fixed
+          </div>
+        )}
+        {isFixed && !isDone && !onMarkDone && (
+          <div className="flex-1 flex items-center justify-center gap-1.5 text-sm font-medium py-1.5 rounded-md border text-muted-foreground border-border bg-muted/10">
+            <CheckCircle className="w-4 h-4" />
+            In progress…
           </div>
         )}
         <Button variant="outline" size="sm" className="gap-1 px-3" onClick={copyPrompt}>
@@ -679,10 +760,10 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
   const groups = useMemo(() => groupByRootCause(issues), [issues]);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
-  const [fixedKeys, setFixedKeys] = useState<Set<string>>(new Set());
-  const [doneKeys, setDoneKeys] = useState<Set<string>>(new Set());
   const [highlightFixKey, setHighlightFixKey] = useState<string | null>(null);
   const [celebrationMsg, setCelebrationMsg] = useState<string | null>(null);
+
+  const { fixedKeys, doneKeys, setInProgress, setFixed } = useIssueFixStore(scanRunId);
 
   const detailRef = useRef<HTMLDivElement>(null);
   const prevCriticalDoneCount = useRef(0);
@@ -728,13 +809,16 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
     prevCriticalDoneCount.current = criticalDone;
   }, [criticalDone, allCriticalDone]);
 
+  /** Called when "Add to Workbench" is clicked — marks in_progress immediately, fixed after 1.5s */
   const markFixed = useCallback((key: string) => {
-    setFixedKeys(prev => new Set([...prev, key]));
-    // Transition to "Fixed" after 1.5s
-    setTimeout(() => {
-      setDoneKeys(prev => new Set([...prev, key]));
-    }, 1500);
-  }, []);
+    setInProgress(key);
+    setTimeout(() => setFixed(key), 1500);
+  }, [setInProgress, setFixed]);
+
+  /** Called by "Mark as fixed" button — instant fixed with no delay */
+  const markDoneNow = useCallback((key: string) => {
+    setFixed(key);
+  }, [setFixed]);
 
   async function addWorkItem(issue: ParsedIssue) {
     await createWorkItemWithDedup({
@@ -896,6 +980,7 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
                   issue={selectedIssue}
                   onClose={() => { setSelectedKey(null); setHighlightFixKey(null); }}
                   onAddToWorkbench={addWorkItem}
+                  onMarkDone={issue => markDoneNow(issue._key)}
                   isFixed={fixedKeys.has(selectedIssue._key)}
                   isDone={doneKeys.has(selectedIssue._key)}
                   highlightFix={highlightFixKey === selectedIssue._key}
