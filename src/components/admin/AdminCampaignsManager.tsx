@@ -682,7 +682,7 @@ const BundlesTab = () => {
       max_uses_per_user: b.max_uses_per_user ? String(b.max_uses_per_user) : '',
     });
     const items = bundleItems[b.id] || [];
-    setSelectedProducts(items.map(i => ({ productId: i.shopify_product_id, quantity: i.quantity })));
+    setSelectedProducts(items.map(i => ({ productId: i.product_id, quantity: i.quantity })));
     setShowForm(true);
   };
 
