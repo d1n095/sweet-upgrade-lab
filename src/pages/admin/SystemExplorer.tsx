@@ -451,6 +451,9 @@ const SystemExplorer = () => {
         .limit(1)
         .maybeSingle();
       if (error) throw error;
+      if (data && !data.unified_result && (data.status === "done" || data.status === "completed")) {
+        console.warn("[SystemExplorer] Scan returned no unified_result", data.id);
+      }
       return data;
     },
   });

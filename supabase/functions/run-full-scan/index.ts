@@ -2549,9 +2549,24 @@ serve(async (req) => {
       }
 
       const execSummary = `${unified.system_health_score}/100 — ${issuesCount} issues (${systemStage}) — ${coverageScore}% — ${workItemsCreated} uppgifter`;
+      const finalUnifiedResult = adaptiveResult ?? {
+        status: "error",
+        broken_flows: [],
+        fake_features: [],
+        interaction_failures: [],
+        data_issues: [{
+          id: "no-result",
+          title: "Scan produced no data",
+          description: "unified_result was empty after finalize",
+          cause: "Pipeline failed before finalize completed",
+          fix: "Check scan steps and edge function logs",
+          severity: "critical",
+        }],
+        system_health_score: 0,
+      };
       await supabase.from("scan_runs").update({
         status: "done", completed_at: new Date().toISOString(), steps_results: updatedResults, progress: 100,
-        unified_result: adaptiveResult, system_health_score: unified.system_health_score,
+        unified_result: finalUnifiedResult, system_health_score: unified.system_health_score,
         executive_summary: execSummary, work_items_created: workItemsCreated,
         current_step: STEPS.length, current_step_label: `Klar ✓ (${systemStage})`,
       }).eq("id", scan_run_id);
@@ -2559,9 +2574,9 @@ serve(async (req) => {
       // Store scan snapshot for historical tracking
       const totalScanners = STEPS.length;
       const totalDetected = issuesCount;
-      const totalFiltered = adaptiveResult?.issues?.length ?? 0;
+      const totalFiltered = finalUnifiedResult?.issues?.length ?? 0;
       const totalSkipped = Math.max(0, totalDetected - workItemsCreated);
-      const highAttentionCount = (adaptiveResult?.issues ?? []).filter((i: any) => i._impact_score >= 4).length;
+      const highAttentionCount = (finalUnifiedResult?.issues ?? []).filter((i: any) => i._impact_score >= 4).length;
       const deadScannersCount = Object.values(updatedResults || {}).filter((s: any) => s?._executed === false || s?.failed === true).length;
       const blindScannersCount = Object.values(updatedResults || {}).filter((s: any) => s?._executed !== false && s?.failed !== true && (s?._scan_scope?.size > 0) && (!s?.issues || s.issues.length === 0)).length;
 
@@ -2586,7 +2601,7 @@ serve(async (req) => {
       diagLines.push(`Detected: ${totalDetected} issues → ${workItemsCreated} created, ${totalSkipped} skipped`);
       diagLines.push(`Coverage: ${coverageUniqueTargets} unique targets / ${coverageTotal} total scope`);
       if (highAttentionCount > 0) diagLines.push(`⚠️ ${highAttentionCount} high-attention issues (impact ≥ 4)`);
-      const impact5 = (adaptiveResult?.issues ?? []).filter((i: any) => i._impact_score >= 5);
+      const impact5 = (finalUnifiedResult?.issues ?? []).filter((i: any) => i._impact_score >= 5);
       if (impact5.length > 0) diagLines.push(`💥 ${impact5.length} CRITICAL (impact 5): ${impact5.slice(0, 3).map((i: any) => i.title || i.description || "unnamed").join(", ")}${impact5.length > 3 ? "…" : ""}`);
       if (deadScannersCount > 0) {
         const deadNames = Object.entries(updatedResults || {}).filter(([_, s]: any) => s?._executed === false || s?.failed === true).map(([k]) => k).slice(0, 3);
@@ -2598,7 +2613,7 @@ serve(async (req) => {
       }
       // Largest cluster
       const clusterMap: Record<string, number> = {};
-      for (const issue of (adaptiveResult?.issues ?? [])) {
+      for (const issue of (finalUnifiedResult?.issues ?? [])) {
         const target = issue?.target || issue?.component || "unknown";
         clusterMap[target] = (clusterMap[target] || 0) + 1;
       }
@@ -2666,7 +2681,7 @@ serve(async (req) => {
         coverage_unique_targets: coverageUniqueTargets,
         scan_confidence_score: scanConfidenceScore,
         diagnosis_summary: diagnosisSummary,
-        payload: adaptiveResult,
+        payload: finalUnifiedResult,
       });
 
       // Fix verification: check done items against current scan
@@ -2680,7 +2695,7 @@ serve(async (req) => {
 
       if (doneItems && doneItems.length > 0) {
         const currentFingerprints = new Set(
-          (adaptiveResult?.issues ?? []).map((i: any) => i._fingerprint || i.issue_fingerprint).filter(Boolean)
+          (finalUnifiedResult?.issues ?? []).map((i: any) => i._fingerprint || i.issue_fingerprint).filter(Boolean)
         );
 
         for (const item of doneItems) {
@@ -2827,6 +2842,22 @@ serve(async (req) => {
             error_message: `Finalize crash: ${finalizeError?.message || "unknown"}`,
             completed_at: new Date().toISOString(),
             current_step_label: "Kraschade under finalisering",
+            progress: 100,
+            unified_result: {
+              status: "error",
+              broken_flows: [],
+              fake_features: [],
+              interaction_failures: [],
+              data_issues: [{
+                id: "finalize-crash",
+                title: "Finalize crashed",
+                description: finalizeError?.message || "Unknown error in finalize",
+                cause: "Unhandled exception in finalize",
+                fix: "Check finalize logic and edge function logs",
+                severity: "critical",
+              }],
+              system_health_score: 0,
+            },
           }).eq("id", scan_run_id);
         } catch (_) {}
         try { await logRuntimeTrace("api", "run-full-scan", "/finalize", finalizeError?.message || "Unknown", { stack: finalizeError?.stack?.slice(0, 500), scan_run_id }); } catch (_) {}
