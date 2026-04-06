@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import AdminActivityLog from '@/components/admin/AdminActivityLog';
 import AdminBugReports from '@/components/admin/AdminBugReports';
 import AdminObservabilityLog from '@/components/admin/AdminObservabilityLog';
+import DeepDebugPanel from '@/components/admin/DeepDebugPanel';
 import ActionVerificationPanel from '@/components/admin/ActionVerificationPanel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -153,6 +154,7 @@ const AdminLogs = () => {
           <TabsTrigger value="access-audit">Åtkomstrevision</TabsTrigger>
           <TabsTrigger value="observability">Observability</TabsTrigger>
           <TabsTrigger value="verification">Verification</TabsTrigger>
+          <TabsTrigger value="deep-debug">Deep Debug</TabsTrigger>
           <TabsTrigger value="bugs">Buggrapporter</TabsTrigger>
         </TabsList>
         <TabsContent value="activity" className="min-h-0 flex-1 overflow-y-auto">
@@ -166,6 +168,9 @@ const AdminLogs = () => {
         </TabsContent>
         <TabsContent value="verification" className="min-h-0 flex-1 overflow-y-auto">
           <ActionVerificationPanel />
+        </TabsContent>
+        <TabsContent value="deep-debug" className="min-h-0 flex-1 overflow-y-auto">
+          <DeepDebugPanel />
         </TabsContent>
         <TabsContent value="bugs" className="min-h-0 flex-1 overflow-y-auto">
           <AdminBugReports />

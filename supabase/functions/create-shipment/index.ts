@@ -1,16 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
-import {
-  createShipmondoShipment,
-  resolveServiceCode,
-} from "../_shared/shipmondo.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
-
-const STAFF_ROLES = ["admin", "founder", "it", "moderator", "warehouse", "manager"];
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -28,28 +22,41 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const shipmondoUser = Deno.env.get("SHIPMONDO_API_USER");
+    const shipmondoKey = Deno.env.get("SHIPMONDO_API_KEY");
 
-    // Verify caller is staff via JWT
+    // Verify caller is staff
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const anonClient = createClient(supabaseUrl, anonKey);
-    const { data: { user }, error: authError } = await anonClient.auth.getUser(
-      authHeader.replace("Bearer ", ""),
+    const userClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: claims, error: claimsErr } = await userClient.auth.getClaims(
+      authHeader.replace("Bearer ", "")
     );
-    if (authError || !user) {
+    if (claimsErr || !claims?.claims?.sub) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const userId = user.id;
+    const userId = claims.claims.sub as string;
 
+    // Check staff role
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
     const { data: roles } = await adminClient
       .from("user_roles")
       .select("role")
       .eq("user_id", userId);
 
-    const isStaff = roles?.some((r: any) => STAFF_ROLES.includes(r.role));
+    const staffRoles = [
+      "admin",
+      "founder",
+      "it",
+      "moderator",
+      "warehouse",
+      "manager",
+    ];
+    const isStaff = roles?.some((r: any) => staffRoles.includes(r.role));
     if (!isStaff) {
       return new Response(JSON.stringify({ error: "Forbidden" }), {
         status: 403,
@@ -87,7 +94,7 @@ Deno.serve(async (req) => {
         {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
+        }
       );
     }
 
@@ -100,61 +107,76 @@ Deno.serve(async (req) => {
         JSON.stringify({
           error: "Shipment already created",
           tracking_number: order.tracking_number,
-          shipmondo_shipment_id: order.shipmondo_shipment_id ?? null,
-          label_url: order.label_url ?? null,
         }),
         {
           status: 409,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
+        }
       );
     }
 
-    const addr = order.shipping_address as any ?? {};
-    const shippingMethod: string | null = order.shipping_method ?? null;
-    const serviceCode = resolveServiceCode(shippingMethod);
-
     let tracking_number: string | null = null;
     let label_url: string | null = null;
-    let shipmondo_shipment_id: string | null = null;
-    let carrier: string | null = null;
+    let carrier = "postnord";
     let shipmondo_used = false;
 
-    // Call Shipmondo API (credentials come from env only)
-    try {
-      const result = await createShipmondoShipment(
-        {
-          service_code: serviceCode,
+    // Try Shipmondo API if both user and key are configured
+    if (shipmondoUser && shipmondoKey) {
+      try {
+        const addr = order.shipping_address as any;
+        const shipmentPayload = {
+          own_agreement: true,
+          label_format: "a4_pdf",
+          product_code: "MYPACK_HOME",
+          service_codes: "EMAIL_NT,SMS_NT",
           sender: {
-            name: Deno.env.get("STORE_NAME") || "4ThePeople",
-            address1: Deno.env.get("STORE_ADDRESS") || "Företagsvägen 1",
-            zipcode: Deno.env.get("STORE_ZIPCODE") || "11122",
-            city: Deno.env.get("STORE_CITY") || "Stockholm",
-            country_code: Deno.env.get("STORE_COUNTRY_CODE") || "SE",
+            name: "Naturligt Snygg",
+            address1: "Företagsvägen 1",
+            zipcode: "11122",
+            city: "Stockholm",
+            country_code: "SE",
+            email: "info@naturligtsnygg.se",
           },
           receiver: {
-            name: addr.name || order.order_email,
-            address1: addr.address || "",
-            zipcode: addr.zip || "",
-            city: addr.city || "",
-            country_code: addr.country || "SE",
+            name: addr?.name || order.order_email,
+            address1: addr?.address || "",
+            zipcode: addr?.zip || "",
+            city: addr?.city || "",
+            country_code: addr?.country || "SE",
             email: order.order_email,
-            mobile: addr.phone || "",
+            mobile: addr?.phone || "",
           },
-          parcels: [{ weight: order.weight_in_grams ?? 1000 }],
-        },
-        2, // maxRetries
-      );
+          parcels: [{ weight: 1000 }],
+        };
 
-      tracking_number = result.tracking_number;
-      label_url = result.label_url;
-      shipmondo_shipment_id = result.shipment_id;
-      carrier = result.carrier_code;
-      shipmondo_used = true;
-    } catch (apiErr: unknown) {
-      const msg = apiErr instanceof Error ? apiErr.message : String(apiErr);
-      console.error("[create-shipment] Shipmondo call failed:", msg);
-      // Continue to update the order as packed even without Shipmondo data
+        const shipmondoResp = await fetch(
+          "https://app.shipmondo.com/api/public/v3/shipments",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Basic ${btoa(shipmondoUser + ":" + shipmondoKey)}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(shipmentPayload),
+          }
+        );
+
+        if (shipmondoResp.ok) {
+          const shipData = await shipmondoResp.json();
+          tracking_number = shipData.pkg_no || shipData.shipment_id || null;
+          label_url = shipData.labels?.[0]?.base64
+            ? `data:application/pdf;base64,${shipData.labels[0].base64}`
+            : shipData.labels?.[0]?.file_url || null;
+          carrier = shipData.carrier_code || "postnord";
+          shipmondo_used = true;
+        } else {
+          const errBody = await shipmondoResp.text();
+          console.error("Shipmondo API error:", shipmondoResp.status, errBody);
+          // Fall through to manual flow
+        }
+      } catch (apiErr) {
+        console.error("Shipmondo call failed:", apiErr);
+      }
     }
 
     // Update order: mark as packed with shipment data
@@ -167,8 +189,8 @@ Deno.serve(async (req) => {
         status: "packed",
         timestamp: new Date().toISOString(),
         note: shipmondo_used
-          ? `Packad & frakt skapad via Shipmondo (${serviceCode})`
-          : "Packad (Shipmondo ej konfigurerad eller ej tillgänglig)",
+          ? "Packad & frakt skapad via Shipmondo"
+          : "Packad (Shipmondo ej konfigurerad)",
       },
     ];
 
@@ -181,9 +203,6 @@ Deno.serve(async (req) => {
     };
 
     if (tracking_number) updateData.tracking_number = tracking_number;
-    if (shipmondo_shipment_id) updateData.shipmondo_shipment_id = shipmondo_shipment_id;
-    if (label_url) updateData.label_url = label_url;
-    if (carrier) updateData.shipping_method = carrier;
 
     const { error: updateErr } = await adminClient
       .from("orders")
@@ -191,13 +210,13 @@ Deno.serve(async (req) => {
       .eq("id", order_id);
 
     if (updateErr) {
-      console.error("[create-shipment] DB update error:", updateErr);
+      console.error("DB update error:", updateErr);
       return new Response(
         JSON.stringify({ error: "Failed to update order" }),
         {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
+        }
       );
     }
 
@@ -206,8 +225,8 @@ Deno.serve(async (req) => {
       log_type: "success",
       category: "fulfillment",
       message: shipmondo_used
-        ? `Order packad & frakt skapad via Shipmondo (${serviceCode})`
-        : `Order packad (Shipmondo ej tillgänglig)`,
+        ? `Order packad & frakt skapad via Shipmondo`
+        : `Order packad (Shipmondo ej konfigurerad)`,
       order_id: order_id,
       user_id: userId,
     });
@@ -215,27 +234,25 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        shipmondo_used,
-        shipmondo_shipment_id,
         tracking_number,
         label_url,
         carrier,
-        service_code: serviceCode,
+        shipmondo_used,
         fulfillment_status: "packed",
       }),
       {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
+      }
     );
   } catch (err) {
-    console.error("[create-shipment] Unhandled error:", err);
+    console.error("create-shipment error:", err);
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
+      }
     );
   }
 });

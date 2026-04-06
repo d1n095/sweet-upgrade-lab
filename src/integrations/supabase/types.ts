@@ -1632,8 +1632,6 @@ export type Database = {
           stripe_session_id: string | null
           total_amount: number
           tracking_number: string | null
-          label_url: string | null
-          shipmondo_shipment_id: string | null
           updated_at: string
           user_id: string
         }
@@ -1672,8 +1670,6 @@ export type Database = {
           stripe_session_id?: string | null
           total_amount?: number
           tracking_number?: string | null
-          label_url?: string | null
-          shipmondo_shipment_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -1712,8 +1708,6 @@ export type Database = {
           stripe_session_id?: string | null
           total_amount?: number
           tracking_number?: string | null
-          label_url?: string | null
-          shipmondo_shipment_id?: string | null
           updated_at?: string
           user_id?: string
         }

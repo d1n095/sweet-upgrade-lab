@@ -313,7 +313,6 @@ const AdminOrderManager = () => {
         try {
           await safeInvoke('send-order-email', {
             body: { order_id: order.id, email_type: 'status_update' },
-            isAdmin: true,
           });
           toast.success(`${content.updated} — mail skickat till ${order.order_email}`);
         } catch {

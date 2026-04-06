@@ -10,14 +10,13 @@ const corsHeaders = {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  // ── AI ISOLATION GUARD ─────────────────────────────────────────────
-  if (Deno.env.get("AI_ENABLED") !== "true") {
-    console.warn("[suggest-product-metadata] AI_ENABLED=false — request blocked");
-    return new Response(JSON.stringify({ error: "AI_DISABLED" }), {
-      status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
+  // Global AI kill-switch
+  const AI_ENABLED = false;
+  if (!AI_ENABLED) {
+    return new Response(JSON.stringify({ skipped: true, reason: "AI_DISABLED" }), {
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-  // ──────────────────────────────────────────────────────────────────
 
   // Auth: require valid JWT
   const authHeader = req.headers.get("Authorization") || "";

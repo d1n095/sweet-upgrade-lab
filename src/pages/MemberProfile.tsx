@@ -30,7 +30,6 @@ import CompleteProfileBanner from '@/components/profile/CompleteProfileBanner';
 import BusinessAccountForm from '@/components/profile/BusinessAccountForm';
 import BalanceOverview from '@/components/profile/BalanceOverview';
 import TrustBadges from '@/components/trust/TrustBadges';
-import BalanceOverview from '@/components/profile/BalanceOverview';
 
 interface Review {
   id: string;
@@ -379,7 +378,6 @@ const MemberProfile = () => {
 
             {/* Orders Tab */}
             <TabsContent value="orders">
-              <BalanceOverview />
               <OrderTracker />
               
               {isEmployee && !isAdmin && (
