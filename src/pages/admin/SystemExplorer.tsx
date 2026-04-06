@@ -182,6 +182,7 @@ const SystemExplorer = () => {
   const [patchSubmitted, setPatchSubmitted] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [showBackendRaw, setShowBackendRaw] = useState(false);
+  const [devMode, setDevMode] = useState(false);
   const [fileScanResult, setFileScanResult] = useState<{ total: number; emptyFiles: number; largeFiles: number } | null>(null);
   const [codeScanResult, setCodeScanResult] = useState<{ type: string; message: string; file: string }[] | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -1010,40 +1011,44 @@ const SystemExplorer = () => {
         {!systemTruth.scanWorking && <p className="text-[10px] text-red-500 font-mono">❌ SCAN NOT PRODUCING DATA</p>}
         {!systemTruth.workItemsCreated && <p className="text-[10px] text-red-500 font-mono">❌ PIPELINE BLOCKED</p>}
 
-        <div className="flex gap-2 items-center">
-          <Input
-            placeholder="Search code..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-            className="h-7 text-[10px] max-w-[250px]"
-          />
-          <Button variant="outline" size="sm" className="text-[10px] h-7" onClick={handleSearch}>Search</Button>
-        </div>
-        {searchResults.length > 0 && (
-          <div>
-            <h3 className="text-sm font-semibold mb-1">Search Results ({searchResults.length})</h3>
-            {searchResults.map((r, i) => (
-              <div
-                key={i}
-                style={{
-                  padding: "8px",
-                  borderBottom: "1px solid hsl(var(--border))",
-                  cursor: "pointer"
-                }}
-                onClick={() => {
-                  const entry = fileSystemMap.find(f => f.path === r.path);
-                  if (entry) setSelectedFile(entry);
-                }}
-              >
-                <div><strong>{r.path}</strong></div>
-                <div className="text-muted-foreground">Line {r.lineNumber}</div>
-                <div style={{ fontFamily: "monospace" }} className="text-xs">
-                  {r.line}
-                </div>
+        {devMode && (
+          <>
+            <div className="flex gap-2 items-center">
+              <Input
+                placeholder="Search code..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                className="h-7 text-[10px] max-w-[250px]"
+              />
+              <Button variant="outline" size="sm" className="text-[10px] h-7" onClick={handleSearch}>Search</Button>
+            </div>
+            {searchResults.length > 0 && (
+              <div>
+                <h3 className="text-sm font-semibold mb-1">Search Results ({searchResults.length})</h3>
+                {searchResults.map((r, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      padding: "8px",
+                      borderBottom: "1px solid hsl(var(--border))",
+                      cursor: "pointer"
+                    }}
+                    onClick={() => {
+                      const entry = fileSystemMap.find(f => f.path === r.path);
+                      if (entry) setSelectedFile(entry);
+                    }}
+                  >
+                    <div><strong>{r.path}</strong></div>
+                    <div className="text-muted-foreground">Line {r.lineNumber}</div>
+                    <div style={{ fontFamily: "monospace" }} className="text-xs">
+                      {r.line}
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
         <div className="flex items-center gap-2 flex-wrap">
           <Database className="h-6 w-6 text-primary" />
@@ -1060,12 +1065,10 @@ const SystemExplorer = () => {
           {isSystemAdmin && (
             <ScanControls />
           )}
-           {isSystemAdmin && (
-             <Button variant="outline" size="sm" onClick={() => setShowRawScan(!showRawScan)}>
-               <FileText className="h-4 w-4 mr-1" />
-               {showRawScan ? "Hide Raw Scan" : "View Raw Scan"}
-             </Button>
-           )}
+          <Button variant={devMode ? "secondary" : "ghost"} size="sm" onClick={() => setDevMode(!devMode)}>
+            <Monitor className="h-4 w-4 mr-1" />
+            {devMode ? "Hide Dev Mode" : "Dev Mode"}
+          </Button>
         </div>
 
         {/* TAB BAR */}
@@ -1904,66 +1907,70 @@ const SystemExplorer = () => {
         {/* SYSTEM TAB */}
         {mainTab === "system" && (
         <>
-        {showRawScan && (
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                Raw Scan Results (read-only)
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {(() => {
-                if (!scanResults) return <p className="text-xs text-muted-foreground">No scan results available</p>;
-                try {
-                  const limited = { ...scanResults };
-                  const allIssues = limited?.issues ?? limited?._create_trace ?? [];
-                  const totalCount = Array.isArray(allIssues) ? allIssues.length : 0;
-                  if (Array.isArray(limited?.issues) && limited.issues.length > 50) {
-                    limited.issues = limited.issues.slice(0, 50);
-                  }
-                  if (Array.isArray(limited?._create_trace) && limited._create_trace.length > 50) {
-                    limited._create_trace = limited._create_trace.slice(0, 50);
-                  }
-                  return (
-                    <>
-                      {totalCount > 50 && (
-                        <p className="text-[10px] text-muted-foreground mb-2">Showing 50 of {totalCount} issues</p>
-                      )}
-                      <pre className="bg-muted/30 border border-border rounded-md p-3 text-[10px] font-mono overflow-auto max-h-[500px] whitespace-pre-wrap text-foreground select-all">
-                        {JSON.stringify(limited, null, 2)}
-                      </pre>
-                    </>
-                  );
-                } catch (e) {
-                  return <p className="text-xs text-destructive">Error rendering scan results</p>;
-                }
-              })()}
-            </CardContent>
-          </Card>
+        {devMode && (
+          <>
+            {showRawScan && (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Raw Scan Results (read-only)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {(() => {
+                    if (!scanResults) return <p className="text-xs text-muted-foreground">No scan results available</p>;
+                    try {
+                      const limited = { ...scanResults };
+                      const allIssues = limited?.issues ?? limited?._create_trace ?? [];
+                      const totalCount = Array.isArray(allIssues) ? allIssues.length : 0;
+                      if (Array.isArray(limited?.issues) && limited.issues.length > 50) {
+                        limited.issues = limited.issues.slice(0, 50);
+                      }
+                      if (Array.isArray(limited?._create_trace) && limited._create_trace.length > 50) {
+                        limited._create_trace = limited._create_trace.slice(0, 50);
+                      }
+                      return (
+                        <>
+                          {totalCount > 50 && (
+                            <p className="text-[10px] text-muted-foreground mb-2">Showing 50 of {totalCount} issues</p>
+                          )}
+                          <pre className="bg-muted/30 border border-border rounded-md p-3 text-[10px] font-mono overflow-auto max-h-[500px] whitespace-pre-wrap text-foreground select-all">
+                            {JSON.stringify(limited, null, 2)}
+                          </pre>
+                        </>
+                      );
+                    } catch (e) {
+                      return <p className="text-xs text-destructive">Error rendering scan results</p>;
+                    }
+                  })()}
+                </CardContent>
+              </Card>
+            )}
+            <div className="flex items-center gap-2">
+              <select
+                className="text-xs border border-border rounded-md px-2 py-1.5 bg-background text-foreground"
+                value={selectedSnapshotId || ""}
+                onChange={(e) => setSelectedSnapshotId(e.target.value || null)}
+              >
+                <option value="">Live data</option>
+                {scanSnapshots.map((snap: any) => (
+                  <option key={snap.id} value={snap.id}>
+                    {format(new Date(snap.created_at), "MM-dd HH:mm")} — {snap.total_detected} issues, {snap.total_created} created
+                  </option>
+                ))}
+              </select>
+              {selectedSnapshotId && (
+                <Badge variant="secondary" className="text-[9px]">📸 Snapshot</Badge>
+              )}
+              {activeSnapshot?.scan_confidence_score != null && (
+                <Badge variant={activeSnapshot.scan_confidence_score >= 70 ? "outline" : "destructive"} className="text-[9px]">
+                  🎯 Confidence: {activeSnapshot.scan_confidence_score}%
+                </Badge>
+              )}
+            </div>
+          </>
         )}
-        <div className="flex items-center gap-2">
-          <select
-            className="text-xs border border-border rounded-md px-2 py-1.5 bg-background text-foreground"
-            value={selectedSnapshotId || ""}
-            onChange={(e) => setSelectedSnapshotId(e.target.value || null)}
-          >
-            <option value="">Live data</option>
-            {scanSnapshots.map((snap: any) => (
-              <option key={snap.id} value={snap.id}>
-                {format(new Date(snap.created_at), "MM-dd HH:mm")} — {snap.total_detected} issues, {snap.total_created} created
-              </option>
-            ))}
-          </select>
-          {selectedSnapshotId && (
-            <Badge variant="secondary" className="text-[9px]">📸 Snapshot</Badge>
-          )}
-          {activeSnapshot?.scan_confidence_score != null && (
-            <Badge variant={activeSnapshot.scan_confidence_score >= 70 ? "outline" : "destructive"} className="text-[9px]">
-              🎯 Confidence: {activeSnapshot.scan_confidence_score}%
-            </Badge>
-          )}
-        </div>
 
         {/* REGRESSION BANNER */}
         {regressions.length > 0 && (
@@ -1976,7 +1983,7 @@ const SystemExplorer = () => {
             ))}
           </div>
         )}
-        {isSystemAdmin && (
+        {devMode && isSystemAdmin && (
         <Card>
           <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("aiAssistant")}>
             <CardTitle className="text-sm flex items-center gap-2">
@@ -2047,7 +2054,7 @@ const SystemExplorer = () => {
         )}
 
         {/* DEBUG CONSOLE */}
-        {isSystemAdmin && (
+        {devMode && isSystemAdmin && (
         <Card>
           <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("debugConsole")}>
             <CardTitle className="text-sm flex items-center gap-2">
@@ -2079,7 +2086,7 @@ const SystemExplorer = () => {
         )}
 
         {/* INSERT RESULTS */}
-        {isSystemAdmin && (
+        {devMode && isSystemAdmin && (
         <Card>
           <CardHeader className="pb-2 cursor-pointer select-none" onClick={() => toggleSection("insertResults")}>
             <CardTitle className="text-sm flex items-center gap-2">
@@ -2183,6 +2190,8 @@ const SystemExplorer = () => {
           </Card>
         </div>
 
+        {devMode && (
+        <>
         {/* DEBUG FLAGS */}
         <Card>
           <CardHeader className="pb-2">
@@ -3520,6 +3529,8 @@ const SystemExplorer = () => {
             </CardContent>
           )}
         </Card>
+        </>
+        )}
         </>
         )}
       </div>
