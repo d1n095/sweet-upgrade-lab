@@ -168,8 +168,7 @@ const SystemExplorer = () => {
   const [selectedItem, setSelectedItem] = useState<WorkItem | null>(null);
   const [detailTab, setDetailTab] = useState<"info" | "history">("info");
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [showRawScan, setShowRawScan] = useState(false);
-  const [aiQuery, setAiQuery] = useState("");
+  const [showBackendRaw, setShowBackendRaw] = useState(false);  const [aiQuery, setAiQuery] = useState("");
   const [aiAnswer, setAiAnswer] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiFocusArea, setAiFocusArea] = useState<string | null>(null);
@@ -1909,8 +1908,7 @@ const SystemExplorer = () => {
         <>
         {devMode && (
           <>
-            {showRawScan && (
-              <Card>
+            <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm flex items-center gap-2">
                     <FileText className="h-4 w-4" />
@@ -1946,7 +1944,6 @@ const SystemExplorer = () => {
                   })()}
                 </CardContent>
               </Card>
-            )}
             <div className="flex items-center gap-2">
               <select
                 className="text-xs border border-border rounded-md px-2 py-1.5 bg-background text-foreground"
