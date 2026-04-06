@@ -62,7 +62,7 @@ export const useWishlistStore = create<WishlistStore>()(
               .from('wishlists')
               .delete()
               .eq('user_id', userId)
-              .eq('product_id', productId);
+              .eq('shopify_product_id', productId);
           } catch (_) {}
         }
       },
