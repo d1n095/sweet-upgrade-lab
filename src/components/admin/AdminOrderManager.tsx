@@ -243,6 +243,7 @@ const AdminOrderManager = () => {
       if (error) throw error;
       setOrders(data || []);
     } catch (error) {
+      toast.error(content.error);
     } finally {
       setIsLoading(false);
     }

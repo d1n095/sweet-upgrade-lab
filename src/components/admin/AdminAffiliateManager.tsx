@@ -150,6 +150,7 @@ const AdminAffiliateManager = () => {
       if (error) throw error;
       setAffiliates((data || []) as unknown as Affiliate[]);
     } catch (error) {
+      toast.error(t.error);
     } finally {
       setIsLoading(false);
     }

@@ -80,6 +80,7 @@ const ProductDetail = () => {
         const data = await fetchDbProductByHandle(handle);
         setProduct(data);
       } catch (err) {
+        toast.error(lang === 'sv' ? 'Kunde inte ladda produkt' : 'Could not load product');
       } finally {
         setIsLoading(false);
       }

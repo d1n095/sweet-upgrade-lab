@@ -162,6 +162,7 @@ const AdminInfluencerManager = () => {
       if (error) throw error;
       setInfluencers((data || []) as unknown as Influencer[]);
     } catch (error) {
+      toast.error(t.error);
     } finally {
       setIsLoading(false);
     }
