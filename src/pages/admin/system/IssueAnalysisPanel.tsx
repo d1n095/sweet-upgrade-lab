@@ -227,12 +227,12 @@ export interface RootCauseGroup {
 // ── DB helpers for issue_history ─────────────────────────────────────────────
 
 /** Insert a single (signature, scan_run_id) row into the DB. Idempotent via upsert. */
-async function dbSaveAppearance(sig: string, scanRunId: string, ts: number): Promise<void> {
+async function dbSaveAppearance(sig: string, scanRunId: string, ts: number, userId?: string | null): Promise<void> {
   try {
     await supabase
       .from('issue_history')
       .upsert(
-        { signature: sig, scan_run_id: scanRunId, timestamp: ts },
+        { signature: sig, scan_run_id: scanRunId, timestamp: ts, ...(userId ? { user_id: userId } : {}) },
         { onConflict: 'signature,scan_run_id' },
       );
   } catch {
@@ -268,7 +268,7 @@ async function dbLoadAppearances(sigs: string[]): Promise<HistoryStore | null> {
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
-function useIssueTrendStore() {
+function useIssueTrendStore(userId?: string | null) {
   const [history, setHistory] = useState<HistoryStore>(() => loadHistory());
 
   /**
@@ -315,12 +315,12 @@ function useIssueTrendStore() {
         saveHistory(next);
         // Fire-and-forget DB writes for each new entry
         for (const { sig, ts } of newEntries) {
-          dbSaveAppearance(sig, scanRunId, ts);
+          dbSaveAppearance(sig, scanRunId, ts, userId);
         }
       }
       return changed ? next : prev;
     });
-  }, []);
+  }, [userId]);
 
   /** sig → TrendLabel derived from how many scan runs the sig appeared in */
   const trendMap = useMemo(() => {
@@ -1109,8 +1109,12 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
   const [highlightFixKey, setHighlightFixKey] = useState<string | null>(null);
   const [celebrationMsg, setCelebrationMsg] = useState<string | null>(null);
 
+  const currentUserId = useMemo(() => supabase.auth.getUser().then(r => r.data.user?.id ?? null), []);
+  const [userId, setUserId] = useState<string | null>(null);
+  useEffect(() => { currentUserId.then(setUserId); }, [currentUserId]);
+
   const { fixedKeys, doneKeys, verifiedKeys, stillBrokenKeys, setInProgress, setFixed, verifyAgainstScan } = useIssueFixStore(scanRunId);
-  const { recordScan, loadFromDb, trendMap, historyMap } = useIssueTrendStore();
+  const { recordScan, loadFromDb, trendMap, historyMap } = useIssueTrendStore(userId);
 
   const detailRef = useRef<HTMLDivElement>(null);
   const prevCriticalDoneCount = useRef(0);

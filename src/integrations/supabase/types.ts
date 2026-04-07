@@ -1394,6 +1394,7 @@ export type Database = {
           signature: string
           scan_run_id: string
           timestamp: number
+          user_id: string | null
           created_at: string
         }
         Insert: {
@@ -1401,6 +1402,7 @@ export type Database = {
           signature: string
           scan_run_id: string
           timestamp: number
+          user_id?: string | null
           created_at?: string
         }
         Update: {
@@ -1408,6 +1410,7 @@ export type Database = {
           signature?: string
           scan_run_id?: string
           timestamp?: number
+          user_id?: string | null
           created_at?: string
         }
         Relationships: []

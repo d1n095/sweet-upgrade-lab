@@ -6,6 +6,12 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { LanguageProvider } from "./context/LanguageContext";
 import ScrollToTop from "./components/ScrollToTop";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+import Login from "./pages/Login";
+import DashboardLayout from "./components/dashboard/DashboardLayout";
+import DashboardHome from "./pages/dashboard/DashboardHome";
+import DashboardHistory from "./pages/dashboard/DashboardHistory";
+import DashboardWorkbench from "./pages/dashboard/DashboardWorkbench";
 import Index from "./pages/Index";
 import ProductDetail from "./pages/ProductDetail";
 import OrderDetail from "./pages/OrderDetail";
@@ -95,8 +101,15 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <ScrollToTop />
+          <ErrorBoundary>
           <MaintenanceGuard>
             <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/dashboard" element={<DashboardLayout />}>
+                <Route index element={<DashboardHome />} />
+                <Route path="history" element={<DashboardHistory />} />
+                <Route path="workbench" element={<DashboardWorkbench />} />
+              </Route>
               <Route path="/" element={<Index />} />
               <Route path="/shop" element={<Navigate to="/produkter" replace />} />
               <Route path="/products" element={<Navigate to="/produkter" replace />} />
@@ -170,6 +183,7 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
           </MaintenanceGuard>
+          </ErrorBoundary>
           <CookieBanner />
           <MiniWorkbench />
         </BrowserRouter>
