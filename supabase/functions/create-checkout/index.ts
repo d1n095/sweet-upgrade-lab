@@ -138,7 +138,7 @@ serve(async (req) => {
             }
             // Reserve stock best-effort
             try {
-              await supabase
+              await (supabase as any)
                 .from("products")
                 .update({ reserved_stock: p.reserved_stock + quantity })
                 .eq("id", productId);
@@ -276,7 +276,7 @@ serve(async (req) => {
 
     // Log success
     try {
-      await supabase.from("activity_logs").insert({
+      await (supabase as any).from("activity_logs").insert({
         log_type: "info",
         category: "order",
         message: "Checkout session created",
@@ -293,7 +293,7 @@ serve(async (req) => {
     });
   } catch (error: any) {
     console.error("CHECKOUT FATAL ERROR:", error);
-    await logRuntimeTrace("api", "create-checkout", "/create-checkout", error?.message || "Unknown error", { stack: error?.stack?.slice(0, 500) }, request_trace_id);
+    await logRuntimeTrace("api", "create-checkout", "/create-checkout", error?.message || "Unknown error", { stack: error?.stack?.slice(0, 500) }, (body as any)?.request_trace_id);
 
     // Release reserved stock best-effort
     if (supabase) {
