@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { AlertTriangle, RefreshCw, TrendingUp } from 'lucide-react';
+import { AlertTriangle, RefreshCw, TrendingUp, Zap, ArrowUpCircle, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
+import { executeIssue, type ActionIssue } from '@/features/actions/SystemActionPanel';
+import { toast } from 'sonner';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -12,12 +15,20 @@ interface IssueSummary {
   severity: string;
   category: string;
   trend: 'rising' | 'stable' | 'falling';
+  confidence: number; // 0–100: pct of scans where this was detected
 }
 
 interface TrendData {
   recurring: IssueSummary[];   // appears in 3+ scans
   unresolved: IssueSummary[];  // in latest scan AND older ones
   rising: IssueSummary[];      // count has grown scan-over-scan
+  totalScans: number;
+}
+
+interface ScanRow {
+  id: string;
+  created_at: string;
+  unified_result: Record<string, unknown> | null;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -56,8 +67,13 @@ function extractIssueTitles(unified_result: any): Array<{ title: string; severit
   return out;
 }
 
-function analyzeTrends(scans: any[]): TrendData {
-  // Each scan → { title → {severity, category} }
+function calcConfidence(count: number, totalScans: number): number {
+  return totalScans > 0 ? Math.round((count / totalScans) * 100) : 0;
+}
+
+function analyzeTrends(scans: ScanRow[]): TrendData {
+  const totalScans = scans.length;
+
   const perScan: Array<Map<string, { severity: string; category: string }>> = scans.map((s) => {
     const map = new Map<string, { severity: string; category: string }>();
     for (const item of extractIssueTitles(s.unified_result)) {
@@ -66,7 +82,6 @@ function analyzeTrends(scans: any[]): TrendData {
     return map;
   });
 
-  // Count appearances across scans
   const appearances = new Map<string, { count: number; meta: { severity: string; category: string } }>();
   for (const scanMap of perScan) {
     for (const [title, meta] of scanMap) {
@@ -79,11 +94,13 @@ function analyzeTrends(scans: any[]): TrendData {
     }
   }
 
+  const confidence = (count: number) => calcConfidence(count, totalScans);
+
   // Recurring: in 3+ scans
   const recurring: IssueSummary[] = [];
   for (const [title, { count, meta }] of appearances) {
     if (count >= 3) {
-      recurring.push({ key: title, count, severity: meta.severity, category: meta.category, trend: 'stable' });
+      recurring.push({ key: title, count, severity: meta.severity, category: meta.category, trend: 'stable', confidence: confidence(count) });
     }
   }
   recurring.sort((a, b) => b.count - a.count || a.severity.localeCompare(b.severity));
@@ -94,12 +111,12 @@ function analyzeTrends(scans: any[]): TrendData {
   for (const [title, meta] of latestMap) {
     const info = appearances.get(title);
     if (info && info.count > 1) {
-      unresolved.push({ key: title, count: info.count, severity: meta.severity, category: meta.category, trend: 'stable' });
+      unresolved.push({ key: title, count: info.count, severity: meta.severity, category: meta.category, trend: 'stable', confidence: confidence(info.count) });
     }
   }
   unresolved.sort((a, b) => b.count - a.count);
 
-  // Rising: count in last 3 scans > count in first 3 scans
+  // Rising: count in second half > first half
   const rising: IssueSummary[] = [];
   if (scans.length >= 4) {
     const firstHalf = perScan.slice(0, Math.floor(perScan.length / 2));
@@ -108,16 +125,29 @@ function analyzeTrends(scans: any[]): TrendData {
       const countOld = firstHalf.filter((m) => m.has(title)).length;
       const countNew = secondHalf.filter((m) => m.has(title)).length;
       if (countNew > countOld) {
-        rising.push({ key: title, count: countNew, severity: meta.severity, category: meta.category, trend: 'rising' });
+        const c = countNew + countOld;
+        rising.push({ key: title, count: countNew, severity: meta.severity, category: meta.category, trend: 'rising', confidence: confidence(c) });
       }
     }
     rising.sort((a, b) => b.count - a.count);
   }
 
-  return { recurring, unresolved, rising };
+  return { recurring, unresolved, rising, totalScans };
 }
 
-// ── Sub-list ──────────────────────────────────────────────────────────────────
+function toActionIssue(item: IssueSummary): ActionIssue {
+  return {
+    _key: item.key,
+    _category: item.category,
+    id: '',
+    title: item.key,
+    description: `Trend-detected issue (${item.category}). Confidence: ${item.confidence}%. Detected in ${item.count} scans.`,
+    severity: (item.severity as ActionIssue['severity']) ?? 'info',
+    impact_score: item.confidence,
+  };
+}
+
+// ── UI Helpers ────────────────────────────────────────────────────────────────
 
 const SEV_STYLE: Record<string, string> = {
   critical: 'bg-destructive/10 text-destructive border-destructive/20',
@@ -127,14 +157,46 @@ const SEV_STYLE: Record<string, string> = {
   info: 'bg-muted text-muted-foreground border-border',
 };
 
-function IssueRow({ item }: { item: IssueSummary }) {
+function ConfidencePill({ value }: { value: number }) {
+  const color = value >= 80 ? 'text-destructive' : value >= 50 ? 'text-yellow-600' : 'text-muted-foreground';
   return (
-    <div className="flex items-center gap-1.5 py-1 border-b border-border/40 last:border-0 text-xs">
+    <span className={cn('text-[9px] font-mono shrink-0', color)} title="Confidence score: % of scans where detected">
+      {value}%
+    </span>
+  );
+}
+
+function IssueRow({
+  item,
+  actionLabel,
+  onAction,
+  acting,
+}: {
+  item: IssueSummary;
+  actionLabel?: string;
+  onAction?: () => void;
+  acting?: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-1.5 py-1 border-b border-border/40 last:border-0 text-xs group">
       <Badge variant="outline" className={cn('text-[9px] shrink-0 px-1 py-0', SEV_STYLE[item.severity] ?? SEV_STYLE.info)}>
         {item.severity}
       </Badge>
       <span className="flex-1 truncate text-foreground">{item.key}</span>
+      <ConfidencePill value={item.confidence} />
       <span className="shrink-0 text-[10px] text-muted-foreground font-mono">{item.count}×</span>
+      {actionLabel && onAction && (
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-5 w-5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+          onClick={onAction}
+          disabled={acting}
+          title={actionLabel}
+        >
+          {acting ? <Loader2 className="w-3 h-3 animate-spin" /> : <ArrowUpCircle className="w-3 h-3 text-primary" />}
+        </Button>
+      )}
     </div>
   );
 }
@@ -144,6 +206,9 @@ function IssueRow({ item }: { item: IssueSummary }) {
 export function TrendAnalysisPanel() {
   const [trends, setTrends] = useState<TrendData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [latestRunId, setLatestRunId] = useState<string | undefined>(undefined);
+  const [batchRunning, setBatchRunning] = useState(false);
+  const [actingKeys, setActingKeys] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     let cancelled = false;
@@ -158,8 +223,12 @@ export function TrendAnalysisPanel() {
         .limit(10);
 
       if (!cancelled) {
-        const result = analyzeTrends(data ?? []);
+        const rows = (data ?? []) as ScanRow[];
+        const result = analyzeTrends(rows);
         setTrends(result);
+        // latest run = last element (ascending order)
+        const last = rows[rows.length - 1];
+        setLatestRunId(last?.id ?? undefined);
         setLoading(false);
       }
     }
@@ -168,12 +237,48 @@ export function TrendAnalysisPanel() {
     return () => { cancelled = true; };
   }, []);
 
+  // ── Action handlers ──────────────────────────────────────────────────────────
+
+  async function handlePrioritize(item: IssueSummary) {
+    setActingKeys((prev) => new Set([...prev, item.key]));
+    try {
+      await executeIssue(toActionIssue(item), latestRunId);
+      toast.success(`Prioritized: ${item.key}`);
+    } catch {
+      toast.error('Action failed');
+    } finally {
+      setActingKeys((prev) => { const s = new Set(prev); s.delete(item.key); return s; });
+    }
+  }
+
+  async function handleFixAllRecurring() {
+    if (!trends?.recurring.length) return;
+    setBatchRunning(true);
+    let done = 0;
+    for (const item of trends.recurring) {
+      try {
+        await executeIssue(toActionIssue(item), latestRunId);
+        done++;
+      } catch {
+        // continue batch even on individual failure
+      }
+    }
+    setBatchRunning(false);
+    toast.success(`Batch complete: ${done}/${trends.recurring.length} recurring issues processed`);
+  }
+
+  // ── Section definitions ──────────────────────────────────────────────────────
+
   const sections: Array<{
     id: string;
     label: string;
     icon: React.ReactNode;
     items: IssueSummary[];
     emptyText: string;
+    insightText: string;
+    sectionAction?: { label: string; onClick: () => void; loading: boolean };
+    rowActionLabel?: string;
+    onRowAction?: (item: IssueSummary) => void;
   }> = [
     {
       id: 'recurring',
@@ -181,6 +286,12 @@ export function TrendAnalysisPanel() {
       icon: <RefreshCw className="w-3.5 h-3.5 text-orange-500" />,
       items: trends?.recurring ?? [],
       emptyText: 'No recurring issues detected.',
+      insightText: 'These issues persist across multiple scans, indicating a root cause that has not been addressed. High confidence = strong signal. Fix the root cause rather than the symptom.',
+      sectionAction: {
+        label: `Fix all recurring (${trends?.recurring.length ?? 0})`,
+        onClick: handleFixAllRecurring,
+        loading: batchRunning,
+      },
     },
     {
       id: 'unresolved',
@@ -188,6 +299,9 @@ export function TrendAnalysisPanel() {
       icon: <AlertTriangle className="w-3.5 h-3.5 text-destructive" />,
       items: trends?.unresolved ?? [],
       emptyText: 'No unresolved cross-scan issues.',
+      insightText: 'Present in the latest scan and in prior scans. Previously detected but not yet fixed. Prioritize these to stop score degradation.',
+      rowActionLabel: 'Prioritize issue',
+      onRowAction: handlePrioritize,
     },
     {
       id: 'rising',
@@ -195,6 +309,7 @@ export function TrendAnalysisPanel() {
       icon: <TrendingUp className="w-3.5 h-3.5 text-yellow-600" />,
       items: trends?.rising ?? [],
       emptyText: 'No rising issue patterns.',
+      insightText: 'Detected more frequently in recent scans than in earlier ones. Indicates active deterioration. Investigate recent changes near the affected components.',
     },
   ];
 
@@ -203,6 +318,11 @@ export function TrendAnalysisPanel() {
       <div className="flex items-center gap-2">
         <TrendingUp className="w-4 h-4 text-muted-foreground" />
         <span className="text-sm font-semibold">Trend Analysis</span>
+        {trends && (
+          <span className="text-[10px] text-muted-foreground ml-1">
+            ({trends.totalScans} scans analyzed)
+          </span>
+        )}
         {loading && <span className="w-3 h-3 rounded-full border-2 border-muted-foreground border-t-transparent animate-spin" />}
       </div>
 
@@ -216,6 +336,7 @@ export function TrendAnalysisPanel() {
         <div className="space-y-3">
           {sections.map((s) => (
             <div key={s.id} className="rounded-lg border border-border p-3 space-y-2 bg-card">
+              {/* Section header */}
               <div className="flex items-center gap-1.5">
                 {s.icon}
                 <span className="text-xs font-medium">{s.label}</span>
@@ -223,12 +344,39 @@ export function TrendAnalysisPanel() {
                   {s.items.length}
                 </Badge>
               </div>
+
+              {/* Insight text */}
+              <p className="text-[11px] text-muted-foreground leading-snug">{s.insightText}</p>
+
+              {/* Section-level action */}
+              {s.sectionAction && s.items.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-6 text-[11px] px-2 gap-1"
+                  onClick={s.sectionAction.onClick}
+                  disabled={s.sectionAction.loading}
+                >
+                  {s.sectionAction.loading
+                    ? <Loader2 className="w-3 h-3 animate-spin" />
+                    : <Zap className="w-3 h-3" />}
+                  {s.sectionAction.label}
+                </Button>
+              )}
+
+              {/* Row list */}
               {s.items.length === 0 ? (
-                <p className="text-[11px] text-muted-foreground">{s.emptyText}</p>
+                <p className="text-[11px] text-muted-foreground italic">{s.emptyText}</p>
               ) : (
-                <div className="max-h-36 overflow-y-auto">
+                <div className="max-h-40 overflow-y-auto">
                   {s.items.slice(0, 10).map((item) => (
-                    <IssueRow key={item.key} item={item} />
+                    <IssueRow
+                      key={item.key}
+                      item={item}
+                      actionLabel={s.rowActionLabel}
+                      onAction={s.onRowAction ? () => s.onRowAction!(item) : undefined}
+                      acting={actingKeys.has(item.key)}
+                    />
                   ))}
                   {s.items.length > 10 && (
                     <p className="text-[10px] text-muted-foreground pt-1">
@@ -244,3 +392,4 @@ export function TrendAnalysisPanel() {
     </div>
   );
 }
+
