@@ -1109,9 +1109,10 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
   const [highlightFixKey, setHighlightFixKey] = useState<string | null>(null);
   const [celebrationMsg, setCelebrationMsg] = useState<string | null>(null);
 
-  const currentUserId = useMemo(() => supabase.auth.getUser().then(r => r.data.user?.id ?? null), []);
   const [userId, setUserId] = useState<string | null>(null);
-  useEffect(() => { currentUserId.then(setUserId); }, [currentUserId]);
+  useEffect(() => {
+    supabase.auth.getUser().then(r => setUserId(r.data.user?.id ?? null));
+  }, []);
 
   const { fixedKeys, doneKeys, verifiedKeys, stillBrokenKeys, setInProgress, setFixed, verifyAgainstScan } = useIssueFixStore(scanRunId);
   const { recordScan, loadFromDb, trendMap, historyMap } = useIssueTrendStore(userId);
