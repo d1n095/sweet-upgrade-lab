@@ -2836,7 +2836,7 @@ const SystemExplorer = () => {
                 <div className="space-y-2 text-sm">
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                     <div><span className="text-muted-foreground">ID:</span> {latestRun.id.slice(0, 8)}…</div>
-                    <div><span className="text-muted-foreground">Typ:</span> {latestRun.scan_mode ?? "full"}</div>
+                    <div><span className="text-muted-foreground">Typ:</span> {(latestRun as any).scan_mode ?? "full"}</div>
                     <div><span className="text-muted-foreground">Score:</span> {latestRun.system_health_score ?? "–"}</div>
                     <div><span className="text-muted-foreground">Issues:</span> {detectedIssues}</div>
                     <div><span className="text-muted-foreground">Tasks skapade:</span> {latestRun.work_items_created ?? 0}</div>

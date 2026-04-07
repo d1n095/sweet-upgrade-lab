@@ -257,7 +257,7 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error("Retention email error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: (error as any)?.message || "Unknown error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

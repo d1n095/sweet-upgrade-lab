@@ -140,7 +140,7 @@ export async function applyConfidenceAction(
   // Mark the work item (if it exists) with low confidence metadata
   if (sourceId) {
     await supabase.from('work_items').update({
-      review_status: result.confidence === 'failed' ? 'failed' : 'needs_review',
+      ai_review_status: result.confidence === 'failed' ? 'failed' : 'needs_review',
       ai_review_notes: `Fix confidence: ${result.confidence} (${result.score}/100) — ${result.factors.filter(f => f.score < 50).map(f => f.name).join(', ')}`,
     }).eq('source_id', sourceId);
     result = { ...result, action: result.action || 'marked_unstable', linkedWorkItemId: sourceId };

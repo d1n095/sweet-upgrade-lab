@@ -244,11 +244,11 @@ export const runUnifiedPipeline = async (
 
     // ─── STAGE 5: VERIFICATION ───
     // Trigger rule-based review on recently completed work items that lack verification
-    const { data: unverified } = await supabase
+    const { data: unverified } = await (supabase
       .from('work_items')
       .select('id, title, review_status')
-      .eq('status', 'done')
-      .in('review_status', ['pending', null as any])
+      .eq('status', 'done') as any)
+      .in('review_status', ['pending', null])
       .order('completed_at', { ascending: false })
       .limit(5);
 

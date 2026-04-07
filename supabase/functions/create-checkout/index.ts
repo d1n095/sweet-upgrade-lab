@@ -293,7 +293,7 @@ serve(async (req) => {
     });
   } catch (error: any) {
     console.error("CHECKOUT FATAL ERROR:", error);
-    await logRuntimeTrace("api", "create-checkout", "/create-checkout", error?.message || "Unknown error", { stack: error?.stack?.slice(0, 500) }, request_trace_id);
+    await logRuntimeTrace("api", "create-checkout", "/create-checkout", error?.message || "Unknown error", { stack: error?.stack?.slice(0, 500) }, (body as any)?.request_trace_id);
 
     // Release reserved stock best-effort
     if (supabase) {
