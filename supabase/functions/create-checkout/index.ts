@@ -138,7 +138,7 @@ serve(async (req) => {
             }
             // Reserve stock best-effort
             try {
-              await supabase
+              await (supabase as any)
                 .from("products")
                 .update({ reserved_stock: p.reserved_stock + quantity })
                 .eq("id", productId);
