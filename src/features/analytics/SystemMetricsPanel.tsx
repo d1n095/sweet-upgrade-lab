@@ -62,16 +62,16 @@ export function SystemMetricsPanel() {
           .order('created_at', { ascending: false })
           .limit(2);
 
-        const latest = scans?.[0] ?? null;
-        const prev = scans?.[1] ?? null;
+        const latest = (scans?.[0] ?? null) as any;
+        const prev = (scans?.[1] ?? null) as any;
 
         const healthScore = latest
-          ? ((latest as any).system_health_score ?? (latest as any).unified_result?.system_health_score ?? null)
+          ? (latest.system_health_score ?? latest.unified_result?.system_health_score ?? null)
           : null;
         const prevHealthScore = prev
-          ? ((prev as any).system_health_score ?? (prev as any).unified_result?.system_health_score ?? null)
+          ? (prev.system_health_score ?? prev.unified_result?.system_health_score ?? null)
           : null;
-        const totalIssues = countIssues((latest as any)?.unified_result);
+        const totalIssues = countIssues(latest?.unified_result);
 
         // Fetch fix execution stats from change_log (last 100)
         const { data: logs } = await supabase

@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import ReactMarkdown from "react-markdown";
 import { ScanControls, IssueAnalysisPanel, SystemCommandCenter } from "./system";
+import { AnalyticsDashboard } from "@/features/analytics";
 
 type WorkItem = {
   id: string;
@@ -173,7 +174,7 @@ const SystemExplorer = () => {
   const [aiAnswer, setAiAnswer] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiFocusArea, setAiFocusArea] = useState<string | null>(null);
-  const [mainTab, setMainTab] = useState<"system" | "files" | "patch" | "codeindex" | "backendscan" | "analysis">("system");
+  const [mainTab, setMainTab] = useState<"system" | "files" | "patch" | "codeindex" | "backendscan" | "analysis" | "analytics">("system");
   const [filesFilter, setFilesFilter] = useState<"all" | "orphan" | "has_issues">("all");
   const [selectedFile, setSelectedFile] = useState<FileEntry | null>(null);
   const [patchInput, setPatchInput] = useState("");
@@ -1070,6 +1071,9 @@ const SystemExplorer = () => {
           <button onClick={() => setMainTab("analysis")} className={`px-3 py-1.5 text-xs font-medium rounded-t-md transition-colors ${mainTab === "analysis" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"}`}>
             Issues
           </button>
+          <button onClick={() => setMainTab("analytics")} className={`px-3 py-1.5 text-xs font-medium rounded-t-md transition-colors ${mainTab === "analytics" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"}`}>
+            Analytics
+          </button>
         </div>
 
         {/* BACKEND SCAN TAB */}
@@ -1230,6 +1234,9 @@ const SystemExplorer = () => {
             unifiedResult={(latestRun as any)?.unified_result ?? null}
           />
         )}
+
+        {/* ANALYTICS TAB */}
+        {mainTab === "analytics" && <AnalyticsDashboard />}
 
         {/* CODE INDEX TAB */}
         {mainTab === "codeindex" && (() => {
