@@ -378,6 +378,7 @@ const MemberProfile = () => {
 
             {/* Orders Tab */}
             <TabsContent value="orders">
+              <BalanceOverview />
               <OrderTracker />
               
               {isEmployee && !isAdmin && (

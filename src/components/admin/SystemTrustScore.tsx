@@ -45,9 +45,9 @@ const SystemTrustScore = () => {
     queryFn: async (): Promise<TrustBreakdown> => {
       // Parallel DB queries
       const [workItemsRes, bugsRes, scansRes, changeLogRes] = await Promise.all([
-        supabase.from('work_items' as any).select('status, review_status, priority').limit(500),
-        supabase.from('bug_reports').select('status').limit(500),
-        supabase.from('scan_results').select('overall_score, issues_count, tasks_created').order('created_at', { ascending: false }).limit(20),
+        supabase.from('work_items').select('status, review_status, priority').limit(500),
+        supabase.from('bug_reports').select('status, ai_severity').limit(500),
+        supabase.from('scan_runs').select('system_health_score, total_new_issues, work_items_created').in('status', ['done', 'completed']).order('created_at', { ascending: false }).limit(20),
         supabase.from('change_log').select('change_type, source').order('created_at', { ascending: false }).limit(200),
       ]);
 
@@ -62,10 +62,11 @@ const SystemTrustScore = () => {
       const verifiedItems = workItems.filter((w: any) => w.review_status === 'verified').length;
       const workingPct = Math.round(((doneItems + verifiedItems * 0.5) / totalItems) * 100);
 
-      // ─── 2. Failed Actions (% of bugs open) ───
+      // ─── 2. Failed Actions (% of bugs open or critical) ───
       const totalBugs = bugs.length || 1;
       const openBugs = bugs.filter(b => b.status === 'open' || b.status === 'new').length;
-      const failedPct = Math.round((openBugs / totalBugs) * 100);
+      const criticalBugs = bugs.filter(b => b.ai_severity === 'critical' || b.ai_severity === 'high').length;
+      const failedPct = Math.round(((openBugs + criticalBugs * 0.5) / totalBugs) * 100);
 
       // ─── 3. Verified Fixes (% of done items with AI verification) ───
       const fixItems = workItems.filter((w: any) => w.status === 'done');
@@ -80,7 +81,7 @@ const SystemTrustScore = () => {
 
       // ─── 5. Scan health bonus ───
       const avgScanScore = scans.length > 0
-        ? scans.reduce((sum, s) => sum + (s.overall_score || 0), 0) / scans.length
+        ? scans.reduce((sum, s) => sum + (s.system_health_score || 0), 0) / scans.length
         : 50;
 
       // ─── COMPOSITE SCORE ───

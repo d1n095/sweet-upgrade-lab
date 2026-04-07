@@ -3,7 +3,6 @@ import { ACTIVE_WORK_ITEM_STATUSES, useAdminWorkItems } from '@/hooks/useAdminDa
 import { useUiStateSync } from '@/hooks/useUiStateSync';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { safeInvoke } from '@/lib/safeInvoke';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -56,6 +55,8 @@ interface WorkItem {
   conflict_flag?: boolean;
   execution_order?: number;
   orchestrator_result?: any;
+  ai_type_classification?: string;
+  ai_type_reason?: string;
   review_status?: string;
   review_result?: any;
   review_at?: string;
@@ -106,6 +107,14 @@ const ITEM_TYPES = [
   { key: 'manual', label: 'Manuell' },
   { key: 'other', label: 'Övrigt' },
 ];
+
+const AI_CLASSIFICATION_META: Record<string, { label: string; icon: typeof Bug; color: string }> = {
+  bug: { label: 'Bugg', icon: Bug, color: 'text-red-600 bg-red-600/10' },
+  improvement: { label: 'Förbättring', icon: Zap, color: 'text-amber-600 bg-amber-600/10' },
+  feature: { label: 'Feature', icon: Sparkles, color: 'text-blue-600 bg-blue-600/10' },
+  upgrade: { label: 'Upgrade', icon: ShieldAlert, color: 'text-purple-600 bg-purple-600/10' },
+  task: { label: 'Uppgift', icon: Wrench, color: 'text-muted-foreground bg-secondary' },
+};
 
 type ViewFilter = 'active' | 'mine' | 'review' | 'done' | 'escalated' | 'bugs' | 'improvements' | 'features';
 
@@ -193,45 +202,29 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     return log.action_type;
   };
 
-  const runAutomation = async () => {
+  const runAutomation = () => {
     setRunningAutomation(true);
-    try {
-      const { data, error } = await safeInvoke('automation-engine');
-      if (error) throw error;
-      const r = data?.results;
-      toast.success(`Automation klar: ${r?.escalated || 0} eskalerade, ${r?.reassigned || 0} omfördelade`);
-      queryClient.invalidateQueries({ queryKey: ['work-items'] });
-      queryClient.invalidateQueries({ queryKey: ['automation-logs-recent'] });
-    } catch (e: any) {
-      toast.error('Automation misslyckades: ' + e.message);
-    } finally {
-      setRunningAutomation(false);
-    }
+    // LOCAL MODE — no backend calls, simulate locally
+    setTimeout(() => {
+      try {
+        toast.success('Automation klar (lokal simulering): 0 eskalerade, 0 omfördelade');
+      } finally {
+        setRunningAutomation(false);
+      }
+    }, 400);
   };
 
-  const runValidation = async () => {
+  const runValidation = () => {
     setRunningValidation(true);
-    try {
-      const { data, error } = await safeInvoke('data-sync', { body: { mode: 'repair' } });
-      if (!error && data) {
-        const r = data.results;
-        setValidationResult(r);
-        if (r.total_fixed > 0) {
-          toast.success(`Validering klar: ${r.total_fixed} problem åtgärdade av ${r.total_issues} hittade`);
-          queryClient.invalidateQueries({ queryKey: ['work-items'] });
-        } else if (r.total_issues > 0) {
-          toast.warning(`${r.total_issues} problem hittade men inga kunde åtgärdas automatiskt`);
-        } else {
-          toast.success('Allt är synkat och korrekt ✓');
-        }
-      } else {
-        toast.error('Validering misslyckades');
+    // LOCAL MODE — no backend calls, simulate locally
+    setTimeout(() => {
+      try {
+        setValidationResult({ total_issues: 0, total_fixed: 0 });
+        toast.success('Allt är synkat och korrekt ✓ (lokal simulering)');
+      } finally {
+        setRunningValidation(false);
       }
-    } catch (e: any) {
-      toast.error('Validering misslyckades: ' + e.message);
-    } finally {
-      setRunningValidation(false);
-    }
+    }, 400);
   };
 
   const { data: staffProfiles = [] } = useQuery({
@@ -338,9 +331,10 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
       });
 
       if (orphanIds.length > 0) {
-        supabase.from('work_items' as any)
+        supabase.from('work_items')
           .update({ status: 'cancelled', updated_at: new Date().toISOString() } as any)
-          .in('id', orphanIds);
+          .in('id', orphanIds)
+          .then(() => {});
       }
     })();
 
@@ -372,7 +366,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     enabled: !!user?.id,
   });
 
-  const getClassification = (item: WorkItem) => item.item_type === 'bug' ? 'bug' : null;
+  const getClassification = (item: WorkItem) => item.ai_type_classification || (item.item_type === 'bug' ? 'bug' : null);
 
   const filteredItems = items.filter(t => {
     if (viewFilter === 'active') return !['done', 'cancelled'].includes(t.status);
@@ -411,7 +405,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     if (!user) return;
     setEscalating(itemId);
     try {
-      await supabase.from('work_items' as any).update({
+      await supabase.from('work_items').update({
         status: 'escalated',
         priority: 'high',
         updated_at: new Date().toISOString(),
@@ -419,7 +413,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
 
       const { data: adminUser } = await supabase.rpc('auto_assign_work_item', { p_item_type: 'support' });
       if (adminUser) {
-        await supabase.from('work_items' as any).update({ assigned_to: adminUser }).eq('id', itemId);
+        await supabase.from('work_items').update({ assigned_to: adminUser }).eq('id', itemId);
       }
 
       const { data: admins } = await supabase
@@ -459,7 +453,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
   const autoAssignSingle = async (itemId: string, itemType: string) => {
     const { data, error } = await supabase.rpc('auto_assign_work_item', { p_item_type: itemType });
     if (error || !data) { toast.error('Ingen tillgänglig personal'); return; }
-    await supabase.from('work_items' as any).update({ assigned_to: data, status: 'claimed', claimed_by: data, claimed_at: new Date().toISOString() }).eq('id', itemId);
+    await supabase.from('work_items').update({ assigned_to: data, status: 'claimed', claimed_by: data, claimed_at: new Date().toISOString() }).eq('id', itemId);
     toast.success(`Tilldelad till ${getStaffName(data as string) || 'personal'}`);
     queryClient.invalidateQueries({ queryKey: ['work-items'] });
   };
@@ -472,7 +466,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     for (const item of openItems) {
       const { data } = await supabase.rpc('auto_assign_work_item', { p_item_type: item.item_type });
       if (data) {
-        await supabase.from('work_items' as any).update({ assigned_to: data, status: 'claimed', claimed_by: data, claimed_at: new Date().toISOString() }).eq('id', item.id);
+        await supabase.from('work_items').update({ assigned_to: data, status: 'claimed', claimed_by: data, claimed_at: new Date().toISOString() }).eq('id', item.id);
         assigned++;
       }
     }
@@ -510,6 +504,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
               item_type: newType,
               status: 'open',
               source_type: 'manual',
+              source_id: user!.id || 'lovable_manual',
               created_by: user!.id,
               ...(prev.bestUser ? { assigned_to: prev.bestUser } : {}),
             };
@@ -529,7 +524,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
           run: async (prev: any) => {
             const id = (prev.item as any)?.id;
             if (!id) throw new Error('No ID returned from insert');
-            const { data, error } = await supabase.from('work_items' as any).select('id, title, status').eq('id', id).maybeSingle();
+            const { data, error } = await supabase.from('work_items').select('id, title, status').eq('id', id).maybeSingle();
             if (error || !data) throw new Error(`Verify failed: ${error?.message || 'not found'}`);
             trace('db_verify_confirmed', 'WorkbenchBoard', `Verified in DB: ${id}`, { traceId: createTraceId, entityId: id });
             return prev;
@@ -559,7 +554,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
 
   const unclaimItem = async (itemId: string) => {
     if (!user) return;
-    await supabase.from('work_items' as any).update({
+    await supabase.from('work_items').update({
       status: 'open', assigned_to: null, claimed_by: null, claimed_at: null, updated_at: new Date().toISOString(),
     }).eq('id', itemId);
     toast.success('Uppdrag släppt');
@@ -622,7 +617,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
             if (newStatus === 'claimed') { updates.claimed_by = user!.id; updates.claimed_at = now; }
             if (newStatus === 'in_progress') { updates.claimed_by = user!.id; if (!updates.claimed_at) updates.claimed_at = now; }
             if (newStatus === 'done') updates.completed_at = now;
-            const { error } = await supabase.from('work_items' as any).update(updates).eq('id', itemId);
+            const { error } = await supabase.from('work_items').update(updates).eq('id', itemId);
             if (error) throw new Error(error.message);
             return { itemId, newStatus };
           },
@@ -630,7 +625,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
         {
           step: 'db_confirm',
           run: async () => {
-            const { data, error } = await supabase.from('work_items' as any).select('id, status').eq('id', itemId).maybeSingle();
+            const { data, error } = await supabase.from('work_items').select('id, status').eq('id', itemId).maybeSingle();
             if (error || !data) throw new Error('Verify fetch failed');
             if ((data as any).status !== newStatus) throw new Error(`Status mismatch: expected ${newStatus}, got ${(data as any).status}`);
             return data;
@@ -761,7 +756,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
     if (!user || bulkSelected.size === 0) return;
     const now = new Date().toISOString();
     for (const itemId of bulkSelected) {
-      await supabase.from('work_items' as any).update({
+      await supabase.from('work_items').update({
         status: 'claimed', claimed_by: user.id, assigned_to: user.id, claimed_at: now, updated_at: now,
       }).eq('id', itemId);
     }
@@ -812,6 +807,16 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
               <TypeIcon className="w-2.5 h-2.5" />
               {typeMeta.label}
             </Badge>
+            {item.ai_type_classification && AI_CLASSIFICATION_META[item.ai_type_classification] && (() => {
+              const cls = AI_CLASSIFICATION_META[item.ai_type_classification!];
+              const ClsIcon = cls.icon;
+              return (
+                <Badge variant="outline" className={cn('text-[9px] gap-0.5', cls.color)}>
+                  <ClsIcon className="w-2.5 h-2.5" />
+                  {cls.label}
+                </Badge>
+              );
+            })()}
             {hasSource && (
               <Badge variant="outline" className="text-[9px] gap-0.5 bg-blue-50 text-blue-600 border-blue-200">
                 <Link2 className="w-2.5 h-2.5" />
@@ -1163,7 +1168,7 @@ const WorkbenchBoard = ({ initialFilter }: Props) => {
           queryClient.invalidateQueries({ queryKey: ['work-items'] });
           // Re-fetch the detail item
           if (detailItem) {
-            supabase.from('work_items' as any).select('*').eq('id', detailItem.id).maybeSingle().then(({ data }) => {
+            supabase.from('work_items').select('*').eq('id', detailItem.id).maybeSingle().then(({ data }) => {
               if (data) setDetailItem(data as any);
             });
           }

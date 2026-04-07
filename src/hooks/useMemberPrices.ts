@@ -38,8 +38,8 @@ export const useMemberPrices = () => {
 
         if (pricesData) {
           const priceMap = new Map<string, number>();
-          pricesData.forEach((p: MemberPrice) => {
-            priceMap.set(p.variant_id, Number(p.member_price));
+          pricesData.forEach((p) => {
+            priceMap.set((p as any).variant_id, Number(p.member_price));
           });
           setMemberPrices(priceMap);
         }
@@ -52,8 +52,10 @@ export const useMemberPrices = () => {
 
         if (volumeData) {
           setVolumeDiscounts(volumeData.map((v) => ({
-            ...v,
-            discount_percent: Number(v.discount_percent)
+            product_id: (v as any).product_id,
+            min_quantity: v.min_quantity,
+            discount_percent: Number(v.discount_percent),
+            is_global: v.is_global,
           })));
         }
 

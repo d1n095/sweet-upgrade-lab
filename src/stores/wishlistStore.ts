@@ -46,9 +46,8 @@ export const useWishlistStore = create<WishlistStore>()(
               user_id: userId,
               product_id: item.id,
               product_handle: item.handle,
-            });
-          } catch (error) {
-          }
+            } as any);
+          } catch (_) {}
         }
       },
 
@@ -59,13 +58,12 @@ export const useWishlistStore = create<WishlistStore>()(
 
         if (userId) {
           try {
-            await supabase
-              .from('wishlists')
+            await (supabase
+              .from('wishlists') as any)
               .delete()
               .eq('user_id', userId)
               .eq('product_id', productId);
-          } catch (error) {
-          }
+          } catch (_) {}
         }
       },
 
@@ -78,8 +76,7 @@ export const useWishlistStore = create<WishlistStore>()(
         if (userId) {
           try {
             await supabase.from('wishlists').delete().eq('user_id', userId);
-          } catch (error) {
-          }
+          } catch (_) {}
         }
       },
 
@@ -88,15 +85,15 @@ export const useWishlistStore = create<WishlistStore>()(
       syncWithDatabase: async (userId) => {
         set({ isLoading: true, userId });
         try {
-          const { data: dbWishlist, error } = await supabase
-            .from('wishlists')
+          const { data: dbWishlist, error } = await (supabase
+            .from('wishlists') as any)
             .select('product_id, product_handle')
             .eq('user_id', userId);
 
           if (error) throw error;
 
           const { items: localItems } = get();
-          const dbIds = new Set((dbWishlist || []).map(w => w.product_id));
+          const dbIds = new Set((dbWishlist || []).map((w: any) => w.product_id));
 
           // Sync local items not yet in DB
           for (const item of localItems) {
@@ -105,11 +102,11 @@ export const useWishlistStore = create<WishlistStore>()(
                 user_id: userId,
                 product_id: item.id,
                 product_handle: item.handle,
-              }, { onConflict: 'user_id,product_id' });
-              if (insertError) { /* sync error suppressed */ }
+              } as any, { onConflict: 'user_id,product_id' } as any);
+              if (insertError) {}
             }
           }
-        } catch (error) {
+        } catch (_) {
         } finally {
           set({ isLoading: false });
         }
@@ -120,7 +117,7 @@ export const useWishlistStore = create<WishlistStore>()(
       version: 1,
       storage: createJSONStorage(() => localStorage),
       migrate: (_state, version) => {
-        // Clear any pre-v1 state (was ShopifyProduct[])
+        // Clear any pre-v1 state
         if (version < 1) return { items: [], isLoading: false, userId: null };
         return _state as WishlistStore;
       },

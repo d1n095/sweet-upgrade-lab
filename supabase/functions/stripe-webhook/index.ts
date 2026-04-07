@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { createClient } from "npm:@supabase/supabase-js@2.57.2";
+import { createShipmondoShipment, resolveServiceCode } from "../_shared/shipmondo.ts";
 
 async function logRuntimeTrace(source: string, function_name: string, endpoint: string, error_message: string, payload_snapshot: any, request_trace_id?: string) {
   try {
@@ -177,6 +178,58 @@ serve(async (req) => {
       } catch (receiptErr: any) {
         console.warn('[stripe-webhook] Failed to store receipt:', receiptErr?.message);
       }
+
+      // Auto-create Shipmondo shipment (non-blocking – failure does not affect order)
+      try {
+        const order = ensured.order as any;
+        const addr = order?.shipping_address as any ?? {};
+        const shippingMethod: string | null =
+          order?.shipping_method ?? session.metadata?.shipping_method ?? null;
+        const serviceCode = resolveServiceCode(shippingMethod);
+
+        const shipmondoResult = await createShipmondoShipment(
+          {
+            service_code: serviceCode,
+            sender: {
+              name: Deno.env.get("STORE_NAME") || "4ThePeople",
+              address1: Deno.env.get("STORE_ADDRESS") || "Företagsvägen 1",
+              zipcode: Deno.env.get("STORE_ZIPCODE") || "11122",
+              city: Deno.env.get("STORE_CITY") || "Stockholm",
+              country_code: Deno.env.get("STORE_COUNTRY_CODE") || "SE",
+            },
+            receiver: {
+              name: addr?.name || order?.order_email || "",
+              address1: addr?.address || "",
+              zipcode: addr?.zip || "",
+              city: addr?.city || "",
+              country_code: addr?.country || "SE",
+              email: order?.order_email || "",
+              mobile: addr?.phone || "",
+            },
+            parcels: [{ weight: order?.weight_in_grams ?? 1000 }],
+          },
+          2, // maxRetries
+        );
+
+        // Persist Shipmondo data on the order
+        const shipmentUpdate: Record<string, any> = {};
+        if (shipmondoResult.shipment_id) shipmentUpdate.shipmondo_shipment_id = shipmondoResult.shipment_id;
+        if (shipmondoResult.tracking_number) shipmentUpdate.tracking_number = shipmondoResult.tracking_number;
+        if (shipmondoResult.label_url) shipmentUpdate.label_url = shipmondoResult.label_url;
+        if (shipmondoResult.carrier_code) shipmentUpdate.shipping_method = shipmondoResult.carrier_code;
+
+        if (Object.keys(shipmentUpdate).length > 0) {
+          await supabase.from("orders").update(shipmentUpdate).eq("id", ensured.orderId!);
+        }
+
+        console.log(
+          `[stripe-webhook] Shipmondo shipment created for order ${ensured.order?.order_number}: ` +
+          `id=${shipmondoResult.shipment_id} tracking=${shipmondoResult.tracking_number}`,
+        );
+      } catch (shipErr: unknown) {
+        const msg = shipErr instanceof Error ? shipErr.message : String(shipErr);
+        console.warn('[stripe-webhook] Shipmondo auto-shipment failed (non-fatal):', msg);
+      }
     }
 
     return ok({
@@ -325,7 +378,7 @@ async function findOrderBySession(supabase: any, sessionId: string): Promise<str
 async function fetchTrackableOrderById(supabase: any, orderId: string) {
   const { data } = await supabase
     .from('orders')
-    .select('id, order_number, shopify_order_number, stripe_session_id, order_email, status, tracking_number, estimated_delivery, created_at, items, total_amount, currency, shipping_address, payment_status')
+    .select('id, order_number, external_order_number, stripe_session_id, order_email, status, tracking_number, estimated_delivery, created_at, items, total_amount, currency, shipping_address, payment_status')
     .eq('id', orderId)
     .maybeSingle();
 

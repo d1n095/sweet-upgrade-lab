@@ -162,7 +162,7 @@ const AdminInfluencerManager = () => {
       if (error) throw error;
       setInfluencers((data || []) as unknown as Influencer[]);
     } catch (error) {
-      toast.error(t.error);
+
     } finally {
       setIsLoading(false);
     }
@@ -190,6 +190,7 @@ const AdminInfluencerManager = () => {
       
       setProductStats(stats);
     } catch (error) {
+
     }
   };
 
@@ -207,6 +208,7 @@ const AdminInfluencerManager = () => {
         [influencerId]: (data || []) as InfluencerProduct[]
       }));
     } catch (error) {
+
     }
   };
 
@@ -261,6 +263,7 @@ const AdminInfluencerManager = () => {
         });
         toast.success(language === 'sv' ? 'Email skickad till influencer!' : 'Email sent to influencer!');
       } catch (emailError) {
+
         // Don't fail the whole operation if email fails
       }
 
@@ -269,6 +272,7 @@ const AdminInfluencerManager = () => {
       setIsAddDialogOpen(false);
       loadInfluencers();
     } catch (error) {
+
       toast.error(t.error);
     } finally {
       setIsSubmitting(false);
@@ -286,6 +290,7 @@ const AdminInfluencerManager = () => {
       toast.success(t.influencerUpdated);
       loadInfluencers();
     } catch (error) {
+
       toast.error(t.error);
     }
   };
@@ -303,6 +308,7 @@ const AdminInfluencerManager = () => {
       toast.success(t.influencerDeleted);
       loadInfluencers();
     } catch (error) {
+
       toast.error(t.error);
     }
   };
@@ -321,6 +327,7 @@ const AdminInfluencerManager = () => {
       });
       toast.success(t.emailSent);
     } catch (error) {
+
       toast.error(t.error);
     }
   };

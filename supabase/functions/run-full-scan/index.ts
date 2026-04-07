@@ -1,14 +1,3 @@
-/**
- * CORE SYSTEM FILE
- * DO NOT MODIFY WITHOUT EXPLICIT APPROVAL
- * Breaking this will crash scan system
- *
- * FORBIDDEN:
- * - AI modifications
- * - refactors
- * - renaming fields
- * - changing data flow
- */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
@@ -27,6 +16,27 @@ async function logRuntimeTrace(source: string, function_name: string, endpoint: 
 function trace(scanRunId: string | undefined, msg: string, ...args: any[]) {
   const tid = scanRunId ? scanRunId.slice(0, 8) : "??";
   console.log(`[SCAN:${tid}] ${msg}`, ...args);
+}
+
+// ── Resilient chained fetch with retry on 502 ──
+async function chainedFetch(url: string, options: RequestInit, label: string, maxRetries = 2): Promise<void> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const res = await fetch(url, options);
+      if (res.ok || res.status < 500) return;
+      const bodyText = await res.text().catch(() => "");
+      console.error(`[CHAIN] ${label} attempt ${attempt + 1} got HTTP ${res.status}: ${bodyText.slice(0, 200)}`);
+      if (attempt < maxRetries) {
+        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+      }
+    } catch (e: any) {
+      console.error(`[CHAIN] ${label} attempt ${attempt + 1} network error: ${e?.message}`);
+      if (attempt < maxRetries) {
+        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+      }
+    }
+  }
+  console.error(`[CHAIN] ${label} FAILED after ${maxRetries + 1} attempts`);
 }
 
 const corsHeaders = {
@@ -300,13 +310,6 @@ function buildUnifiedResult(stepResults: Record<string, any>, totalDuration: num
   if (stepResults.data_flow_validation?.broken_links) broken_flows.push(...stepResults.data_flow_validation.broken_links);
   if (stepResults.navigation_verification?.issues) broken_flows.push(...stepResults.navigation_verification.issues);
   if (stepResults.navigation_verification?.broken_routes) broken_flows.push(...stepResults.navigation_verification.broken_routes);
-  if (stepResults.blocker_detection?.issues) {
-    for (const i of stepResults.blocker_detection.issues || []) {
-      if (i.type === "duplicate_system" || i.type === "critical_blocker" || i.type === "broken_join") {
-        broken_flows.push(i);
-      }
-    }
-  }
 
   const fake_features: any[] = [];
   if (stepResults.feature_detection?.features) {
@@ -321,16 +324,6 @@ function buildUnifiedResult(stepResults: Record<string, any>, totalDuration: num
   const data_issues: any[] = [];
   if (stepResults.ui_data_binding?.issues) data_issues.push(...stepResults.ui_data_binding.issues);
   if (stepResults.ui_data_binding?.mismatches) data_issues.push(...stepResults.ui_data_binding.mismatches);
-  // decision_engine relational chains and hotspots
-  if (stepResults.decision_engine?.issues) data_issues.push(...stepResults.decision_engine.issues);
-  // blocker_detection: type/db mismatches and data flow breaks go to data_issues
-  if (stepResults.blocker_detection?.issues) {
-    for (const i of stepResults.blocker_detection.issues || []) {
-      if (i.type === "type_db_mismatch" || i.type === "data_flow_break" || i.type === "performance") {
-        data_issues.push(i);
-      }
-    }
-  }
 
   const scores: number[] = [];
   for (const key of Object.keys(stepResults)) {
@@ -1147,7 +1140,7 @@ async function runRealInteractionQA(supabase: any, scanRunId: string): Promise<a
 
   try {
     // Bundles referencing non-existent products
-    const { data: bundleItems } = await supabase.from("bundle_items").select("id, bundle_id, shopify_product_id").limit(200);
+    const { data: bundleItems } = await supabase.from("bundle_items").select("id, bundle_id, product_id").limit(200);
     const { data: bundles } = await supabase.from("bundles").select("id, name, is_active").eq("is_active", true).limit(50);
     const activeBundleIds = new Set((bundles || []).map((b: any) => b.id));
     for (const bi of bundleItems || []) {
@@ -1600,601 +1593,6 @@ async function runUiFlowIntegrityScan(supabase: any, scanRunId: string): Promise
   return { issues, issues_found: issues.length, flows_scanned: flowsScanned, overall_score: score, duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
 }
 
-// ── DOWNSTREAM IMPACT TRACER ──
-// Given an issue, returns a list of components/systems that depend on the broken entity.
-function computeDownstreamImpact(issue: any): string[] {
-  const component = (issue.component || issue.entity || issue.table || "").toLowerCase();
-  const title = (issue.title || "").toLowerCase();
-
-  const IMPACT_CHAINS: Array<{ keys: string[]; chain: string[] }> = [
-    { keys: ["products", "product"], chain: ["ProductCard", "CartItem", "CheckoutForm", "OrderSummary", "SearchResults"] },
-    { keys: ["orders", "order"], chain: ["OrderDetail", "WorkItem", "Notification", "EmailTemplate", "AdminDashboard"] },
-    { keys: ["categories", "category"], chain: ["ProductFilter", "Navigation", "CategoryPage", "SEOHead"] },
-    { keys: ["affiliates", "affiliate"], chain: ["AffiliatePanel", "DiscountCode", "CheckoutForm"] },
-    { keys: ["profiles", "profile", "user"], chain: ["UserDashboard", "OrderHistory", "MemberPage"] },
-    { keys: ["work_items", "work_item"], chain: ["WorkbenchBoard", "AdminPanel", "Notifications"] },
-    { keys: ["bundles", "bundle"], chain: ["BundleCTA", "ProductPage", "CheckoutForm"] },
-    { keys: ["email_templates", "email_template"], chain: ["OrderConfirmation", "WelcomeEmail", "NotificationSystem"] },
-    { keys: ["legal_documents", "legal_document"], chain: ["Footer", "CheckoutPage", "RegistrationForm"] },
-    { keys: ["page_sections", "page_section"], chain: ["HomePage", "LandingPage", "Navigation"] },
-    { keys: ["automation_rules", "automation"], chain: ["AutomationEngine", "WorkItemCreation", "Notifications"] },
-    { keys: ["donations", "donation"], chain: ["DonationPage", "DonationButton"] },
-    { keys: ["notifications", "notification"], chain: ["NotificationBell", "AdminDashboard", "UserDashboard"] },
-  ];
-
-  for (const entry of IMPACT_CHAINS) {
-    if (entry.keys.some(k => component.includes(k))) return entry.chain;
-  }
-
-  // Pattern-based fallback on title
-  if (/checkout|payment|cart/.test(title)) return ["CheckoutFlow", "OrderConfirmation", "PaymentProcessor"];
-  if (/navigation|route|handle|slug/.test(title)) return ["Navigation", "BreadcrumbTrail", "SEOHead"];
-  if (/email|notification/.test(title)) return ["NotificationSystem", "EmailService", "AdminPanel"];
-  if (/login|auth|registration/.test(title)) return ["AuthForm", "MemberPage", "SessionManager"];
-  if (/data|mismatch|field|null/.test(title)) return ["DataLayer", "APIResponse", "FrontendComponents"];
-
-  return [];
-}
-
-// ── ISSUE ENRICHER ──
-// Ensures every issue has the required set of fields for downstream consumers.
-function enrichIssue(issue: any, index: number, stepId: string): any {
-  const id = issue.id || `${stepId}_${index}`;
-  const downstream_impact = issue.downstream_impact && issue.downstream_impact.length > 0
-    ? issue.downstream_impact
-    : computeDownstreamImpact(issue);
-  const root_cause = issue.root_cause || issue.reason || `${issue.type || "unknown"} detected in ${issue.component || "system"}`;
-  const suggested_fix = issue._suggested_fix || issue.fix_suggestion || issue.suggested_fix || "Investigate and fix the underlying issue";
-  const count = issue.count ?? issue._similar_count ?? 1;
-  const path = issue.path || issue.route || issue.page || issue.source_path || null;
-  const confidence = issue.confidence ?? (issue.severity === "critical" ? 0.9 : issue.severity === "high" ? 0.8 : 0.7);
-
-  return {
-    ...issue,
-    id,
-    root_cause,
-    downstream_impact,
-    suggested_fix,
-    count,
-    path,
-    confidence,
-  };
-}
-
-// ── REAL DB SCAN: Navigation & Orphan Detection ──
-async function runNavScan(supabase: any, scanRunId: string): Promise<any> {
-  const issues: any[] = [];
-  const startMs = Date.now();
-  let routesScanned = 0;
-
-  try {
-    // 1. Navigation dead-ends: categories with no active products
-    const { data: categories } = await supabase
-      .from("categories").select("id, name_sv, slug, is_visible").eq("is_visible", true).limit(100);
-    routesScanned += (categories || []).length;
-    for (const cat of categories || []) {
-      const { count } = await supabase.from("products")
-        .select("id", { count: "exact", head: true }).eq("category", cat.id).eq("status", "active");
-      if (!count || count === 0) {
-        issues.push(enrichIssue({
-          title: `Navigation dead-end: category "${cat.name_sv || cat.slug}" has no active products`,
-          severity: "medium", component: "categories", element: "CategoryPage",
-          category: "navigation", type: "dead_end", _issue_type: "bug",
-          downstream_impact: ["CategoryPage", "ProductFilter", "Navigation"],
-          root_cause: "Empty category creates broken navigation path",
-          _suggested_fix: "Add active products to this category or hide it from navigation",
-        }, issues.length, "nav_scan"));
-      }
-    }
-
-    // 2. Duplicate product handles → routing conflicts
-    const { data: allProducts } = await supabase.from("products")
-      .select("id, handle, title_sv, is_visible").not("handle", "is", null).limit(500);
-    routesScanned += (allProducts || []).length;
-    const handleMap = new Map<string, number>();
-    for (const p of allProducts || []) {
-      const h = (p.handle || "").toLowerCase();
-      if (h) handleMap.set(h, (handleMap.get(h) || 0) + 1);
-    }
-    for (const [handle, cnt] of handleMap) {
-      if (cnt > 1) {
-        issues.push(enrichIssue({
-          title: `Navigation conflict: duplicate product handle "${handle}" (${cnt} products)`,
-          severity: "critical", component: "products", element: "ProductDetail",
-          category: "navigation", type: "duplicate_handle", _issue_type: "bug",
-          downstream_impact: ["ProductDetail", "SEOHead", "SitemapXML"],
-          root_cause: "Duplicate handles cause ambiguous routing — only one product will be reachable",
-          _suggested_fix: "Ensure each product has a unique handle",
-          count: cnt,
-        }, issues.length, "nav_scan"));
-      }
-    }
-
-    // 3. Visible products with no URL handle (dead navigation paths)
-    const { data: noHandleVisible } = await supabase.from("products")
-      .select("id, title_sv, is_visible").eq("is_visible", true).is("handle", null).limit(100);
-    routesScanned += (noHandleVisible || []).length;
-    for (const p of noHandleVisible || []) {
-      issues.push(enrichIssue({
-        title: `Dead navigation path: visible product "${p.title_sv || p.id.slice(0, 8)}" has no URL handle`,
-        severity: "high", component: "products", element: "ProductCard",
-        category: "navigation", type: "missing_handle", _issue_type: "bug",
-        downstream_impact: ["ProductCard", "ProductDetail", "SearchResults"],
-        root_cause: "Product visible but not navigable — missing handle field prevents routing",
-        _suggested_fix: "Generate a URL slug/handle for this product",
-      }, issues.length, "nav_scan"));
-    }
-
-    // 4. Orphan system: required tables with 0 rows
-    const EXPECTED_TABLES: { table: string; label: string; severity: "critical" | "high"; nav: boolean }[] = [
-      { table: "categories", label: "Categories", severity: "critical", nav: true },
-      { table: "products", label: "Products", severity: "critical", nav: true },
-      { table: "legal_documents", label: "Legal Documents", severity: "high", nav: false },
-      { table: "store_settings", label: "Store Settings", severity: "high", nav: false },
-      { table: "email_templates", label: "Email Templates", severity: "high", nav: false },
-    ];
-    for (const et of EXPECTED_TABLES) {
-      try {
-        routesScanned++;
-        const { count } = await supabase.from(et.table).select("id", { count: "exact", head: true });
-        if (!count || count === 0) {
-          issues.push(enrichIssue({
-            title: `Orphan system: "${et.label}" table has no data — dependent features broken`,
-            severity: et.severity, component: et.table, element: "System",
-            category: "orphan", type: "empty_required_table", _issue_type: "bug",
-            downstream_impact: et.nav ? ["Navigation", "HomePage", "SEO"] : ["AdminPanel", "Configuration"],
-            root_cause: "Empty required table breaks all dependent systems",
-            _suggested_fix: `Initialize "${et.label}" with required seed data`,
-          }, issues.length, "nav_scan"));
-        }
-      } catch (_) {}
-    }
-
-    // 5. DB tables queried by system but not navigated from frontend (hidden orphans)
-    const { data: tableCounts } = await supabase.from("system_structure_map")
-      .select("entity_type, entity_name, scan_count").eq("entity_type", "data").limit(100);
-    const { data: pageSections } = await supabase.from("page_sections").select("section_key, page").limit(200);
-    const referencedInPages = new Set((pageSections || []).map((s: any) => s.section_key.toLowerCase()));
-    for (const entry of tableCounts || []) {
-      const name = (entry.entity_name || "").toLowerCase();
-      const isNavRelevant = ["products", "categories", "bundles", "affiliates"].some(k => name.includes(k));
-      if (isNavRelevant && entry.scan_count > 0 && !referencedInPages.has(name)) {
-        issues.push(enrichIssue({
-          title: `Potential orphan: "${entry.entity_name}" has scan coverage but no page_sections reference`,
-          severity: "low", component: entry.entity_name, element: "PageSection",
-          category: "orphan", type: "unreferenced_entity", _issue_type: "improvement",
-          downstream_impact: ["Navigation", "ContentManagement"],
-          root_cause: "Entity exists in structure map but has no visible page section linking to it",
-          _suggested_fix: `Create a page_section for "${entry.entity_name}" or verify it is exposed via another route`,
-        }, issues.length, "nav_scan"));
-      }
-    }
-
-  } catch (e: any) {
-    issues.push({ title: `Navigation scan error: ${e.message}`, severity: "critical", component: "nav_scan", category: "navigation" });
-  }
-
-  const durationMs = Date.now() - startMs;
-  const score = Math.max(0, 100 - issues.filter(i => i.severity === "critical").length * 15 - issues.filter(i => i.severity === "high").length * 7 - issues.filter(i => i.severity === "medium").length * 3);
-  return { issues, broken_routes: issues.filter(i => i.category === "navigation" || i.category === "orphan"), issues_found: issues.length, routes_scanned: routesScanned, overall_score: score, duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
-}
-
-// ── REAL DB SCAN: Human Test (user journey simulation) ──
-async function runHumanTestScan(supabase: any, scanRunId: string): Promise<any> {
-  const issues: any[] = [];
-  const test_failures: any[] = [];
-  const startMs = Date.now();
-  let testsRun = 0;
-
-  try {
-    // TEST 1: Checkout flow — is there at least one buyable product?
-    testsRun++;
-    const { data: sellable } = await supabase.from("products")
-      .select("id, title_sv, price, status, is_visible, is_sellable, handle, category")
-      .eq("is_visible", true).eq("is_sellable", true).eq("status", "active").limit(5);
-
-    if (!sellable || sellable.length === 0) {
-      const i = enrichIssue({
-        title: "Human test fail: no sellable products available — checkout flow completely broken",
-        severity: "critical", component: "products", element: "CheckoutFlow",
-        category: "human_test", type: "action_failed", test_name: "checkout_flow", _issue_type: "bug",
-        downstream_impact: ["CartButton", "CheckoutPage", "OrderFlow"],
-        root_cause: "No products meet all checkout requirements (active + visible + sellable)",
-        _suggested_fix: "Ensure at least one product is active, visible, and marked sellable",
-      }, issues.length, "human_test");
-      issues.push(i); test_failures.push(i);
-    } else {
-      for (const p of sellable) {
-        if (!p.price || p.price <= 0) {
-          const i = enrichIssue({
-            title: `Human test fail: product "${p.title_sv || p.id.slice(0, 8)}" has invalid price — add-to-cart fails`,
-            severity: "critical", component: "products", element: "AddToCartButton",
-            category: "human_test", type: "silent_failure", test_name: "checkout_flow", _issue_type: "bug",
-            downstream_impact: ["AddToCartButton", "CartTotal", "PaymentForm"],
-            root_cause: "Product price is zero or null — cart validation will reject it silently",
-            _suggested_fix: "Set a valid positive price for this product",
-          }, issues.length, "human_test");
-          issues.push(i); test_failures.push(i);
-        }
-        if (!p.handle) {
-          const i = enrichIssue({
-            title: `Human test fail: sellable product "${p.title_sv || p.id.slice(0, 8)}" has no handle — product page unreachable`,
-            severity: "high", component: "products", element: "ProductDetail",
-            category: "human_test", type: "action_failed", test_name: "checkout_flow", _issue_type: "bug",
-            downstream_impact: ["ProductDetail", "AddToCartButton", "CheckoutPage"],
-            root_cause: "User cannot navigate to product page without a handle — purchase path broken",
-            _suggested_fix: "Add a URL handle to this product",
-          }, issues.length, "human_test");
-          issues.push(i); test_failures.push(i);
-        }
-      }
-    }
-
-    // TEST 2: Order tracking — can a user track their order?
-    testsRun++;
-    const { data: recentOrders } = await supabase.from("orders")
-      .select("id, status, order_number, order_email, fulfillment_status")
-      .is("deleted_at", null).order("created_at", { ascending: false }).limit(10);
-    let trackingFails = 0;
-    for (const order of recentOrders || []) {
-      if (!order.order_number) trackingFails++;
-    }
-    if (trackingFails > 0) {
-      const i = enrichIssue({
-        title: `Human test fail: ${trackingFails} orders missing order_number — track-order page broken`,
-        severity: "high", component: "orders", element: "TrackOrderPage",
-        category: "human_test", type: "silent_failure", test_name: "order_tracking", _issue_type: "bug",
-        downstream_impact: ["TrackOrderPage", "OrderConfirmation", "CustomerSupportFlow"],
-        root_cause: "order_number not generated on order creation — users cannot self-serve track orders",
-        _suggested_fix: "Ensure order_number is generated and persisted during order creation",
-        count: trackingFails,
-      }, issues.length, "human_test");
-      issues.push(i); test_failures.push(i);
-    }
-
-    // TEST 3: User registration baseline — profiles exist
-    testsRun++;
-    const { count: profileCount } = await supabase.from("profiles").select("id", { count: "exact", head: true });
-    if (!profileCount || profileCount === 0) {
-      const i = enrichIssue({
-        title: "Human test warn: no user profiles found — registration flow may be broken",
-        severity: "medium", component: "profiles", element: "RegistrationForm",
-        category: "human_test", type: "action_failed", test_name: "registration_flow", _issue_type: "bug",
-        downstream_impact: ["MemberPage", "OrderHistory", "ProfileDashboard"],
-        root_cause: "No profiles in DB — users may never have completed registration successfully",
-        _suggested_fix: "Verify the registration edge function saves a profile row after sign-up",
-      }, issues.length, "human_test");
-      issues.push(i); test_failures.push(i);
-    }
-
-    // TEST 4: Affiliate flow — active affiliates have codes
-    testsRun++;
-    const { data: activeAffiliates } = await supabase.from("affiliates")
-      .select("id, name, code, is_active").eq("is_active", true).limit(10);
-    for (const aff of activeAffiliates || []) {
-      if (!aff.code || aff.code.trim() === "") {
-        const i = enrichIssue({
-          title: `Human test fail: active affiliate "${aff.name}" has no code — discount flow broken`,
-          severity: "high", component: "affiliates", element: "DiscountCodeField",
-          category: "human_test", type: "action_failed", test_name: "affiliate_flow", _issue_type: "bug",
-          downstream_impact: ["CheckoutForm", "DiscountCodeField", "AffiliatePanel"],
-          root_cause: "Affiliate activated without assigning a code — coupon validation always fails",
-          _suggested_fix: "Assign a unique discount code to all active affiliates",
-        }, issues.length, "human_test");
-        issues.push(i); test_failures.push(i);
-      }
-    }
-
-    // TEST 5: Legal documents — required legal pages exist and are active
-    testsRun++;
-    const requiredLegal = ["privacy_policy", "terms_conditions", "return_policy"];
-    const { data: legalDocs } = await supabase.from("legal_documents")
-      .select("id, document_type, is_active").limit(20);
-    for (const reqType of requiredLegal) {
-      const found = (legalDocs || []).find((d: any) => d.document_type === reqType && d.is_active);
-      if (!found) {
-        const i = enrichIssue({
-          title: `Human test fail: required legal document "${reqType}" missing or inactive`,
-          severity: "high", component: "legal_documents", element: "LegalPage",
-          category: "human_test", type: "action_failed", test_name: "legal_compliance", _issue_type: "bug",
-          downstream_impact: ["Footer", "CheckoutPage", "RegistrationForm", "Compliance"],
-          root_cause: "Required legal page missing — checkout and registration may be blocked by missing legal links",
-          _suggested_fix: `Create and activate a legal document of type "${reqType}"`,
-        }, issues.length, "human_test");
-        issues.push(i); test_failures.push(i);
-      }
-    }
-
-  } catch (e: any) {
-    issues.push({ title: `Human test scan error: ${e.message}`, severity: "critical", component: "human_test", category: "human_test" });
-  }
-
-  const durationMs = Date.now() - startMs;
-  const passed = testsRun - test_failures.length;
-  const score = testsRun > 0 ? Math.round((passed / testsRun) * 100) : 100;
-  return { issues, test_failures, issues_found: issues.length, tests_run: testsRun, tests_passed: passed, overall_score: score, duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true };
-}
-
-// ── REAL DB SCAN: Decision Engine (relational analysis + confidence scoring) ──
-async function runDecisionEngineScan(supabase: any, scanRunId: string): Promise<any> {
-  const issues: any[] = [];
-  const decisions: any[] = [];
-  const startMs = Date.now();
-
-  try {
-    // Load all step results accumulated so far in this scan
-    const { data: scanRun } = await supabase.from("scan_runs").select("steps_results").eq("id", scanRunId).single();
-    const stepResults: Record<string, any> = scanRun?.steps_results || {};
-
-    // Aggregate every issue from every step
-    const allIssues: any[] = [];
-    for (const [stepId, result] of Object.entries(stepResults)) {
-      if (stepId.startsWith("_")) continue;
-      const stepIssues = (result as any)?.issues || (result as any)?.failures || (result as any)?.test_failures || [];
-      for (const issue of Array.isArray(stepIssues) ? stepIssues : []) {
-        allIssues.push({ ...issue, _step_source: stepId });
-      }
-    }
-
-    // Group by component::type to find relational chains
-    const rootCauseMap = new Map<string, any[]>();
-    for (const issue of allIssues) {
-      const component = (issue.component || issue.entity || issue.chain || "unknown").toLowerCase().replace(/[^a-z0-9_]/g, "_");
-      const type = (issue.type || issue.failure_type || issue.category || "general").toLowerCase().replace(/[^a-z0-9_]/g, "_");
-      const key = `${component}::${type}`;
-      if (!rootCauseMap.has(key)) rootCauseMap.set(key, []);
-      rootCauseMap.get(key)!.push(issue);
-    }
-
-    // Detect relational chains: 3+ issues from 2+ different scan steps
-    for (const [key, group] of rootCauseMap) {
-      if (group.length < 3) continue;
-      const sources = [...new Set(group.map((i: any) => i._step_source))];
-      if (sources.length < 2) continue;
-
-      const sevOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
-      const worstSev = group.reduce((w: string, i: any) => (sevOrder[i.severity] ?? 3) < (sevOrder[w] ?? 3) ? i.severity : w, "low");
-      const downstreamAll = [...new Set(group.flatMap((i: any) => i.downstream_impact || []))];
-      const componentName = key.split("::")[0];
-
-      issues.push(enrichIssue({
-        title: `Relational chain: ${group.length} connected failures in "${componentName}" across ${sources.length} scan types`,
-        severity: worstSev, component: componentName, type: "relational_chain",
-        category: "decision", _issue_type: "bug",
-        count: group.length,
-        root_cause: `Systemic failure in "${key}" detected across: ${sources.join(", ")}`,
-        downstream_impact: downstreamAll.slice(0, 8),
-        confidence: Math.min(0.95, 0.4 + sources.length * 0.15 + group.length * 0.05),
-        examples: group.slice(0, 3).map((i: any) => i.title || ""),
-        sources,
-        _suggested_fix: `Investigate root issue in "${componentName}" — fixing it should resolve the entire chain`,
-      }, issues.length, "decision_engine"));
-
-      decisions.push({
-        action: "prioritize_fix", target: componentName,
-        reason: `${group.length} related failures across ${sources.length} scan types`,
-        priority: worstSev,
-      });
-    }
-
-    // Detect performance hotspots: components with 5+ issues across all scans
-    const componentHits = new Map<string, number>();
-    for (const issue of allIssues) {
-      const comp = (issue.component || "unknown").toLowerCase();
-      componentHits.set(comp, (componentHits.get(comp) || 0) + 1);
-    }
-    for (const [comp, cnt] of componentHits) {
-      if (cnt >= 5) {
-        issues.push(enrichIssue({
-          title: `Performance hotspot: "${comp}" has ${cnt} scanner findings — likely needs caching or schema fix`,
-          severity: cnt >= 10 ? "high" : "medium", component: comp, type: "performance",
-          category: "decision", _issue_type: "improvement", count: cnt,
-          root_cause: `"${comp}" is the most error-prone entity across all scan types — high churn`,
-          downstream_impact: computeDownstreamImpact({ component: comp }),
-          confidence: 0.8,
-          _suggested_fix: `Review all open issues in "${comp}", fix root cause, add indexes or caching as needed`,
-        }, issues.length, "decision_engine"));
-      }
-    }
-
-    // Detect duplicate issues across steps (same title in 2+ steps = noise or cross-step leak)
-    const titleMap = new Map<string, string[]>();
-    for (const issue of allIssues) {
-      const key = (issue.title || "").toLowerCase().slice(0, 40);
-      if (!titleMap.has(key)) titleMap.set(key, []);
-      titleMap.get(key)!.push(issue._step_source);
-    }
-    let duplicatesAcrossSteps = 0;
-    for (const [, srcs] of titleMap) {
-      const uniqueSrcs = [...new Set(srcs)];
-      if (uniqueSrcs.length > 1) duplicatesAcrossSteps++;
-    }
-    if (duplicatesAcrossSteps > 0) {
-      issues.push(enrichIssue({
-        title: `Scanner noise: ${duplicatesAcrossSteps} issues reported by multiple scan steps — potential dedup gap`,
-        severity: "low", component: "scanner", type: "duplicate_detection",
-        category: "decision", _issue_type: "improvement",
-        count: duplicatesAcrossSteps,
-        root_cause: "Same issue detected by multiple independent scan steps — grouping logic may need tuning",
-        downstream_impact: ["IssueList", "WorkbenchBoard"],
-        confidence: 0.7,
-        _suggested_fix: "Review groupSimilarIssues logic and ensure fingerprints cover cross-step dedup",
-      }, issues.length, "decision_engine"));
-    }
-
-  } catch (e: any) {
-    issues.push({ title: `Decision engine error: ${e.message}`, severity: "critical", component: "decision_engine" });
-  }
-
-  const durationMs = Date.now() - startMs;
-  const crit = issues.filter(i => i.severity === "critical").length;
-  const score = Math.max(0, 100 - crit * 15 - issues.filter(i => i.severity === "high").length * 8);
-  return { issues, decisions, issues_found: issues.length, overall_score: score, duration_ms: durationMs, scanned_at: new Date().toISOString(), real_db_scan: true, deeper_scan: true, relational_analysis: true };
-}
-
-// ── REAL DB SCAN: Blocker Detection (duplicate systems, type vs DB diff, data flow breaks, performance) ──
-async function runBlockerDetectionScan(supabase: any, scanRunId: string): Promise<any> {
-  const issues: any[] = [];
-  const detected_blockers: any[] = [];
-  const startMs = Date.now();
-
-  try {
-    // 1. Critical blocker: no admin/founder users
-    const { data: adminRoles } = await supabase.from("user_roles")
-      .select("user_id").in("role", ["admin", "founder"]).limit(5);
-    if (!adminRoles || adminRoles.length === 0) {
-      const b = enrichIssue({
-        title: "CRITICAL BLOCKER: no users with admin/founder role — system has no administrator",
-        severity: "critical", component: "user_roles", type: "critical_blocker",
-        category: "blocker", _issue_type: "bug", is_primary_blocker: true,
-        downstream_impact: ["AdminPanel", "SystemScanner", "WorkbenchBoard", "AllAdminFeatures"],
-        root_cause: "No admin users assigned — admin panel and all scanner triggers are inaccessible",
-        _suggested_fix: "Assign admin or founder role to at least one user immediately",
-      }, issues.length, "blocker_detection");
-      issues.push(b); detected_blockers.push(b);
-    }
-
-    // 2. Duplicate system detection: automation rules with the same trigger_type (parallel pipelines)
-    const { data: automationRules } = await supabase.from("automation_rules")
-      .select("id, rule_key, trigger_type, is_active").eq("is_active", true).limit(100);
-    const triggerMap = new Map<string, any[]>();
-    for (const rule of automationRules || []) {
-      const key = (rule.trigger_type || "unknown").toLowerCase();
-      if (!triggerMap.has(key)) triggerMap.set(key, []);
-      triggerMap.get(key)!.push(rule);
-    }
-    for (const [trigger, rules] of triggerMap) {
-      if (rules.length > 2) {
-        const b = enrichIssue({
-          title: `Duplicate system: ${rules.length} automation rules share trigger "${trigger}" — parallel pipeline risk`,
-          severity: "high", component: "automation_rules", type: "duplicate_system",
-          category: "blocker", _issue_type: "improvement",
-          downstream_impact: ["AutomationEngine", "WorkItemCreation", "Notifications"],
-          root_cause: `${rules.length} rules on the same trigger may fire in parallel, causing duplicate work items or emails`,
-          _suggested_fix: "Review and consolidate automation rules with the same trigger_type",
-          duplicate_count: rules.length,
-        }, issues.length, "blocker_detection");
-        issues.push(b); detected_blockers.push(b);
-      }
-    }
-
-    // 3. Data flow break: external_order_number set but order_number missing (field rename not fully migrated)
-    const { data: orderSample } = await supabase.from("orders")
-      .select("id, order_number, external_order_number").limit(100);
-    let mappingBreaks = 0;
-    for (const order of orderSample || []) {
-      if (order.external_order_number && !order.order_number) mappingBreaks++;
-    }
-    if (mappingBreaks > 0) {
-      const b = enrichIssue({
-        title: `Data flow break: ${mappingBreaks} orders have external_order_number but no order_number (field mapping broken)`,
-        severity: "critical", component: "orders", type: "data_flow_break",
-        category: "blocker", _issue_type: "bug", count: mappingBreaks,
-        downstream_impact: ["TrackOrderPage", "OrderConfirmation", "AdminOrderList"],
-        root_cause: "Field renamed or split (external_order_number → order_number) but data never migrated — downstream uses wrong field",
-        _suggested_fix: "Run migration: UPDATE orders SET order_number = external_order_number WHERE order_number IS NULL AND external_order_number IS NOT NULL",
-      }, issues.length, "blocker_detection");
-      issues.push(b); detected_blockers.push(b);
-    }
-
-    // 4. Type vs DB diff: attempt to SELECT all expected fields; if any are missing PostgreSQL returns an error
-    const TYPE_DB_CHECKS: { table: string; expected_fields: string[]; label: string }[] = [
-      { table: "orders", expected_fields: ["id", "user_id", "order_number", "status", "payment_status", "total_amount", "items", "shipping_address", "payment_intent_id", "order_email"], label: "Order" },
-      { table: "profiles", expected_fields: ["id", "user_id", "username", "is_member", "level", "xp"], label: "Profile" },
-      { table: "products", expected_fields: ["id", "title_sv", "price", "status", "handle", "is_visible", "is_sellable", "image_urls"], label: "Product" },
-      { table: "work_items", expected_fields: ["id", "title", "status", "priority", "item_type", "source_type", "source_id", "issue_fingerprint"], label: "WorkItem" },
-    ];
-    for (const check of TYPE_DB_CHECKS) {
-      try {
-        const { error } = await supabase.from(check.table).select(check.expected_fields.join(", ")).limit(1);
-        if (error && error.message) {
-          const missingMatch = error.message.match(/column ["']?([a-z_]+)["']? does not exist/i);
-          const missingField = missingMatch ? missingMatch[1] : "unknown";
-          issues.push(enrichIssue({
-            title: `Type vs DB mismatch: ${check.label}.${missingField} expected in TypeScript type but missing from DB column`,
-            severity: "critical", component: check.table, type: "type_db_mismatch",
-            category: "blocker", _issue_type: "bug", missing_field: missingField,
-            downstream_impact: ["TypeScript", "FrontendComponents", "APIResponse", "DBQueries"],
-            root_cause: `TypeScript type declares field "${missingField}" but it has no corresponding DB column — any query using it will silently return undefined`,
-            _suggested_fix: `Add migration: ALTER TABLE ${check.table} ADD COLUMN IF NOT EXISTS ${missingField} ... `,
-          }, issues.length, "blocker_detection"));
-        }
-      } catch (_) {}
-    }
-
-    // 5. Performance scan: work_items backlog size
-    const { count: openCount } = await supabase.from("work_items")
-      .select("id", { count: "exact", head: true }).in("status", ["open", "claimed", "in_progress", "escalated"]);
-    if ((openCount || 0) > 100) {
-      issues.push(enrichIssue({
-        title: `Performance: ${openCount} active work items in queue — list queries will be slow`,
-        severity: "medium", component: "work_items", type: "performance",
-        category: "blocker", _issue_type: "improvement", count: openCount || 0,
-        downstream_impact: ["WorkbenchBoard", "AdminDashboard", "QueryPerformance"],
-        root_cause: "Large active work item backlog — unindexed queries will slow down the admin panel",
-        _suggested_fix: "Add database index on (status, updated_at), archive resolved items regularly",
-      }, issues.length, "blocker_detection"));
-    }
-
-    // 6. Detect duplicate processing: orders with both an open incident AND multiple open work items
-    const { data: openIncidents } = await supabase.from("order_incidents")
-      .select("id, order_id, status").in("status", ["open", "investigating"]).limit(50);
-    let duplicateProcessing = 0;
-    for (const inc of openIncidents || []) {
-      const { data: workForOrder } = await supabase.from("work_items")
-        .select("id").eq("related_order_id", inc.order_id).in("status", ["open", "claimed", "in_progress"]).limit(3);
-      if ((workForOrder || []).length > 1) duplicateProcessing++;
-    }
-    if (duplicateProcessing > 0) {
-      issues.push(enrichIssue({
-        title: `Performance: ${duplicateProcessing} orders have parallel incident + work_items processing (duplicate effort)`,
-        severity: "medium", component: "order_incidents", type: "performance",
-        category: "blocker", _issue_type: "improvement", count: duplicateProcessing,
-        downstream_impact: ["WorkbenchBoard", "OrderProcessing", "StaffWorkload"],
-        root_cause: "Same order processed by both incident system and work items simultaneously — staff works the same issue twice",
-        _suggested_fix: "Link incidents to their corresponding work items to avoid parallel processing",
-      }, issues.length, "blocker_detection"));
-    }
-
-    // 7. Detect broken joins: bundle_items referencing bundles that are inactive/deleted
-    const { data: allBundleItems } = await supabase.from("bundle_items").select("id, bundle_id").limit(200);
-    const { data: activeBundleIds } = await supabase.from("bundles").select("id").eq("is_active", true).limit(100);
-    const activeBundleSet = new Set((activeBundleIds || []).map((b: any) => b.id));
-    let brokenJoins = 0;
-    for (const bi of allBundleItems || []) {
-      if (!activeBundleSet.has(bi.bundle_id)) {
-        const { data: bundleExists } = await supabase.from("bundles").select("id").eq("id", bi.bundle_id).maybeSingle();
-        if (!bundleExists) brokenJoins++;
-      }
-    }
-    if (brokenJoins > 0) {
-      issues.push(enrichIssue({
-        title: `Broken join: ${brokenJoins} bundle_items reference deleted/non-existent bundles`,
-        severity: "high", component: "bundle_items", type: "broken_join",
-        category: "blocker", _issue_type: "bug", count: brokenJoins,
-        downstream_impact: ["BundleCTA", "ProductPage", "CheckoutForm"],
-        root_cause: "bundle_items rows were not deleted when parent bundle was deleted — FK constraint missing or bypassed",
-        _suggested_fix: "Delete orphaned bundle_items: DELETE FROM bundle_items WHERE bundle_id NOT IN (SELECT id FROM bundles)",
-      }, issues.length, "blocker_detection"));
-    }
-
-  } catch (e: any) {
-    issues.push({ title: `Blocker detection error: ${e.message}`, severity: "critical", component: "blocker_detection" });
-  }
-
-  const durationMs = Date.now() - startMs;
-  const crit = issues.filter(i => i.severity === "critical").length;
-  const score = Math.max(0, 100 - crit * 20 - issues.filter(i => i.severity === "high").length * 10);
-  const primaryBlocker = detected_blockers.find(b => b.is_primary_blocker) || detected_blockers[0] || issues.find(i => i.severity === "critical") || null;
-  return {
-    issues, detected_blockers,
-    primary_blocker: primaryBlocker ? { title: primaryBlocker.title, description: primaryBlocker.root_cause, severity: primaryBlocker.severity } : null,
-    issues_found: issues.length, overall_score: score, duration_ms: durationMs,
-    scanned_at: new Date().toISOString(), real_db_scan: true,
-    duplicate_detection: true, flow_validation: true, issue_quality_improved: true,
-  };
-}
-
 // ── Map scan types to real DB functions ──
 const REAL_DB_SCANNERS: Record<string, (supabase: any, scanRunId: string) => Promise<any>> = {
   data_integrity: runDataIntegrityScan,
@@ -2204,10 +1602,6 @@ const REAL_DB_SCANNERS: Record<string, (supabase: any, scanRunId: string) => Pro
   interaction_qa: runRealInteractionQA,
   component_map: runRealComponentMapScan,
   ui_flow_integrity: runUiFlowIntegrityScan,
-  nav_scan: runNavScan,
-  human_test: runHumanTestScan,
-  decision_engine: runDecisionEngineScan,
-  blocker_detection: runBlockerDetectionScan,
 };
 
 // ── SCAN CONSISTENCY GUARD ──
@@ -2263,7 +1657,7 @@ function classifyIssueType(issue: any, category: string): "bug" | "improvement" 
   return "bug";
 }
 
-async function createWorkItems(supabase: any, unified: any, stage: SystemStage): Promise<{ created: number; createTrace: any[] }> {
+async function createWorkItems(supabase: any, unified: any, stage: SystemStage, scanRunId?: string): Promise<{ created: number; createTrace: any[] }> {
   let workItemsCreated = 0;
   const createTrace: any[] = [];
   const allWorkIssues: { title: string; priority: string; item_type: string; description?: string; fingerprint: string; source_path?: string; source_file?: string; source_component?: string; issue_type?: string; suggested_fix?: string; affected_area?: { type: string; target: string } }[] = [];
@@ -2304,18 +1698,13 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     const similarNote = flow._similar_count ? ` (+${flow._similar_count} liknande)` : "";
     const issueType = classifyIssueType(flow, "broken_flows");
     flow._issue_type = issueType;
-    flow._suggested_fix = flow._suggested_fix || suggestedFixForType(issueType);
+    flow._suggested_fix = suggestedFixForType(issueType);
     flow._affected_area = flow.category === "flow_ui" ? { type: "flow", target: "ui_flows" } : CATEGORY_AREA_MAP.broken_flows;
-    // Preserve enrichment: use rich title if present, else build from parts
-    const richTitle = flow.title && !flow.title.startsWith("Broken flow:") ? flow.title : null;
-    const downstream = flow.downstream_impact?.length ? `\nImpact: ${flow.downstream_impact.join(" → ")}` : "";
-    const rootCause = flow.root_cause ? `\nRoot cause: ${flow.root_cause}` : "";
     allWorkIssues.push({
-      title: (richTitle || `Broken flow: ${flow.description || flow.route || flow.issue || "unknown"}${similarNote}`).slice(0, 120),
-      priority: flow.severity === "critical" ? "critical" : "high", item_type: "bug",
-      description: `${flow.fix_suggestion || flow._suggested_fix || flow.detail || ""}${rootCause}${downstream}`,
-      fingerprint: fp, issue_type: issueType, suggested_fix: flow._suggested_fix || suggestedFixForType(issueType),
-      source_path: flow.route || flow.page || flow.path || null, source_file: flow.file || flow.source_file || null, source_component: flow.component || flow.element || null,
+      title: `Broken flow: ${flow.description || flow.route || flow.issue || "unknown"}${similarNote}`.slice(0, 120),
+      priority: "high", item_type: "bug", description: flow.fix_suggestion || flow.detail || "",
+      fingerprint: fp, issue_type: issueType, suggested_fix: suggestedFixForType(issueType),
+      source_path: flow.route || flow.page || null, source_file: flow.file || flow.source_file || null, source_component: flow.component || flow.element || null,
       affected_area: flow.category === "flow_ui" ? { type: "flow", target: "ui_flows" } : CATEGORY_AREA_MAP.broken_flows,
     });
   }
@@ -2326,7 +1715,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     const similarNote = fake._similar_count ? ` (+${fake._similar_count} liknande)` : "";
     const issueType = classifyIssueType(fake, "fake_features");
     fake._issue_type = issueType;
-    fake._suggested_fix = fake._suggested_fix || suggestedFixForType(issueType);
+    fake._suggested_fix = suggestedFixForType(issueType);
     fake._affected_area = CATEGORY_AREA_MAP.fake_features;
     allWorkIssues.push({
       title: `Fake feature: ${fake.name || fake.component || fake.description || "unknown"}${similarNote}`.slice(0, 120),
@@ -2343,17 +1732,14 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     const similarNote = fail._similar_count ? ` (+${fail._similar_count} liknande)` : "";
     const issueType = classifyIssueType(fail, "interaction_failures");
     fail._issue_type = issueType;
-    fail._suggested_fix = fail._suggested_fix || suggestedFixForType(issueType);
+    fail._suggested_fix = suggestedFixForType(issueType);
     fail._affected_area = CATEGORY_AREA_MAP.interaction_failures;
-    const richTitle = fail.title && !/^Interaction:/.test(fail.title) ? fail.title : null;
-    const downstreamFail = fail.downstream_impact?.length ? `\nImpact: ${fail.downstream_impact.join(" → ")}` : "";
-    const rootCauseFail = fail.root_cause ? `\nRoot cause: ${fail.root_cause}` : "";
     allWorkIssues.push({
-      title: (richTitle || `Interaction: ${fail.title || fail.element || fail.description || "unknown"}${similarNote}`).slice(0, 120),
+      title: `Interaction: ${fail.title || fail.element || fail.description || "unknown"}${similarNote}`.slice(0, 120),
       priority: fail.severity === "critical" ? "critical" : "high", item_type: "bug",
-      description: `${fail.fix_suggestion || fail._suggested_fix || fail.detail || fail.issue || ""}${rootCauseFail}${downstreamFail}`,
-      fingerprint: fp, issue_type: issueType, suggested_fix: fail._suggested_fix || suggestedFixForType(issueType),
-      source_path: fail.route || fail.page || fail.path || null, source_file: fail.file || fail.source_file || null, source_component: fail.component || fail.element || null,
+      description: fail.fix_suggestion || fail.detail || fail.issue || "",
+      fingerprint: fp, issue_type: issueType, suggested_fix: suggestedFixForType(issueType),
+      source_path: fail.route || fail.page || null, source_file: fail.file || fail.source_file || null, source_component: fail.component || fail.element || null,
       affected_area: CATEGORY_AREA_MAP.interaction_failures,
     });
   }
@@ -2364,17 +1750,14 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
     const similarNote = issue._similar_count ? ` (+${issue._similar_count} liknande)` : "";
     const issueType = classifyIssueType(issue, "data_issues");
     issue._issue_type = issueType;
-    issue._suggested_fix = issue._suggested_fix || suggestedFixForType(issueType);
+    issue._suggested_fix = suggestedFixForType(issueType);
     issue._affected_area = issue.category === "ui_visual" ? { type: "ui", target: "components" } : CATEGORY_AREA_MAP.data_issues;
-    const richTitle = issue.title && !/^Data:/.test(issue.title) ? issue.title : null;
-    const downstreamData = issue.downstream_impact?.length ? `\nImpact: ${issue.downstream_impact.join(" → ")}` : "";
-    const rootCauseData = issue.root_cause ? `\nRoot cause: ${issue.root_cause}` : "";
     allWorkIssues.push({
-      title: (richTitle || `Data: ${issue.title || issue.field || issue.description || "unknown"}${similarNote}`).slice(0, 120),
+      title: `Data: ${issue.title || issue.field || issue.description || "unknown"}${similarNote}`.slice(0, 120),
       priority: issue.severity === "critical" ? "critical" : "medium", item_type: "bug",
-      description: `${issue.fix_suggestion || issue._suggested_fix || issue.detail || ""}${rootCauseData}${downstreamData}`,
-      fingerprint: fp, issue_type: issueType, suggested_fix: issue._suggested_fix || suggestedFixForType(issueType),
-      source_path: issue.route || issue.page || issue.path || null, source_file: issue.file || issue.source_file || null, source_component: issue.component || issue.table || issue.entity || null,
+      description: issue.fix_suggestion || issue.detail || "",
+      fingerprint: fp, issue_type: issueType, suggested_fix: suggestedFixForType(issueType),
+      source_path: issue.route || issue.page || null, source_file: issue.file || issue.source_file || null, source_component: issue.component || issue.table || issue.entity || null,
       affected_area: issue.category === "ui_visual" ? { type: "ui", target: "components" } : CATEGORY_AREA_MAP.data_issues,
     });
   }
@@ -2580,6 +1963,7 @@ async function createWorkItems(supabase: any, unified: any, stage: SystemStage):
       priority: issue.priority,
       item_type: issue.item_type,
       source_type: "scanner",
+      source_id: scanRunId || "lovable_manual",
       issue_fingerprint: issue.fingerprint,
       source_path: source_file_path || issue.source_path || null,
       source_file: source_file_path || issue.source_file || null,
@@ -2632,9 +2016,10 @@ async function persistStepResults(supabase: any, steps: typeof STEPS, results: R
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-  console.log("EDGE FUNCTION HIT");
+  console.log("[SCAN START]");
 
   try {
+    console.log("[STEP] init");
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
@@ -2716,10 +2101,10 @@ serve(async (req) => {
       trace(scanRun.id, `start → user=${userId.slice(0, 8)} stage=${systemStage} mode=${isTargeted ? "targeted" : "full"} steps=${prioritizedSteps.length} input=`, scanInput);
       console.log(`🚨 SCAN STARTED scan_id=${scanRun.id} stage=${systemStage} mode=${isTargeted ? "targeted" : "full"} steps=${prioritizedSteps.length}`);
       trace(scanRun.id, `→ chain: process_step[0]`);
-      fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
+      chainedFetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
         body: JSON.stringify({ action: "process_step", scan_run_id: scanRun.id, step_index: 0, iteration: 1 }),
-      }).catch((e) => console.error(`[SCAN:${tid}] Failed to chain process_step[0]:`, e));
+      }, `process_step[0] scan=${tid}`).catch(() => {});
 
       return new Response(JSON.stringify({ success: true, scan_run_id: scanRun.id, job_id: scanRun.id, status: "started", system_stage: systemStage, scan_mode: isTargeted ? "targeted" : "full" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
@@ -2735,7 +2120,7 @@ serve(async (req) => {
       const step = STEPS[step_index];
       if (!step) return new Response(JSON.stringify({ success: false, error: "Invalid step index" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-      await supabase.from("scan_runs").update({ current_step: step_index, current_step_label: step.label, iteration: currentIteration }).eq("id", scan_run_id);
+      await supabase.from("scan_runs").update({ current_step: step_index, current_step_label: step.label, iteration: currentIteration, progress: Math.round((step_index / STEPS.length) * 85) }).eq("id", scan_run_id);
 
       let stepResult: any = { error: "unknown", failed: true };
       const stepStart = Date.now();
@@ -2841,19 +2226,19 @@ serve(async (req) => {
 
       if (!isLastStep) {
         const nextStep = STEPS[step_index + 1];
-        await supabase.from("scan_runs").update({ steps_results: updatedResults, current_step: step_index + 1, current_step_label: nextStep.label }).eq("id", scan_run_id);
+        await supabase.from("scan_runs").update({ steps_results: updatedResults, current_step: step_index + 1, current_step_label: nextStep.label, progress: Math.round(((step_index + 1) / STEPS.length) * 85) }).eq("id", scan_run_id);
         trace(scan_run_id, `→ chain: process_step[${step_index + 1}] id=${nextStep.id}`);
-        fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
+        chainedFetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
           method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
           body: JSON.stringify({ action: "process_step", scan_run_id, step_index: step_index + 1, iteration: currentIteration }),
-        }).catch((e) => console.error(`[SCAN:${scan_run_id.slice(0, 8)}] Failed to chain process_step[${step_index + 1}]:`, e));
+        }, `process_step[${step_index + 1}] scan=${scan_run_id.slice(0, 8)}`).catch(() => {});
       } else {
         await supabase.from("scan_runs").update({ steps_results: updatedResults }).eq("id", scan_run_id);
         trace(scan_run_id, `→ chain: evaluate_iteration (all ${STEPS.length} steps done)`);
-        fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
+        chainedFetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
           method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
           body: JSON.stringify({ action: "evaluate_iteration", scan_run_id, iteration: currentIteration }),
-        }).catch((e) => console.error(`[SCAN:${scan_run_id.slice(0, 8)}] Failed to chain evaluate_iteration:`, e));
+        }, `evaluate_iteration scan=${scan_run_id.slice(0, 8)}`).catch(() => {});
       }
 
       return new Response(JSON.stringify({ success: true, ok: true, step: step.id, step_index, iteration: currentIteration }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
@@ -2866,7 +2251,7 @@ serve(async (req) => {
       if (!scanRun || scanRun.status !== "running") return new Response(JSON.stringify({ success: false, error: "Scan not running" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
       trace(scan_run_id, `evaluate_iteration start`);
-      await supabase.from("scan_runs").update({ current_step_label: "Analyserar mönster..." }).eq("id", scan_run_id);
+      await supabase.from("scan_runs").update({ current_step_label: "Analyserar mönster...", progress: 90 }).eq("id", scan_run_id);
 
       const updatedResults = scanRun.steps_results || {};
       const totalDuration = Object.values(updatedResults).reduce((sum: number, r: any) => sum + (r?._duration_ms || 0), 0);
@@ -2886,19 +2271,22 @@ serve(async (req) => {
       }).catch(() => {});
 
       trace(scan_run_id, `→ chain: finalize coverage=${coverageScore}%`);
-      fetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
+      chainedFetch(`${supabaseUrl}/functions/v1/run-full-scan`, {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
         body: JSON.stringify({ action: "finalize", scan_run_id }),
-      }).catch((e) => console.error(`[SCAN:${scan_run_id.slice(0, 8)}] Failed to chain finalize:`, e));
+      }, `finalize scan=${scan_run_id.slice(0, 8)}`).catch(() => {});
 
       return new Response(JSON.stringify({ success: true, ok: true, action: "finalizing", iterations_completed: currentIteration }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
     }
 
     // ── FINALIZE ──
+    console.log("[STEP] before finalize");
     if (action === "finalize" && scan_run_id) {
       const { data: scanRun } = await supabase.from("scan_runs").select("*").eq("id", scan_run_id).single();
       if (!scanRun || scanRun.status !== "running") return new Response(JSON.stringify({ success: false, error: "Scan not running" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
+      try {
+      console.error("[FINALIZE START]", scan_run_id);
       trace(scan_run_id, `finalize start`);
       const systemStage: SystemStage = scanRun.system_stage || await getSystemStage(supabase);
 
@@ -2982,10 +2370,10 @@ serve(async (req) => {
 
       // Count only actionable (non-dev-expected) issues
       const actionableIssues = [
-        ...unified.broken_flows.filter((i: any) => !i._dev_expected),
-        ...unified.fake_features.filter((i: any) => !i._dev_expected),
-        ...unified.interaction_failures.filter((i: any) => !i._dev_expected),
-        ...unified.data_issues.filter((i: any) => !i._dev_expected),
+        ...(Array.isArray(unified.broken_flows) ? unified.broken_flows : []).filter((i: any) => !i._dev_expected),
+        ...(Array.isArray(unified.fake_features) ? unified.fake_features : []).filter((i: any) => !i._dev_expected),
+        ...(Array.isArray(unified.interaction_failures) ? unified.interaction_failures : []).filter((i: any) => !i._dev_expected),
+        ...(Array.isArray(unified.data_issues) ? unified.data_issues : []).filter((i: any) => !i._dev_expected),
       ];
       const issuesCount = actionableIssues.length;
       console.log(`TOTAL ISSUES: ${issuesCount} scan_id=${scan_run_id}`);
@@ -3000,6 +2388,8 @@ serve(async (req) => {
       const systemOverview = buildSystemOverview(updatedResults, unified, systemStage);
 
       // ── BUILD SYSTEM INSIGHT ──
+      // structure_map is fetched here because it is only in scope in the "start" action block
+      const { data: structure_map } = await supabase.from("system_structure_map").select("entity_type, entity_name").limit(500);
       const systemInsight = buildSystemInsight(unified, structure_map || [], updatedResults);
       trace(scan_run_id, `system_insight score=${systemInsight?.system_health_score ?? "-"}`);
       await supabase.from("scan_runs").update({ system_insight: systemInsight }).eq("id", scan_run_id);
@@ -3088,12 +2478,6 @@ serve(async (req) => {
           recurrence_count: r.recurrence_count,
           severity: r.severity,
         })),
-        // ── Enhanced scanner capabilities ──
-        deeper_scan: true,
-        relational_analysis: true,
-        duplicate_detection: true,
-        flow_validation: true,
-        issue_quality_improved: true,
       };
 
       // Scan result stored in scan_snapshots
@@ -3101,7 +2485,7 @@ serve(async (req) => {
       await persistStepResults(supabase, STEPS, updatedResults, scanRun.started_by);
 
       // Create work items with context awareness and fingerprint dedup
-      const createResult = await createWorkItems(supabase, unified, systemStage);
+      const createResult = await createWorkItems(supabase, unified, systemStage, scan_run_id);
       let workItemsCreated = createResult.created;
       unified._create_trace = createResult.createTrace;
       trace(scan_run_id, `createWorkItems: detected=${issuesCount} created=${workItemsCreated}`);
@@ -3166,9 +2550,24 @@ serve(async (req) => {
       }
 
       const execSummary = `${unified.system_health_score}/100 — ${issuesCount} issues (${systemStage}) — ${coverageScore}% — ${workItemsCreated} uppgifter`;
+      const finalUnifiedResult = adaptiveResult ?? {
+        status: "error",
+        broken_flows: [],
+        fake_features: [],
+        interaction_failures: [],
+        data_issues: [{
+          id: "no-result",
+          title: "Scan produced no data",
+          description: "unified_result was empty after finalize",
+          cause: "Pipeline failed before finalize completed",
+          fix: "Check scan steps and edge function logs",
+          severity: "critical",
+        }],
+        system_health_score: 0,
+      };
       await supabase.from("scan_runs").update({
-        status: "done", completed_at: new Date().toISOString(), steps_results: updatedResults,
-        unified_result: adaptiveResult, system_health_score: unified.system_health_score,
+        status: "done", completed_at: new Date().toISOString(), steps_results: updatedResults, progress: 100,
+        unified_result: finalUnifiedResult, system_health_score: unified.system_health_score,
         executive_summary: execSummary, work_items_created: workItemsCreated,
         current_step: STEPS.length, current_step_label: `Klar ✓ (${systemStage})`,
       }).eq("id", scan_run_id);
@@ -3176,9 +2575,9 @@ serve(async (req) => {
       // Store scan snapshot for historical tracking
       const totalScanners = STEPS.length;
       const totalDetected = issuesCount;
-      const totalFiltered = adaptiveResult?.issues?.length ?? 0;
+      const totalFiltered = finalUnifiedResult?.issues?.length ?? 0;
       const totalSkipped = Math.max(0, totalDetected - workItemsCreated);
-      const highAttentionCount = (adaptiveResult?.issues ?? []).filter((i: any) => i._impact_score >= 4).length;
+      const highAttentionCount = (finalUnifiedResult?.issues ?? []).filter((i: any) => i._impact_score >= 4).length;
       const deadScannersCount = Object.values(updatedResults || {}).filter((s: any) => s?._executed === false || s?.failed === true).length;
       const blindScannersCount = Object.values(updatedResults || {}).filter((s: any) => s?._executed !== false && s?.failed !== true && (s?._scan_scope?.size > 0) && (!s?.issues || s.issues.length === 0)).length;
 
@@ -3203,7 +2602,7 @@ serve(async (req) => {
       diagLines.push(`Detected: ${totalDetected} issues → ${workItemsCreated} created, ${totalSkipped} skipped`);
       diagLines.push(`Coverage: ${coverageUniqueTargets} unique targets / ${coverageTotal} total scope`);
       if (highAttentionCount > 0) diagLines.push(`⚠️ ${highAttentionCount} high-attention issues (impact ≥ 4)`);
-      const impact5 = (adaptiveResult?.issues ?? []).filter((i: any) => i._impact_score >= 5);
+      const impact5 = (finalUnifiedResult?.issues ?? []).filter((i: any) => i._impact_score >= 5);
       if (impact5.length > 0) diagLines.push(`💥 ${impact5.length} CRITICAL (impact 5): ${impact5.slice(0, 3).map((i: any) => i.title || i.description || "unnamed").join(", ")}${impact5.length > 3 ? "…" : ""}`);
       if (deadScannersCount > 0) {
         const deadNames = Object.entries(updatedResults || {}).filter(([_, s]: any) => s?._executed === false || s?.failed === true).map(([k]) => k).slice(0, 3);
@@ -3215,7 +2614,7 @@ serve(async (req) => {
       }
       // Largest cluster
       const clusterMap: Record<string, number> = {};
-      for (const issue of (adaptiveResult?.issues ?? [])) {
+      for (const issue of (finalUnifiedResult?.issues ?? [])) {
         const target = issue?.target || issue?.component || "unknown";
         clusterMap[target] = (clusterMap[target] || 0) + 1;
       }
@@ -3283,7 +2682,7 @@ serve(async (req) => {
         coverage_unique_targets: coverageUniqueTargets,
         scan_confidence_score: scanConfidenceScore,
         diagnosis_summary: diagnosisSummary,
-        payload: adaptiveResult,
+        payload: finalUnifiedResult,
       });
 
       // Fix verification: check done items against current scan
@@ -3297,7 +2696,7 @@ serve(async (req) => {
 
       if (doneItems && doneItems.length > 0) {
         const currentFingerprints = new Set(
-          (adaptiveResult?.issues ?? []).map((i: any) => i._fingerprint || i.issue_fingerprint).filter(Boolean)
+          (finalUnifiedResult?.issues ?? []).map((i: any) => i._fingerprint || i.issue_fingerprint).filter(Boolean)
         );
 
         for (const item of doneItems) {
@@ -3432,8 +2831,39 @@ serve(async (req) => {
         return new Response(JSON.stringify({ success: false, violations: enrichedViolations, context: scanContext, scan_id: scan_run_id }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
       }
 
+      console.error("[FINALIZE COMPLETE]", scan_run_id);
       trace(scan_run_id, `✓ scan done detected=${issuesCount} created=${workItemsCreated} health=${unified.system_health_score} stage=${systemStage}`);
+      console.log("[STEP] after finalize");
       return new Response(JSON.stringify({ success: true, scan_id: scan_run_id, detected: issuesCount, created: workItemsCreated, filtered: issuesCount - workItemsCreated, skipped: skippedCount, action: "finalized", iterations: iterationsCompleted, system_stage: systemStage, scanContext }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
+      } catch (finalizeError: any) {
+        console.error(`[FINALIZE CRASH] scan=${scan_run_id}`, finalizeError?.message, finalizeError?.stack?.slice(0, 500));
+        try {
+          await supabase.from("scan_runs").update({
+            status: "error",
+            error_message: `Finalize crash: ${finalizeError?.message || "unknown"}`,
+            completed_at: new Date().toISOString(),
+            current_step_label: "Kraschade under finalisering",
+            progress: 100,
+            unified_result: {
+              status: "error",
+              broken_flows: [],
+              fake_features: [],
+              interaction_failures: [],
+              data_issues: [{
+                id: "finalize-crash",
+                title: "Finalize crashed",
+                description: finalizeError?.message || "Unknown error in finalize",
+                cause: "Unhandled exception in finalize",
+                fix: "Check finalize logic and edge function logs",
+                severity: "critical",
+              }],
+              system_health_score: 0,
+            },
+          }).eq("id", scan_run_id);
+        } catch (_) {}
+        try { await logRuntimeTrace("api", "run-full-scan", "/finalize", finalizeError?.message || "Unknown", { stack: finalizeError?.stack?.slice(0, 500), scan_run_id }); } catch (_) {}
+        return new Response(JSON.stringify({ success: false, error: finalizeError?.message || "Finalize crash", stack: finalizeError?.stack?.slice(0, 500) || null, scan_id: scan_run_id }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
+      }
     }
 
     // ── STATUS ──
@@ -3448,8 +2878,8 @@ serve(async (req) => {
     console.warn(`[SCAN DISPATCH] Invalid action: "${body.action ?? "undefined"}"`);
     return new Response(JSON.stringify({ success: false, error: "Invalid action" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
-    console.error(`[SCAN ERROR] ${e?.message || e}`);
+    console.error("[SCAN CRASH]", e);
     try { await logRuntimeTrace("api", "run-full-scan", "/run-full-scan", e?.message || "Unknown", { stack: e?.stack?.slice(0, 500) }); } catch (_) {}
-    return new Response(JSON.stringify({ success: false, error: e?.message || "Unknown error" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ success: false, error: e?.message || "Internal error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });

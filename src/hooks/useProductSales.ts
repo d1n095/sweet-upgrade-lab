@@ -32,7 +32,7 @@ const initializeRealtimeSubscription = async () => {
 
   if (!error && data) {
     salesCache = {};
-    (data as ProductSale[]).forEach(sale => {
+    (data as any[]).forEach(sale => {
       salesCache[sale.product_id] = sale.total_quantity_sold;
     });
     notifyListeners();
@@ -51,7 +51,7 @@ const initializeRealtimeSubscription = async () => {
       (payload) => {
         const newRecord = payload.new as ProductSale | null;
         if (newRecord) {
-          salesCache[newRecord.product_id] = newRecord.total_quantity_sold;
+          salesCache[(newRecord as any).product_id] = newRecord.total_quantity_sold;
           notifyListeners();
         }
       }

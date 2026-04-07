@@ -222,7 +222,7 @@ async function createChangeLogForTask(task: QueueTask) {
 /** Retroactive fix: create change_log for all completed work_items missing entries */
 export async function backfillChangeLog() {
   const { data: workItems } = await supabase
-    .from('work_items' as any)
+    .from('work_items')
     .select('id, title, source_type, source_id, completed_at')
     .eq('status', 'done');
 
@@ -423,8 +423,7 @@ async function runPostChecks(
   // Auto-create change_log entry on completion (with dedup)
   try {
     await createChangeLogForTask(task);
-  } catch (e) {
-  }
+  } catch (_) {}
 
   // Feedback loop — evaluate after successful fix
   const qState2 = get();
@@ -566,8 +565,7 @@ export const useWorkQueueStore = create<WorkQueueState>((set, get) => ({
         if (nextTask.snapshotBefore) {
           try {
             preSnapshot = await nextTask.snapshotBefore();
-          } catch (err) {
-          }
+          } catch (_) {}
         }
         await useFeedbackLoopStore.getState().captureBeforeAction();
 

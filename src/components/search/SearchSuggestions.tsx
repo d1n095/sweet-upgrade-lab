@@ -232,7 +232,7 @@ const SearchSuggestions = () => {
           setRecentSearches(getRecentSearches());
         }
         setShowSuggestions(true);
-      } catch (error) {
+      } catch (_) {
       } finally {
         setIsLoading(false);
       }

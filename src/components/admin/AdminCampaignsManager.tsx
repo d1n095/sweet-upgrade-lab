@@ -205,7 +205,7 @@ const VolumeDiscountsTab = () => {
 
     // For product-specific: delete all existing tiers for this product, then insert new ones
     if (mode === 'product' && productId) {
-      await supabase.from('volume_discounts').delete().eq('product_id', productId);
+      await (supabase.from('volume_discounts') as any).delete().eq('product_id', productId);
     } else if (editingId) {
       // For global edits: update or delete+recreate
       // If single tier, just update
@@ -274,7 +274,7 @@ const VolumeDiscountsTab = () => {
 
   const deleteAllProductTiers = async (productId: string) => {
     if (!confirm('Ta bort alla nivåer för denna produkt?')) return;
-    await supabase.from('volume_discounts').delete().eq('product_id', productId);
+    await (supabase.from('volume_discounts') as any).delete().eq('product_id', productId);
     toast.success('Alla nivåer borttagna');
     resetForm();
     fetchData();

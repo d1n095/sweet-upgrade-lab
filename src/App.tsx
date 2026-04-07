@@ -42,6 +42,7 @@ import { useAdminRole } from "./hooks/useAdminRole";
 // Admin
 import AdminLayout from "./pages/admin/AdminLayout";
 import AdminOverview from "./pages/admin/AdminOverview";
+import SystemOverview from "./pages/admin/SystemOverview";
 import AdminOrders from "./pages/admin/AdminOrders";
 import AdminProducts from "./pages/admin/AdminProducts";
 import AdminCategories from "./pages/admin/AdminCategories";
@@ -72,6 +73,7 @@ import AdminChangeHistory from "./pages/admin/AdminChangeHistory";
 import AdminPOS from "./pages/admin/AdminPOS";
 import ScanPackingMode from "./components/admin/warehouse/ScanPackingMode";
 import SystemExplorer from "./pages/admin/SystemExplorer";
+import AdminDebug from "./pages/admin/AdminDebug";
 import AdminSecurity from "./pages/admin/AdminSecurity";
 
 const queryClient = new QueryClient();
@@ -157,7 +159,9 @@ const App = () => (
                 <Route path="changes" element={<AdminChangeHistory />} />
                 <Route path="database" element={<AdminDatabase />} />
                 <Route path="warehouse" element={<ScanPackingMode />} />
+                <Route path="overview" element={<SystemOverview />} />
                 <Route path="system-explorer" element={<SystemExplorer />} />
+                <Route path="debug" element={<AdminDebug />} />
                 <Route path="ai" element={<Navigate to="/admin/system-explorer" replace />} />
                 <Route path="security" element={<AdminSecurity />} />
               </Route>

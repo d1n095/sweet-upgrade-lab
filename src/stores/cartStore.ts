@@ -71,6 +71,8 @@ interface CartStore {
   removeItem: (variantId: string) => void;
   clearCart: () => void;
   setLoading: (loading: boolean) => void;
+  setCartId: (id: string | null) => void;
+  setCheckoutUrl: (url: string | null) => void;
   totalItems: () => number;
   totalPrice: () => number;
 }
@@ -114,6 +116,8 @@ export const useCartStore = create<CartStore>()(
   persist(
     (set, get) => ({
       items: [],
+      cartId: null,
+      checkoutUrl: null,
       isLoading: false,
       isHydrated: false,
       _hasHydrated: false,
@@ -166,9 +170,14 @@ export const useCartStore = create<CartStore>()(
       clearCart: () => {
         set({
           items: [],
+          cartId: null,
+          checkoutUrl: null,
           lastUpdatedAt: getTimestamp(),
         });
       },
+
+      setCartId: (id) => set({ cartId: id }),
+      setCheckoutUrl: (url) => set({ checkoutUrl: url }),
 
       setLoading: (isLoading) => set({ isLoading }),
 
@@ -198,8 +207,7 @@ export const useCartStore = create<CartStore>()(
         };
       },
       onRehydrateStorage: () => (state, error) => {
-        if (error) {
-        }
+        if (error) {}
 
         useCartStore.setState({
           items: sanitizeItems(state?.items || []),

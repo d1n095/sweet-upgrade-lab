@@ -151,11 +151,11 @@ export type Database = {
           commission_amount: number
           created_at: string
           customer_discount: number
+          external_order_id: string | null
           id: string
           order_id: string | null
           order_total: number
           paid_at: string | null
-          shopify_order_id: string | null
           status: string
         }
         Insert: {
@@ -163,11 +163,11 @@ export type Database = {
           commission_amount: number
           created_at?: string
           customer_discount?: number
+          external_order_id?: string | null
           id?: string
           order_id?: string | null
           order_total: number
           paid_at?: string | null
-          shopify_order_id?: string | null
           status?: string
         }
         Update: {
@@ -175,11 +175,11 @@ export type Database = {
           commission_amount?: number
           created_at?: string
           customer_discount?: number
+          external_order_id?: string | null
           id?: string
           order_id?: string | null
           order_total?: number
           paid_at?: string | null
-          shopify_order_id?: string | null
           status?: string
         }
         Relationships: [
@@ -350,7 +350,106 @@ export type Database = {
         }
         Relationships: []
       }
-      scan_results: {
+      ai_chat_messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          role: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          role?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          role?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ai_read_log: {
+        Row: {
+          action_type: string
+          affected_components: string[] | null
+          ai_suggestion: string | null
+          created_at: string
+          endpoints: string[] | null
+          file_paths: string[] | null
+          id: string
+          linked_bug_id: string | null
+          linked_scan_id: string | null
+          linked_work_item_id: string | null
+          metadata: Json | null
+          result: string
+          summary: string | null
+          target_ids: string[] | null
+          target_type: string
+          triggered_by: string | null
+          verified_at: string | null
+          verified_by: string | null
+          verify_note: string | null
+          verify_status: string | null
+        }
+        Insert: {
+          action_type?: string
+          affected_components?: string[] | null
+          ai_suggestion?: string | null
+          created_at?: string
+          endpoints?: string[] | null
+          file_paths?: string[] | null
+          id?: string
+          linked_bug_id?: string | null
+          linked_scan_id?: string | null
+          linked_work_item_id?: string | null
+          metadata?: Json | null
+          result?: string
+          summary?: string | null
+          target_ids?: string[] | null
+          target_type: string
+          triggered_by?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
+          verify_note?: string | null
+          verify_status?: string | null
+        }
+        Update: {
+          action_type?: string
+          affected_components?: string[] | null
+          ai_suggestion?: string | null
+          created_at?: string
+          endpoints?: string[] | null
+          file_paths?: string[] | null
+          id?: string
+          linked_bug_id?: string | null
+          linked_scan_id?: string | null
+          linked_work_item_id?: string | null
+          metadata?: Json | null
+          result?: string
+          summary?: string | null
+          target_ids?: string[] | null
+          target_type?: string
+          triggered_by?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
+          verify_note?: string | null
+          verify_status?: string | null
+        }
+        Relationships: []
+      }
+      ai_scan_results: {
         Row: {
           created_at: string
           executive_summary: string | null
@@ -478,6 +577,15 @@ export type Database = {
       }
       bug_reports: {
         Row: {
+          ai_actionable_fix: Json | null
+          ai_approved: boolean | null
+          ai_category: string | null
+          ai_clean_prompt: string | null
+          ai_processed_at: string | null
+          ai_repro_steps: string | null
+          ai_severity: string | null
+          ai_summary: string | null
+          ai_tags: string[] | null
           created_at: string
           description: string
           id: string
@@ -490,6 +598,15 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          ai_actionable_fix?: Json | null
+          ai_approved?: boolean | null
+          ai_category?: string | null
+          ai_clean_prompt?: string | null
+          ai_processed_at?: string | null
+          ai_repro_steps?: string | null
+          ai_severity?: string | null
+          ai_summary?: string | null
+          ai_tags?: string[] | null
           created_at?: string
           description: string
           id?: string
@@ -502,6 +619,15 @@ export type Database = {
           user_id: string
         }
         Update: {
+          ai_actionable_fix?: Json | null
+          ai_approved?: boolean | null
+          ai_category?: string | null
+          ai_clean_prompt?: string | null
+          ai_processed_at?: string | null
+          ai_repro_steps?: string | null
+          ai_severity?: string | null
+          ai_summary?: string | null
+          ai_tags?: string[] | null
           created_at?: string
           description?: string
           id?: string
@@ -528,24 +654,24 @@ export type Database = {
           bundle_id: string
           created_at: string
           id: string
-          quantity: number
           product_id: string
+          quantity: number
           variant_id: string | null
         }
         Insert: {
           bundle_id: string
           created_at?: string
           id?: string
-          quantity?: number
           product_id: string
+          quantity?: number
           variant_id?: string | null
         }
         Update: {
           bundle_id?: string
           created_at?: string
           id?: string
-          quantity?: number
           product_id?: string
+          quantity?: number
           variant_id?: string | null
         }
         Relationships: [
@@ -1147,27 +1273,27 @@ export type Database = {
           id: string
           influencer_id: string
           order_id: string | null
+          product_id: string
           product_title: string
           received_at: string
-          product_id: string
           variant_id: string | null
         }
         Insert: {
           id?: string
           influencer_id: string
           order_id?: string | null
+          product_id: string
           product_title: string
           received_at?: string
-          product_id: string
           variant_id?: string | null
         }
         Update: {
           id?: string
           influencer_id?: string
           order_id?: string | null
+          product_id?: string
           product_title?: string
           received_at?: string
-          product_id?: string
           variant_id?: string | null
         }
         Relationships: [
@@ -1351,24 +1477,24 @@ export type Database = {
           id: string
           member_price: number
           product_id: string
-          variant_id: string
           updated_at: string
+          variant_id: string
         }
         Insert: {
           created_at?: string
           id?: string
           member_price: number
           product_id: string
-          variant_id: string
           updated_at?: string
+          variant_id: string
         }
         Update: {
           created_at?: string
           id?: string
           member_price?: number
           product_id?: string
-          variant_id?: string
           updated_at?: string
+          variant_id?: string
         }
         Relationships: []
       }
@@ -1479,6 +1605,8 @@ export type Database = {
           delivery_method: string
           delivery_status: string
           estimated_delivery: string | null
+          external_order_id: string | null
+          external_order_number: string | null
           fulfillment_status: string
           id: string
           items: Json
@@ -1499,8 +1627,6 @@ export type Database = {
           shipped_by: string | null
           shipping_address: Json | null
           shipping_method: string | null
-          shopify_order_id: string | null
-          external_order_number: string | null
           status: string
           status_history: Json
           stripe_session_id: string | null
@@ -1517,6 +1643,8 @@ export type Database = {
           delivery_method?: string
           delivery_status?: string
           estimated_delivery?: string | null
+          external_order_id?: string | null
+          external_order_number?: string | null
           fulfillment_status?: string
           id?: string
           items?: Json
@@ -1537,8 +1665,6 @@ export type Database = {
           shipped_by?: string | null
           shipping_address?: Json | null
           shipping_method?: string | null
-          shopify_order_id?: string | null
-          external_order_number?: string | null
           status?: string
           status_history?: Json
           stripe_session_id?: string | null
@@ -1555,6 +1681,8 @@ export type Database = {
           delivery_method?: string
           delivery_status?: string
           estimated_delivery?: string | null
+          external_order_id?: string | null
+          external_order_number?: string | null
           fulfillment_status?: string
           id?: string
           items?: Json
@@ -1575,8 +1703,6 @@ export type Database = {
           shipped_by?: string | null
           shipping_address?: Json | null
           shipping_method?: string | null
-          shopify_order_id?: string | null
-          external_order_number?: string | null
           status?: string
           status_history?: Json
           stripe_session_id?: string | null
@@ -1712,8 +1838,8 @@ export type Database = {
           created_at: string
           id: string
           last_sale_at: string | null
-          product_title: string
           product_id: string
+          product_title: string
           total_quantity_sold: number
           updated_at: string
         }
@@ -1721,8 +1847,8 @@ export type Database = {
           created_at?: string
           id?: string
           last_sale_at?: string | null
-          product_title: string
           product_id: string
+          product_title: string
           total_quantity_sold?: number
           updated_at?: string
         }
@@ -1730,8 +1856,8 @@ export type Database = {
           created_at?: string
           id?: string
           last_sale_at?: string | null
-          product_title?: string
           product_id?: string
+          product_title?: string
           total_quantity_sold?: number
           updated_at?: string
         }
@@ -2516,10 +2642,10 @@ export type Database = {
           is_approved: boolean
           is_auto_review: boolean
           is_verified_purchase: boolean
-          product_title: string
-          rating: number
           product_handle: string
           product_id: string
+          product_title: string
+          rating: number
           updated_at: string
           user_id: string
         }
@@ -2532,10 +2658,10 @@ export type Database = {
           is_approved?: boolean
           is_auto_review?: boolean
           is_verified_purchase?: boolean
-          product_title: string
-          rating: number
           product_handle: string
           product_id: string
+          product_title: string
+          rating: number
           updated_at?: string
           user_id: string
         }
@@ -2548,10 +2674,10 @@ export type Database = {
           is_approved?: boolean
           is_auto_review?: boolean
           is_verified_purchase?: boolean
-          product_title?: string
-          rating?: number
           product_handle?: string
           product_id?: string
+          product_title?: string
+          rating?: number
           updated_at?: string
           user_id?: string
         }
@@ -3375,9 +3501,9 @@ export type Database = {
       }
       system_history: {
         Row: {
-          review_at: string | null
-          review_result: Json | null
-          review_status: string | null
+          ai_review_at: string | null
+          ai_review_result: Json | null
+          ai_review_status: string | null
           archived_at: string | null
           assigned_to: string | null
           claimed_by: string | null
@@ -3398,9 +3524,9 @@ export type Database = {
           work_item_id: string
         }
         Insert: {
-          review_at?: string | null
-          review_result?: Json | null
-          review_status?: string | null
+          ai_review_at?: string | null
+          ai_review_result?: Json | null
+          ai_review_status?: string | null
           archived_at?: string | null
           assigned_to?: string | null
           claimed_by?: string | null
@@ -3421,9 +3547,9 @@ export type Database = {
           work_item_id: string
         }
         Update: {
-          review_at?: string | null
-          review_result?: Json | null
-          review_status?: string | null
+          ai_review_at?: string | null
+          ai_review_result?: Json | null
+          ai_review_status?: string | null
           archived_at?: string | null
           assigned_to?: string | null
           claimed_by?: string | null
@@ -3607,10 +3733,10 @@ export type Database = {
           max_uses_per_user: number | null
           min_level: number | null
           min_quantity: number
+          product_id: string | null
           repeat_discount: number | null
           requirement_type: string
           requires_account: boolean
-          product_id: string | null
           stackable: boolean | null
         }
         Insert: {
@@ -3624,10 +3750,10 @@ export type Database = {
           max_uses_per_user?: number | null
           min_level?: number | null
           min_quantity: number
+          product_id?: string | null
           repeat_discount?: number | null
           requirement_type?: string
           requires_account?: boolean
-          product_id?: string | null
           stackable?: boolean | null
         }
         Update: {
@@ -3641,10 +3767,10 @@ export type Database = {
           max_uses_per_user?: number | null
           min_level?: number | null
           min_quantity?: number
+          product_id?: string | null
           repeat_discount?: number | null
           requirement_type?: string
           requires_account?: boolean
-          product_id?: string | null
           stackable?: boolean | null
         }
         Relationships: []
@@ -3710,12 +3836,21 @@ export type Database = {
       }
       work_items: {
         Row: {
+          ai_assigned: boolean | null
+          ai_category: string | null
+          ai_confidence: string | null
+          ai_detected: boolean | null
+          ai_overrides: Json | null
           pre_verify_at: string | null
           pre_verify_result: Json | null
           pre_verify_status: string | null
-          review_at: string | null
-          review_result: Json | null
-          review_status: string | null
+          ai_resolution_notes: string | null
+          ai_review_at: string | null
+          ai_review_result: Json | null
+          ai_review_status: string | null
+          ai_root_causes: Json | null
+          ai_type_classification: string | null
+          ai_type_reason: string | null
           assigned_to: string | null
           blocks: string[] | null
           claimed_at: string | null
@@ -3760,12 +3895,21 @@ export type Database = {
           verified_at: string | null
         }
         Insert: {
+          ai_assigned?: boolean | null
+          ai_category?: string | null
+          ai_confidence?: string | null
+          ai_detected?: boolean | null
+          ai_overrides?: Json | null
           pre_verify_at?: string | null
           pre_verify_result?: Json | null
           pre_verify_status?: string | null
-          review_at?: string | null
-          review_result?: Json | null
-          review_status?: string | null
+          ai_resolution_notes?: string | null
+          ai_review_at?: string | null
+          ai_review_result?: Json | null
+          ai_review_status?: string | null
+          ai_root_causes?: Json | null
+          ai_type_classification?: string | null
+          ai_type_reason?: string | null
           assigned_to?: string | null
           blocks?: string[] | null
           claimed_at?: string | null
@@ -3810,12 +3954,21 @@ export type Database = {
           verified_at?: string | null
         }
         Update: {
+          ai_assigned?: boolean | null
+          ai_category?: string | null
+          ai_confidence?: string | null
+          ai_detected?: boolean | null
+          ai_overrides?: Json | null
           pre_verify_at?: string | null
           pre_verify_result?: Json | null
           pre_verify_status?: string | null
-          review_at?: string | null
-          review_result?: Json | null
-          review_status?: string | null
+          ai_resolution_notes?: string | null
+          ai_review_at?: string | null
+          ai_review_result?: Json | null
+          ai_review_status?: string | null
+          ai_root_causes?: Json | null
+          ai_type_classification?: string | null
+          ai_type_reason?: string | null
           assigned_to?: string | null
           blocks?: string[] | null
           claimed_at?: string | null

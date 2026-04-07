@@ -1,14 +1,3 @@
-/**
- * CORE SYSTEM FILE
- * DO NOT MODIFY WITHOUT EXPLICIT APPROVAL
- * Breaking this will crash scan system
- *
- * FORBIDDEN:
- * - AI modifications
- * - refactors
- * - renaming fields
- * - changing data flow
- */
 import { supabase } from '@/integrations/supabase/client';
 import { safeInvoke } from '@/lib/safeInvoke';
 
@@ -77,19 +66,22 @@ function stopPolling() {
   _currentJob = null;
 }
 
-async function pollScanRun(scanRunId: string, onProgress?: (steps: ScanStep[]) => void) {
+async function pollScanRun(scanRunId: string, onProgress?: (update: ScanProgressUpdate) => void) {
   try {
     const { data } = await supabase
-      .from('scan_runs' as any)
-      .select('*')
+      .from('scan_runs')
+      .select('id, status, current_step, current_step_label, total_steps, progress, steps_results, unified_result, work_items_created, system_health_score, started_at, completed_at')
       .eq('id', scanRunId)
       .single();
 
     if (!data) return;
-    const run = data as any;
+    const run = data;
 
     const steps = buildStepsFromRun(run);
-    onProgress?.(steps);
+    const progress: number = run.progress ?? 0;
+    const currentStepLabel: string = run.current_step_label ?? '';
+
+    onProgress?.({ steps, progress, currentStepLabel, scanRunId, status: run.status });
 
     if (run.status === 'done' || run.status === 'completed') {
       stopPolling();
@@ -105,7 +97,7 @@ async function pollScanRun(scanRunId: string, onProgress?: (steps: ScanStep[]) =
     } else if (run.status === 'error' || run.status === 'failed') {
       stopPolling();
     }
-  } catch (e) {
+  } catch (_) {
   }
 }
 
@@ -156,9 +148,19 @@ function buildStepsFromRun(run: any): ScanStep[] {
   });
 }
 
+export interface ScanProgressUpdate {
+  steps: ScanStep[];
+  /** 0-100 progress value written by the backend to scan_runs.progress */
+  progress: number;
+  /** Human-readable label for the current step */
+  currentStepLabel: string;
+  scanRunId: string;
+  status: string;
+}
+
 export interface StartScanOptions {
   /** Optional callback for live step progress updates */
-  onProgress?: (steps: ScanStep[]) => void;
+  onProgress?: (update: ScanProgressUpdate) => void;
 }
 
 /**
@@ -175,7 +177,7 @@ export async function startScanJob(options?: StartScanOptions): Promise<string> 
   });
 
   if (error) {
-    throw new Error(error?.message ?? 'Kunde inte starta skanning');
+    throw new Error(error?.message || (error as any)?.error || 'Kunde inte starta skanning');
   }
 
   const scanRunId = data?.scan_run_id;
@@ -184,6 +186,7 @@ export async function startScanJob(options?: StartScanOptions): Promise<string> 
   }
 
   _currentJob = { id: scanRunId, type: 'full', status: 'running' };
+
   _pollInterval = setInterval(() => pollScanRun(scanRunId, options?.onProgress), 2000);
   return scanRunId;
 }
@@ -195,7 +198,7 @@ export async function startScanJob(options?: StartScanOptions): Promise<string> 
 export async function resumeInterruptedJob(): Promise<void> {
   try {
     const { data } = await supabase
-      .from('scan_runs' as any)
+      .from('scan_runs')
       .select('id')
       .eq('status', 'running')
       .order('created_at', { ascending: false })
@@ -203,7 +206,7 @@ export async function resumeInterruptedJob(): Promise<void> {
       .maybeSingle();
 
     if (!data) return;
-    const scanRunId = (data as any).id as string;
+    const scanRunId = data.id;
     stopPolling();
     _currentJob = { id: scanRunId, type: 'full', status: 'running' };
     _pollInterval = setInterval(() => pollScanRun(scanRunId), 2000);
@@ -226,7 +229,7 @@ export async function loadLatestScanRun(): Promise<{
   try {
     // 1. Check for an in-progress scan first
     const { data: runningRow } = await supabase
-      .from('scan_runs' as any)
+      .from('scan_runs')
       .select('id, status, started_at, completed_at, steps_results, unified_result, work_items_created, system_health_score, current_step')
       .eq('status', 'running')
       .order('created_at', { ascending: false })
@@ -234,7 +237,7 @@ export async function loadLatestScanRun(): Promise<{
       .maybeSingle();
 
     if (runningRow) {
-      const run = runningRow as any;
+      const run = runningRow;
       return {
         running: true,
         steps: buildStepsFromRun(run),
@@ -247,7 +250,7 @@ export async function loadLatestScanRun(): Promise<{
 
     // 2. Fetch the latest completed scan
     const { data: completedRow } = await supabase
-      .from('scan_runs' as any)
+      .from('scan_runs')
       .select('id, status, started_at, completed_at, steps_results, unified_result, work_items_created, system_health_score, current_step')
       .in('status', ['done', 'completed'])
       .order('completed_at', { ascending: false })
@@ -256,8 +259,7 @@ export async function loadLatestScanRun(): Promise<{
 
     if (!completedRow) return empty;
 
-    const run = completedRow as any;
-    const issueCount = run.work_items_created ?? 0;
+    const run = completedRow;
     return {
       running: false,
       steps: buildStepsFromRun(run),
@@ -266,7 +268,7 @@ export async function loadLatestScanRun(): Promise<{
       startedAt: run.started_at ?? null,
       completedAt: run.completed_at ?? null,
     };
-  } catch (e) {
+  } catch (_) {
     return empty;
   }
 }

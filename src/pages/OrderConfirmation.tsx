@@ -73,8 +73,7 @@ const OrderConfirmation = () => {
             setIsLoading(false);
             return;
           }
-        } catch (err) {
-        }
+        } catch (_) {}
 
         if (attempt < maxRetries - 1) {
           await new Promise((resolve) => setTimeout(resolve, retryDelayMs));

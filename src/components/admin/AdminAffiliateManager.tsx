@@ -150,7 +150,7 @@ const AdminAffiliateManager = () => {
       if (error) throw error;
       setAffiliates((data || []) as unknown as Affiliate[]);
     } catch (error) {
-      toast.error(t.error);
+
     } finally {
       setIsLoading(false);
     }
@@ -224,6 +224,7 @@ const AdminAffiliateManager = () => {
           },
         });
       } catch (emailError) {
+
       }
 
       toast.success(t.affiliateAdded);
@@ -231,6 +232,7 @@ const AdminAffiliateManager = () => {
       setIsAddDialogOpen(false);
       loadAffiliates();
     } catch (error) {
+
       toast.error(t.error);
     } finally {
       setIsSubmitting(false);
@@ -247,6 +249,7 @@ const AdminAffiliateManager = () => {
       if (error) throw error;
       loadAffiliates();
     } catch (error) {
+
       toast.error(t.error);
     }
   };

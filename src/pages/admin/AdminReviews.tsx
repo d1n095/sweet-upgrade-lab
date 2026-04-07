@@ -29,9 +29,11 @@ interface Review {
   comment: string;
   is_verified_purchase: boolean;
   is_approved: boolean;
-  is_rejected?: boolean;
+  is_auto_review?: boolean;
   admin_response: string | null;
+  admin_response_at?: string | null;
   created_at: string;
+  updated_at?: string;
 }
 
 interface ReviewStats {

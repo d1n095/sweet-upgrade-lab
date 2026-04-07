@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
-import { startScanJob, loadLatestScanRun, onScanComplete, type ScanStep, type ScanResult } from '@/lib/scanEngine';
+import { startScanJob, loadLatestScanRun, onScanComplete, type ScanStep, type ScanResult, type ScanProgressUpdate } from '@/lib/scanEngine';
 
-export type { ScanStep, ScanResult };
+export type { ScanStep, ScanResult, ScanProgressUpdate };
 
 export interface ScanRunnerState {
   running: boolean;
@@ -12,6 +12,10 @@ export interface ScanRunnerState {
   scanRunId: string | null;
   startedAt: string | null;
   completedAt: string | null;
+  /** 0-100 progress value from scan_runs.progress (backend-written) */
+  dbProgress: number;
+  /** Human-readable label for the current step */
+  currentStepLabel: string;
 }
 
 export function useScanRunner() {
@@ -23,6 +27,8 @@ export function useScanRunner() {
     scanRunId: null,
     startedAt: null,
     completedAt: null,
+    dbProgress: 0,
+    currentStepLabel: '',
   });
 
   useEffect(() => {
@@ -45,7 +51,7 @@ export function useScanRunner() {
 
   useEffect(() => {
     return onScanComplete((result) => {
-      setState({ running: false, steps: result.steps, lastResult: result, scanRunId: result.scanRunId, startedAt: result.startedAt ?? null, completedAt: result.completedAt ?? null });
+      setState({ running: false, steps: result.steps, lastResult: result, scanRunId: result.scanRunId, startedAt: result.startedAt ?? null, completedAt: result.completedAt ?? null, dbProgress: 100, currentStepLabel: '' });
       const score = result.systemHealthScore;
       toast.success(`Skanning klar — ${score}/100 — ${result.workItemsCreated} nya uppgifter`, { duration: 6000 });
       for (const key of ['admin-scan-results', 'admin-work-items', 'admin-bugs', 'mini-workbench-items', 'scan-history', 'work-items', 'system-explorer-latest-run', 'system-explorer-latest-scan', 'backend-scan-latest']) {
@@ -59,10 +65,11 @@ export function useScanRunner() {
       toast.info('En skanning körs redan');
       return;
     }
-    setState(prev => ({ ...prev, running: true, steps: [] }));
+    setState(prev => ({ ...prev, running: true, steps: [], dbProgress: 0, currentStepLabel: '' }));
     try {
       const scanRunId = await startScanJob({
-        onProgress: (steps) => setState(prev => ({ ...prev, steps })),
+        onProgress: ({ steps, progress, currentStepLabel }) =>
+          setState(prev => ({ ...prev, steps, dbProgress: progress, currentStepLabel })),
       });
       setState(prev => ({ ...prev, scanRunId }));
       toast.info('Skanning startad i bakgrunden — du kan navigera bort', { duration: 5000 });

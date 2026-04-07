@@ -55,6 +55,7 @@ const MiniWorkbench = () => {
     if (!user || !hasAccess) return;
     supabase.rpc('cleanup_orphan_work_items').then(({ data, error }) => {
       if (data && (data as any).deleted > 0) {
+
         queryClient.invalidateQueries({ queryKey: ['mini-workbench-items'] });
         queryClient.invalidateQueries({ queryKey: ['admin-work-items'] });
       }

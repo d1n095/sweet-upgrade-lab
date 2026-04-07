@@ -68,7 +68,7 @@ export const useInfluencerCode = () => {
           .select('product_id, product_title')
           .eq('influencer_id', result.influencer_id);
         
-        setReceivedProducts((products || []) as ReceivedProduct[]);
+        setReceivedProducts((products || []).map(p => ({ product_id: p.product_id, product_title: p.product_title })) as ReceivedProduct[]);
         
         return result;
       } else {
