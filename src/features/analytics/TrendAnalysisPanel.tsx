@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AlertTriangle, RefreshCw, TrendingUp, Zap, ArrowUpCircle, Loader2 } from 'lucide-react';
+import { AlertTriangle, RefreshCw, TrendingUp, Zap, ArrowUpCircle, Loader2, Bot } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -67,8 +67,37 @@ function extractIssueTitles(unified_result: any): Array<{ title: string; severit
   return out;
 }
 
-function calcConfidence(count: number, totalScans: number): number {
-  return totalScans > 0 ? Math.round((count / totalScans) * 100) : 0;
+function severityBonus(sev: string): number {
+  if (sev === 'critical') return 10;
+  if (sev === 'high') return 7;
+  if (sev === 'medium') return 4;
+  if (sev === 'low') return 2;
+  return 0;
+}
+
+function recencyBonus(
+  perScan: Array<Map<string, { severity: string; category: string }>>,
+  title: string,
+): number {
+  const n = perScan.length;
+  if (n === 0) return 0;
+  if (perScan[n - 1]?.has(title)) return 20;
+  if (n >= 2 && perScan[n - 2]?.has(title)) return 10;
+  if (n >= 3 && perScan[n - 3]?.has(title)) return 5;
+  return 0;
+}
+
+function calcConfidence(
+  count: number,
+  totalScans: number,
+  severity: string,
+  perScan: Array<Map<string, { severity: string; category: string }>>,
+  title: string,
+): number {
+  const freq = totalScans > 0 ? (count / totalScans) * 70 : 0;
+  const recency = recencyBonus(perScan, title);
+  const sev = severityBonus(severity);
+  return Math.min(100, Math.round(freq + recency + sev));
 }
 
 function analyzeTrends(scans: ScanRow[]): TrendData {
@@ -94,16 +123,17 @@ function analyzeTrends(scans: ScanRow[]): TrendData {
     }
   }
 
-  const confidence = (count: number) => calcConfidence(count, totalScans);
+  const confidence = (count: number, severity: string, title: string) =>
+    calcConfidence(count, totalScans, severity, perScan, title);
 
   // Recurring: in 3+ scans
   const recurring: IssueSummary[] = [];
   for (const [title, { count, meta }] of appearances) {
     if (count >= 3) {
-      recurring.push({ key: title, count, severity: meta.severity, category: meta.category, trend: 'stable', confidence: confidence(count) });
+      recurring.push({ key: title, count, severity: meta.severity, category: meta.category, trend: 'stable', confidence: confidence(count, meta.severity, title) });
     }
   }
-  recurring.sort((a, b) => b.count - a.count || a.severity.localeCompare(b.severity));
+  recurring.sort((a, b) => b.confidence - a.confidence || b.count - a.count);
 
   // Unresolved: present in latest AND at least one older scan
   const latestMap = perScan[perScan.length - 1] ?? new Map();
@@ -111,10 +141,10 @@ function analyzeTrends(scans: ScanRow[]): TrendData {
   for (const [title, meta] of latestMap) {
     const info = appearances.get(title);
     if (info && info.count > 1) {
-      unresolved.push({ key: title, count: info.count, severity: meta.severity, category: meta.category, trend: 'stable', confidence: confidence(info.count) });
+      unresolved.push({ key: title, count: info.count, severity: meta.severity, category: meta.category, trend: 'stable', confidence: confidence(info.count, meta.severity, title) });
     }
   }
-  unresolved.sort((a, b) => b.count - a.count);
+  unresolved.sort((a, b) => b.confidence - a.confidence);
 
   // Rising: count in second half > first half
   const rising: IssueSummary[] = [];
@@ -126,10 +156,10 @@ function analyzeTrends(scans: ScanRow[]): TrendData {
       const countNew = secondHalf.filter((m) => m.has(title)).length;
       if (countNew > countOld) {
         const c = countNew + countOld;
-        rising.push({ key: title, count: countNew, severity: meta.severity, category: meta.category, trend: 'rising', confidence: confidence(c) });
+        rising.push({ key: title, count: countNew, severity: meta.severity, category: meta.category, trend: 'rising', confidence: confidence(c, meta.severity, title) });
       }
     }
-    rising.sort((a, b) => b.count - a.count);
+    rising.sort((a, b) => b.confidence - a.confidence);
   }
 
   return { recurring, unresolved, rising, totalScans };
@@ -160,7 +190,7 @@ const SEV_STYLE: Record<string, string> = {
 function ConfidencePill({ value }: { value: number }) {
   const color = value >= 80 ? 'text-destructive' : value >= 50 ? 'text-yellow-600' : 'text-muted-foreground';
   return (
-    <span className={cn('text-[9px] font-mono shrink-0', color)} title="Confidence score: % of scans where detected">
+    <span className={cn('text-[9px] font-mono shrink-0', color)} title="Confidence: frequency (70%) + recency (20%) + severity (10%)">
       {value}%
     </span>
   );
@@ -171,21 +201,27 @@ function IssueRow({
   actionLabel,
   onAction,
   acting,
+  wasAutoExecuted,
 }: {
   item: IssueSummary;
   actionLabel?: string;
   onAction?: () => void;
   acting?: boolean;
+  wasAutoExecuted?: boolean;
 }) {
   return (
-    <div className="flex items-center gap-1.5 py-1 border-b border-border/40 last:border-0 text-xs group">
+    <div className={cn(
+      'flex items-center gap-1.5 py-1 border-b border-border/40 last:border-0 text-xs group',
+      wasAutoExecuted && 'bg-green-500/5',
+    )}>
       <Badge variant="outline" className={cn('text-[9px] shrink-0 px-1 py-0', SEV_STYLE[item.severity] ?? SEV_STYLE.info)}>
         {item.severity}
       </Badge>
-      <span className="flex-1 truncate text-foreground">{item.key}</span>
+      <span className={cn('flex-1 truncate', wasAutoExecuted ? 'text-green-700' : 'text-foreground')}>{item.key}</span>
+      {wasAutoExecuted && <span className="text-[9px] text-green-600 shrink-0">✓ auto</span>}
       <ConfidencePill value={item.confidence} />
       <span className="shrink-0 text-[10px] text-muted-foreground font-mono">{item.count}×</span>
-      {actionLabel && onAction && (
+      {!wasAutoExecuted && actionLabel && onAction && (
         <Button
           size="icon"
           variant="ghost"
@@ -209,6 +245,8 @@ export function TrendAnalysisPanel() {
   const [latestRunId, setLatestRunId] = useState<string | undefined>(undefined);
   const [batchRunning, setBatchRunning] = useState(false);
   const [actingKeys, setActingKeys] = useState<Set<string>>(new Set());
+  const [autoMode, setAutoMode] = useState(false);
+  const [autoExecuted, setAutoExecuted] = useState<string[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -236,6 +274,45 @@ export function TrendAnalysisPanel() {
     load();
     return () => { cancelled = true; };
   }, []);
+
+  // ── Auto Mode: execute critical issues with confidence > 85 ───────────────────
+
+  useEffect(() => {
+    if (!autoMode || !trends || loading) return;
+
+    const candidates = [
+      ...trends.recurring,
+      ...trends.unresolved,
+    ].filter(
+      (item) => item.confidence > 85 && item.severity === 'critical',
+    );
+
+    if (candidates.length === 0) {
+      toast.info('Auto Mode: no critical issues with confidence > 85% found');
+      return;
+    }
+
+    let active = true;
+    (async () => {
+      const executed: string[] = [];
+      for (const item of candidates) {
+        if (!active) break;
+        try {
+          await executeIssue(toActionIssue(item), latestRunId);
+          executed.push(item.key);
+        } catch {
+          // non-fatal — continue batch
+        }
+      }
+      if (active) {
+        setAutoExecuted(executed);
+        toast.success(`Auto Mode: ${executed.length} critical issue${executed.length !== 1 ? 's' : ''} auto-executed`);
+      }
+    })();
+
+    return () => { active = false; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoMode, trends?.recurring.length, trends?.unresolved.length, loading]);
 
   // ── Action handlers ──────────────────────────────────────────────────────────
 
@@ -324,7 +401,28 @@ export function TrendAnalysisPanel() {
           </span>
         )}
         {loading && <span className="w-3 h-3 rounded-full border-2 border-muted-foreground border-t-transparent animate-spin" />}
+        <Button
+          size="sm"
+          variant={autoMode ? 'default' : 'outline'}
+          className={cn('ml-auto h-6 text-[10px] px-2 gap-1', autoMode && 'bg-primary text-primary-foreground')}
+          onClick={() => {
+            setAutoMode((v) => !v);
+            if (autoMode) setAutoExecuted([]);
+          }}
+          title="Auto Mode: automatically executes critical issues with confidence > 85%"
+        >
+          <Bot className="w-3 h-3" />
+          Auto
+          {autoMode && <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />}
+        </Button>
       </div>
+
+      {autoMode && autoExecuted.length > 0 && (
+        <div className="rounded-md border border-green-400/30 bg-green-500/5 px-3 py-1.5 text-[11px] text-green-700 flex items-center gap-1.5">
+          <Bot className="w-3 h-3 shrink-0" />
+          Auto-executed {autoExecuted.length} critical issue{autoExecuted.length !== 1 ? 's' : ''} with confidence &gt; 85%.
+        </div>
+      )}
 
       {loading ? (
         <div className="space-y-2">
@@ -376,6 +474,7 @@ export function TrendAnalysisPanel() {
                       actionLabel={s.rowActionLabel}
                       onAction={s.onRowAction ? () => s.onRowAction!(item) : undefined}
                       acting={actingKeys.has(item.key)}
+                      wasAutoExecuted={autoExecuted.includes(item.key)}
                     />
                   ))}
                   {s.items.length > 10 && (

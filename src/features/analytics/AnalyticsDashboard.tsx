@@ -4,6 +4,7 @@ import { SystemMetricsPanel } from './SystemMetricsPanel';
 import { ExecutionHistoryPanel } from './ExecutionHistoryPanel';
 import { SystemHealthChart } from './SystemHealthChart';
 import { TrendAnalysisPanel } from './TrendAnalysisPanel';
+import { SystemInsightPanel } from './SystemInsightPanel';
 
 export function AnalyticsDashboard() {
   return (
@@ -32,6 +33,13 @@ export function AnalyticsDashboard() {
         </div>
         <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
           <TrendAnalysisPanel />
+        </div>
+      </div>
+
+      {/* Row 3: System Insight */}
+      <div className="grid grid-cols-1 gap-4">
+        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+          <SystemInsightPanel />
         </div>
       </div>
     </div>
