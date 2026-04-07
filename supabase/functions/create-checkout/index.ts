@@ -276,7 +276,7 @@ serve(async (req) => {
 
     // Log success
     try {
-      await supabase.from("activity_logs").insert({
+      await (supabase as any).from("activity_logs").insert({
         log_type: "info",
         category: "order",
         message: "Checkout session created",
