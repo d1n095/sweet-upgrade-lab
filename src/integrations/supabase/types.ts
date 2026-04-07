@@ -3841,9 +3841,9 @@ export type Database = {
           ai_confidence: string | null
           ai_detected: boolean | null
           ai_overrides: Json | null
-          pre_verify_at: string | null
-          pre_verify_result: Json | null
-          pre_verify_status: string | null
+          ai_pre_verify_at: string | null
+          ai_pre_verify_result: Json | null
+          ai_pre_verify_status: string | null
           ai_resolution_notes: string | null
           ai_review_at: string | null
           ai_review_result: Json | null
@@ -3900,9 +3900,9 @@ export type Database = {
           ai_confidence?: string | null
           ai_detected?: boolean | null
           ai_overrides?: Json | null
-          pre_verify_at?: string | null
-          pre_verify_result?: Json | null
-          pre_verify_status?: string | null
+          ai_pre_verify_at?: string | null
+          ai_pre_verify_result?: Json | null
+          ai_pre_verify_status?: string | null
           ai_resolution_notes?: string | null
           ai_review_at?: string | null
           ai_review_result?: Json | null
@@ -3959,9 +3959,9 @@ export type Database = {
           ai_confidence?: string | null
           ai_detected?: boolean | null
           ai_overrides?: Json | null
-          pre_verify_at?: string | null
-          pre_verify_result?: Json | null
-          pre_verify_status?: string | null
+          ai_pre_verify_at?: string | null
+          ai_pre_verify_result?: Json | null
+          ai_pre_verify_status?: string | null
           ai_resolution_notes?: string | null
           ai_review_at?: string | null
           ai_review_result?: Json | null
