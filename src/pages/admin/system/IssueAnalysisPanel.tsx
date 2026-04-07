@@ -133,6 +133,42 @@ function useIssueFixStore(scanRunId: string | null) {
   return { fixedKeys, doneKeys, verifiedKeys, stillBrokenKeys, setInProgress, setFixed, verifyAgainstScan };
 }
 
+// ── Issue trend / history store ───────────────────────────────────────────────
+
+export type TrendLabel = 'new' | 'recurring' | 'persistent';
+
+export interface ScanAppearance {
+  scanRunId: string;
+  ts: number;
+}
+
+type HistoryStore = Record<string, ScanAppearance[]>;
+
+const HISTORY_LS_KEY = 'issue_history_v1';
+
+function loadHistory(): HistoryStore {
+  try {
+    const raw = localStorage.getItem(HISTORY_LS_KEY);
+    return raw ? (JSON.parse(raw) as HistoryStore) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveHistory(h: HistoryStore): void {
+  try {
+    localStorage.setItem(HISTORY_LS_KEY, JSON.stringify(h));
+  } catch {
+    // storage unavailable
+  }
+}
+
+function deriveTrend(count: number): TrendLabel {
+  if (count >= 4) return 'persistent';
+  if (count >= 2) return 'recurring';
+  return 'new';
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface ParsedIssue {
@@ -186,6 +222,48 @@ export interface RootCauseGroup {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+function useIssueTrendStore() {
+  const [history, setHistory] = useState<HistoryStore>(() => loadHistory());
+
+  /** Record all issues from a scan run. Safe to call for every scan load. */
+  const recordScan = useCallback((scanRunId: string, issues: Array<{ _sig: string }>) => {
+    setHistory(prev => {
+      let changed = false;
+      const next = { ...prev };
+      for (const { _sig: sig } of issues) {
+        const existing = next[sig] ?? [];
+        if (existing.some(e => e.scanRunId === scanRunId)) continue;
+        next[sig] = [...existing, { scanRunId, ts: Date.now() }];
+        changed = true;
+      }
+      if (changed) saveHistory(next);
+      return changed ? next : prev;
+    });
+  }, []);
+
+  /** sig → TrendLabel derived from how many scan runs the sig appeared in */
+  const trendMap = useMemo(() => {
+    const m = new Map<string, TrendLabel>();
+    for (const [sig, appearances] of Object.entries(history)) {
+      m.set(sig, deriveTrend(appearances.length));
+    }
+    return m;
+  }, [history]);
+
+  /** sig → sorted appearances (oldest first) */
+  const historyMap = useMemo(() => {
+    const m = new Map<string, ScanAppearance[]>();
+    for (const [sig, appearances] of Object.entries(history)) {
+      m.set(sig, appearances);
+    }
+    return m;
+  }, [history]);
+
+  return { recordScan, trendMap, historyMap };
+}
+
+// ── Pure helpers ──────────────────────────────────────────────────────────────
 
 function normalizeSeverity(v: string | undefined): ParsedIssue['severity'] {
   const s = (v ?? '').toLowerCase();
@@ -528,6 +606,21 @@ function SeverityBadge({ severity }: { severity: ParsedIssue['severity'] }) {
   );
 }
 
+const TREND_CONFIG: Record<TrendLabel, { emoji: string; label: string; cls: string }> = {
+  new:        { emoji: '🆕', label: 'New',        cls: 'text-blue-400 border-blue-400/30 bg-blue-400/10' },
+  recurring:  { emoji: '🔁', label: 'Recurring',  cls: 'text-orange-400 border-orange-400/30 bg-orange-400/10' },
+  persistent: { emoji: '🔥', label: 'Persistent', cls: 'text-red-500 border-red-500/30 bg-red-500/10' },
+};
+
+function TrendBadge({ trend }: { trend: TrendLabel }) {
+  const c = TREND_CONFIG[trend];
+  return (
+    <span className={cn('text-[9px] font-medium border rounded px-1 py-0.5 flex items-center gap-0.5 shrink-0', c.cls)}>
+      {c.emoji} {c.label}
+    </span>
+  );
+}
+
 // ── Detail Panel ──────────────────────────────────────────────────────────────
 
 function IssueDetailPanel({
@@ -540,6 +633,8 @@ function IssueDetailPanel({
   isVerified = false,
   isStillBroken = false,
   highlightFix = false,
+  trend,
+  history,
 }: {
   issue: ParsedIssue;
   onClose: () => void;
@@ -550,9 +645,12 @@ function IssueDetailPanel({
   isVerified?: boolean;
   isStillBroken?: boolean;
   highlightFix?: boolean;
+  trend?: TrendLabel;
+  history?: ScanAppearance[];
 }) {
   const [adding, setAdding] = useState(false);
   const [showFile, setShowFile] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [copied, setCopied] = useState(false);
   const fixRef = useRef<HTMLDivElement>(null);
 
@@ -590,6 +688,7 @@ function IssueDetailPanel({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <SeverityBadge severity={issue.severity} />
+            {trend && <TrendBadge trend={trend} />}
             {isStillBroken && (
               <span className="text-[10px] font-medium flex items-center gap-1 text-red-500">
                 <XCircle className="w-3 h-3" />
@@ -649,6 +748,29 @@ function IssueDetailPanel({
           ))}
         </ol>
       </section>
+
+      {/* History — collapsible */}
+      {history && history.length > 0 && (
+        <section className="space-y-1">
+          <button
+            className="text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+            onClick={() => setShowHistory(v => !v)}
+          >
+            🕐 {showHistory ? 'Hide history' : `View history (${history.length} scan${history.length !== 1 ? 's' : ''})`}
+            {showHistory ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+          </button>
+          {showHistory && (
+            <ul className="space-y-1 pl-1">
+              {history.map((h, i) => (
+                <li key={i} className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                  <span className="font-mono text-foreground/60">{new Date(h.ts).toLocaleDateString()}</span>
+                  <span className="font-mono truncate max-w-[120px]">{h.scanRunId.slice(0, 8)}…</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
 
       {/* File path — collapsible */}
       {issue.file && (
@@ -742,6 +864,8 @@ function RootCauseCard({
   doneKeys,
   verifiedKeys,
   stillBrokenKeys,
+  trendMap,
+  multiFileSet,
 }: {
   group: RootCauseGroup;
   selectedKey: string | null;
@@ -752,6 +876,8 @@ function RootCauseCard({
   doneKeys: Set<string>;
   verifiedKeys: Set<string>;
   stillBrokenKeys: Set<string>;
+  trendMap: Map<string, TrendLabel>;
+  multiFileSet: Set<string>;
 }) {
   const [expanded, setExpanded] = useState(isTop);
   const [ctaPulsing, setCtaPulsing] = useState(false);
@@ -833,6 +959,8 @@ function RootCauseCard({
             const done       = doneKeys.has(issue._key);
             const verified   = verifiedKeys.has(issue._key);
             const stillBroken = stillBrokenKeys.has(issue._key);
+            const trend      = trendMap.get(issue._sig);
+            const isMultiFile = !!(issue.file || issue.path) && multiFileSet.has(issue.file || issue.path);
             return (
               <button
                 key={issue._key}
@@ -860,17 +988,23 @@ function RootCauseCard({
                   )}>
                     {issue.title}
                   </p>
+                  {isMultiFile && !fixed && (
+                    <p className="text-[9px] text-yellow-500/80 mt-0.5">⚠ Multiple issues in this area</p>
+                  )}
                 </div>
-                {stillBroken
-                  ? <span className="text-[9px] font-medium shrink-0 text-red-500">❌ Still broken</span>
-                  : verified
-                    ? <span className="text-[9px] font-medium shrink-0 text-green-500">✔ Verified</span>
-                    : fixed
-                      ? <span className={cn('text-[9px] font-medium shrink-0', done ? 'text-green-500' : 'text-muted-foreground')}>
-                          {done ? '✔ Fixed' : 'In progress…'}
-                        </span>
-                      : <ChevronRight className={cn('w-3 h-3 shrink-0 mt-0.5 text-muted-foreground transition-transform', selectedKey === issue._key && 'rotate-90')} />
-                }
+                <div className="flex items-center gap-1 shrink-0">
+                  {trend && !fixed && <TrendBadge trend={trend} />}
+                  {stillBroken
+                    ? <span className="text-[9px] font-medium text-red-500">❌ Still broken</span>
+                    : verified
+                      ? <span className="text-[9px] font-medium text-green-500">✔ Verified</span>
+                      : fixed
+                        ? <span className={cn('text-[9px] font-medium', done ? 'text-green-500' : 'text-muted-foreground')}>
+                            {done ? '✔ Fixed' : 'In progress…'}
+                          </span>
+                        : <ChevronRight className={cn('w-3 h-3 text-muted-foreground transition-transform', selectedKey === issue._key && 'rotate-90')} />
+                  }
+                </div>
               </button>
             );
           })}
@@ -896,6 +1030,7 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
   const [celebrationMsg, setCelebrationMsg] = useState<string | null>(null);
 
   const { fixedKeys, doneKeys, verifiedKeys, stillBrokenKeys, setInProgress, setFixed, verifyAgainstScan } = useIssueFixStore(scanRunId);
+  const { recordScan, trendMap, historyMap } = useIssueTrendStore();
 
   const detailRef = useRef<HTMLDivElement>(null);
   const prevCriticalDoneCount = useRef(0);
@@ -914,9 +1049,45 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
     prevScanRunIdRef.current = scanRunId;
   }, [scanRunId, issues, verifyAgainstScan]);
 
+  // Record every issue that appears in the current scan run (for trend tracking)
+  useEffect(() => {
+    if (scanRunId && issues.length > 0) {
+      recordScan(scanRunId, issues);
+    }
+  }, [scanRunId, issues, recordScan]);
+
+  // Files that have more than one issue — used to show "Multiple issues in this area"
+  const multiFileSet = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const issue of issues) {
+      const f = (issue.file || issue.path || '').trim();
+      if (f) counts.set(f, (counts.get(f) ?? 0) + 1);
+    }
+    const s = new Set<string>();
+    for (const [f, c] of counts) if (c > 1) s.add(f);
+    return s;
+  }, [issues]);
+
+  // Priority-boosted groups: critical + recurring/persistent float to the very top
+  const boostedGroups = useMemo(() => {
+    if (trendMap.size === 0) return groups;
+    return [...groups].sort((a, b) => {
+      const rankA = SEVERITY_RANK[a.severity];
+      const rankB = SEVERITY_RANK[b.severity];
+      if (rankA !== rankB) return rankB - rankA;
+      // Within same severity, push critical groups that contain recurring/persistent issues first
+      if (a.severity === 'critical') {
+        const aBoost = a.symptoms.some(s => { const t = trendMap.get(s._sig); return t === 'recurring' || t === 'persistent'; }) ? 1 : 0;
+        const bBoost = b.symptoms.some(s => { const t = trendMap.get(s._sig); return t === 'recurring' || t === 'persistent'; }) ? 1 : 0;
+        if (bBoost !== aBoost) return bBoost - aBoost;
+      }
+      return b.total_impact - a.total_impact;
+    });
+  }, [groups, trendMap]);
+
   const criticalIssues = useMemo(
-    () => groups.filter(g => g.severity === 'critical').flatMap(g => g.symptoms),
-    [groups],
+    () => boostedGroups.filter(g => g.severity === 'critical').flatMap(g => g.symptoms),
+    [boostedGroups],
   );
   const criticalFixed = criticalIssues.filter(i => fixedKeys.has(i._key)).length;
   const criticalDone  = criticalIssues.filter(i => doneKeys.has(i._key)).length;
@@ -927,9 +1098,9 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
   const totalIssues = issues.length;
   const addressedCount = fixedKeys.size;
 
-  const topGroup   = groups[0] ?? null;
-  const nextGroups = groups.slice(1, 3);
-  const restGroups = groups.slice(3);
+  const topGroup   = boostedGroups[0] ?? null;
+  const nextGroups = boostedGroups.slice(1, 3);
+  const restGroups = boostedGroups.slice(3);
 
   // Show "Next issue ready" when at least one group is done and a next group exists with unfixed issues
   const showNextReady = doneKeys.size > 0 && nextGroups.some(g => !g.symptoms.every(s => fixedKeys.has(s._key)));
@@ -1066,6 +1237,8 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
                     doneKeys={doneKeys}
                     verifiedKeys={verifiedKeys}
                     stillBrokenKeys={stillBrokenKeys}
+                    trendMap={trendMap}
+                    multiFileSet={multiFileSet}
                   />
                 </div>
               )}
@@ -1093,6 +1266,8 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
                       doneKeys={doneKeys}
                       verifiedKeys={verifiedKeys}
                       stillBrokenKeys={stillBrokenKeys}
+                      trendMap={trendMap}
+                      multiFileSet={multiFileSet}
                     />
                   ))}
                 </div>
@@ -1111,6 +1286,8 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
                       doneKeys={doneKeys}
                       verifiedKeys={verifiedKeys}
                       stillBrokenKeys={stillBrokenKeys}
+                      trendMap={trendMap}
+                      multiFileSet={multiFileSet}
                     />
                   ))}
                   <button
@@ -1136,6 +1313,8 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
                   isVerified={verifiedKeys.has(selectedIssue._key)}
                   isStillBroken={stillBrokenKeys.has(selectedIssue._key)}
                   highlightFix={highlightFixKey === selectedIssue._key}
+                  trend={trendMap.get(selectedIssue._sig)}
+                  history={historyMap.get(selectedIssue._sig)}
                 />
               </div>
             )}
