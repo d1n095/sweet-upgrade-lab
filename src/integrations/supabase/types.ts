@@ -1388,6 +1388,30 @@ export type Database = {
         }
         Relationships: []
       }
+      issue_history: {
+        Row: {
+          id: string
+          signature: string
+          scan_run_id: string
+          timestamp: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          signature: string
+          scan_run_id: string
+          timestamp: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          signature?: string
+          scan_run_id?: string
+          timestamp?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
       legal_document_versions: {
         Row: {
           content_en: string

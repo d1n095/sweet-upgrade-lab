@@ -3,6 +3,7 @@ import { AlertTriangle, Bug, CheckCircle, ChevronDown, ChevronRight, Copy, FileT
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { createWorkItemWithDedup } from '@/utils/workItemDedup';
+import { supabase } from '@/integrations/supabase/client';
 
 // ── Persisted fix store ────────────────────────────────────────────────────────
 
@@ -223,21 +224,100 @@ export interface RootCauseGroup {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+// ── DB helpers for issue_history ─────────────────────────────────────────────
+
+/** Insert a single (signature, scan_run_id) row into the DB. Idempotent via upsert. */
+async function dbSaveAppearance(sig: string, scanRunId: string, ts: number): Promise<void> {
+  try {
+    await (supabase as any)
+      .from('issue_history')
+      .upsert(
+        { signature: sig, scan_run_id: scanRunId, timestamp: ts },
+        { onConflict: 'signature,scan_run_id' },
+      );
+  } catch {
+    // DB unavailable — localStorage fallback already written
+  }
+}
+
+/**
+ * Fetch all issue_history rows matching the given signatures.
+ * Returns a HistoryStore built from DB rows, or null on failure.
+ */
+async function dbLoadAppearances(sigs: string[]): Promise<HistoryStore | null> {
+  if (sigs.length === 0) return {};
+  try {
+    const { data, error } = await (supabase as any)
+      .from('issue_history')
+      .select('signature, scan_run_id, timestamp')
+      .in('signature', sigs);
+    if (error || !data) return null;
+    const store: HistoryStore = {};
+    for (const row of data as Array<{ signature: string; scan_run_id: string; timestamp: number }>) {
+      const list = store[row.signature] ?? [];
+      if (!list.some(e => e.scanRunId === row.scan_run_id)) {
+        list.push({ scanRunId: row.scan_run_id, ts: row.timestamp });
+      }
+      store[row.signature] = list;
+    }
+    return store;
+  } catch {
+    return null;
+  }
+}
+
+// ── Hook ──────────────────────────────────────────────────────────────────────
+
 function useIssueTrendStore() {
   const [history, setHistory] = useState<HistoryStore>(() => loadHistory());
 
-  /** Record all issues from a scan run. Safe to call for every scan load. */
+  /**
+   * Fetch DB rows for the given signatures and merge them into local state.
+   * Falls back silently — localStorage data is always available immediately.
+   */
+  const loadFromDb = useCallback(async (sigs: string[]) => {
+    const dbStore = await dbLoadAppearances(sigs);
+    if (!dbStore) return; // DB unavailable — keep localStorage data
+    setHistory(prev => {
+      // Merge: DB is the authoritative source; include any LS entries not yet in DB
+      const merged: HistoryStore = { ...prev };
+      for (const [sig, dbList] of Object.entries(dbStore)) {
+        const localList = prev[sig] ?? [];
+        const combined = [...dbList];
+        for (const localEntry of localList) {
+          if (!combined.some(e => e.scanRunId === localEntry.scanRunId)) {
+            combined.push(localEntry);
+          }
+        }
+        merged[sig] = combined;
+      }
+      // Persist merged result back to localStorage
+      saveHistory(merged);
+      return merged;
+    });
+  }, []);
+
+  /** Record all issues from a scan run. Writes to localStorage immediately, DB async. */
   const recordScan = useCallback((scanRunId: string, issues: Array<{ _sig: string }>) => {
     setHistory(prev => {
       let changed = false;
       const next = { ...prev };
+      const newEntries: Array<{ sig: string; ts: number }> = [];
       for (const { _sig: sig } of issues) {
         const existing = next[sig] ?? [];
         if (existing.some(e => e.scanRunId === scanRunId)) continue;
-        next[sig] = [...existing, { scanRunId, ts: Date.now() }];
+        const ts = Date.now();
+        next[sig] = [...existing, { scanRunId, ts }];
+        newEntries.push({ sig, ts });
         changed = true;
       }
-      if (changed) saveHistory(next);
+      if (changed) {
+        saveHistory(next);
+        // Fire-and-forget DB writes for each new entry
+        for (const { sig, ts } of newEntries) {
+          dbSaveAppearance(sig, scanRunId, ts);
+        }
+      }
       return changed ? next : prev;
     });
   }, []);
@@ -260,7 +340,7 @@ function useIssueTrendStore() {
     return m;
   }, [history]);
 
-  return { recordScan, trendMap, historyMap };
+  return { recordScan, loadFromDb, trendMap, historyMap };
 }
 
 // ── Pure helpers ──────────────────────────────────────────────────────────────
@@ -1030,7 +1110,7 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
   const [celebrationMsg, setCelebrationMsg] = useState<string | null>(null);
 
   const { fixedKeys, doneKeys, verifiedKeys, stillBrokenKeys, setInProgress, setFixed, verifyAgainstScan } = useIssueFixStore(scanRunId);
-  const { recordScan, trendMap, historyMap } = useIssueTrendStore();
+  const { recordScan, loadFromDb, trendMap, historyMap } = useIssueTrendStore();
 
   const detailRef = useRef<HTMLDivElement>(null);
   const prevCriticalDoneCount = useRef(0);
@@ -1055,6 +1135,14 @@ export function IssueAnalysisPanel({ scanRunId, unifiedResult }: IssueAnalysisPa
       recordScan(scanRunId, issues);
     }
   }, [scanRunId, issues, recordScan]);
+
+  // Load DB history for the current set of issue signatures and merge into local state
+  useEffect(() => {
+    if (issues.length > 0) {
+      const sigs = [...new Set(issues.map(i => i._sig))];
+      loadFromDb(sigs);
+    }
+  }, [scanRunId, issues, loadFromDb]);
 
   // Files that have more than one issue — used to show "Multiple issues in this area"
   const multiFileSet = useMemo(() => {
