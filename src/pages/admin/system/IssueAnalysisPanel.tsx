@@ -229,7 +229,7 @@ export interface RootCauseGroup {
 /** Insert a single (signature, scan_run_id) row into the DB. Idempotent via upsert. */
 async function dbSaveAppearance(sig: string, scanRunId: string, ts: number): Promise<void> {
   try {
-    await (supabase as any)
+    await supabase
       .from('issue_history')
       .upsert(
         { signature: sig, scan_run_id: scanRunId, timestamp: ts },
@@ -247,13 +247,13 @@ async function dbSaveAppearance(sig: string, scanRunId: string, ts: number): Pro
 async function dbLoadAppearances(sigs: string[]): Promise<HistoryStore | null> {
   if (sigs.length === 0) return {};
   try {
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from('issue_history')
       .select('signature, scan_run_id, timestamp')
       .in('signature', sigs);
     if (error || !data) return null;
     const store: HistoryStore = {};
-    for (const row of data as Array<{ signature: string; scan_run_id: string; timestamp: number }>) {
+    for (const row of data) {
       const list = store[row.signature] ?? [];
       if (!list.some(e => e.scanRunId === row.scan_run_id)) {
         list.push({ scanRunId: row.scan_run_id, ts: row.timestamp });
