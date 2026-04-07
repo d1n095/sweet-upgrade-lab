@@ -247,6 +247,7 @@ export function TrendAnalysisPanel() {
   const [actingKeys, setActingKeys] = useState<Set<string>>(new Set());
   const [autoMode, setAutoMode] = useState(false);
   const [autoExecuted, setAutoExecuted] = useState<string[]>([]);
+  const autoExecutingRef = React.useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -279,6 +280,8 @@ export function TrendAnalysisPanel() {
 
   useEffect(() => {
     if (!autoMode || !trends || loading) return;
+    // Guard against concurrent executions (e.g. rapid toggle or trends update during run)
+    if (autoExecutingRef.current) return;
 
     const candidates = [
       ...trends.recurring,
@@ -292,6 +295,7 @@ export function TrendAnalysisPanel() {
       return;
     }
 
+    autoExecutingRef.current = true;
     let active = true;
     (async () => {
       const executed: string[] = [];
@@ -304,15 +308,15 @@ export function TrendAnalysisPanel() {
           // non-fatal — continue batch
         }
       }
+      autoExecutingRef.current = false;
       if (active) {
         setAutoExecuted(executed);
         toast.success(`Auto Mode: ${executed.length} critical issue${executed.length !== 1 ? 's' : ''} auto-executed`);
       }
     })();
 
-    return () => { active = false; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoMode, trends?.recurring.length, trends?.unresolved.length, loading]);
+    return () => { active = false; autoExecutingRef.current = false; };
+  }, [autoMode, trends, latestRunId, loading]);
 
   // ── Action handlers ──────────────────────────────────────────────────────────
 
