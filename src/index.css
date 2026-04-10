@@ -131,6 +131,19 @@
     scroll-behavior: smooth;
   }
 
+  html[data-preview-clean='true'] {
+    scroll-behavior: auto;
+  }
+
+  html[data-preview-clean='true'] *,
+  html[data-preview-clean='true'] *::before,
+  html[data-preview-clean='true'] *::after {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+    transition-duration: 0s !important;
+    transition-delay: 0s !important;
+  }
+
   body {
     @apply bg-background text-foreground antialiased;
     font-family: 'Inter', system-ui, sans-serif;

@@ -38,6 +38,7 @@ import MaintenanceGuard from "./components/guards/MaintenanceGuard";
 import MiniWorkbench from "./components/admin/MiniWorkbench";
 import { usePageVisibility, ToggleablePage } from "./stores/pageVisibilityStore";
 import { useAdminRole } from "./hooks/useAdminRole";
+import { usePreviewCleanMode } from "./hooks/usePreviewCleanMode";
 
 // Admin
 import AdminLayout from "./pages/admin/AdminLayout";
@@ -86,97 +87,100 @@ const PageGuard = ({ pageId, children }: { pageId: ToggleablePage; children: Rea
   return <>{children}</>;
 };
 
-const App = () => (
-  <HelmetProvider>
-  <QueryClientProvider client={queryClient}>
-    <LanguageProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <ScrollToTop />
-          <MaintenanceGuard>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/shop" element={<Navigate to="/produkter" replace />} />
-              <Route path="/products" element={<Navigate to="/produkter" replace />} />
-              <Route path="/produkter" element={<Produkter />} />
-              <Route path="/product/:handle" element={<ProductDetail />} />
-              <Route path="/about" element={<AboutUs />} />
-              <Route path="/contact" element={<Contact />} />
-              <Route path="/track-order" element={<TrackOrder />} />
-              <Route path="/checkout" element={<Checkout />} />
-              <Route path="/order-confirmation" element={<OrderConfirmation />} />
-              <Route path="/order/:id" element={<OrderDetail />} />
-              
-              <Route path="/cbd" element={<CBD />} />
-              <Route path="/policies/returns" element={<ReturnsPolicy />} />
-              <Route path="/policies/shipping" element={<ShippingPolicy />} />
-              <Route path="/policies/privacy" element={<PrivacyPolicy />} />
-              <Route path="/policies/terms" element={<TermsConditions />} />
-              <Route path="/profile" element={<MemberProfile />} />
-              <Route path="/affiliate" element={<PageGuard pageId="affiliate"><AffiliateLanding /></PageGuard>} />
-              <Route path="/business" element={<PageGuard pageId="business"><Business /></PageGuard>} />
-              <Route path="/suggest-product" element={<PageGuard pageId="suggest-product"><SuggestProduct /></PageGuard>} />
-              <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="/whats-new" element={<PageGuard pageId="whats-new"><WhatsNew /></PageGuard>} />
-              <Route path="/donations" element={<Navigate to="/" replace />} />
-              <Route path="/balance" element={<BalancePage />} />
-              <Route path="/affiliate-panel" element={<AffiliatePanel />} />
-              <Route path="/donations-panel" element={<Navigate to="/" replace />} />
-              <Route path="/r/:code" element={<ReferralLanding />} />
+const App = () => {
+  const isPreviewCleanMode = usePreviewCleanMode();
 
-              <Route path="/admin" element={<AdminLayout />}>
-                <Route index element={<AdminOverview />} />
-                <Route path="ops" element={<AdminOps />} />
-                <Route path="growth" element={<AdminGrowth />} />
-                <Route path="orders" element={<AdminOrders />} />
-                <Route path="pos" element={<AdminPOS />} />
-                <Route path="products" element={<AdminProducts />} />
-                <Route path="categories" element={<AdminCategories />} />
-                <Route path="members" element={<AdminMembers />} />
-                <Route path="partners" element={<AdminPartners />} />
-                <Route path="communication" element={<Navigate to="/admin/content" replace />} />
-                <Route path="updates" element={<Navigate to="/admin/content" replace />} />
-                <Route path="visibility" element={<Navigate to="/admin/settings" replace />} />
-                <Route path="content" element={<AdminContent />} />
-                <Route path="campaigns" element={<AdminCampaigns />} />
-                <Route path="shipping" element={<AdminShipping />} />
-                <Route path="seo" element={<AdminSEO />} />
-                <Route path="legal" element={<AdminLegal />} />
-                <Route path="settings" element={<AdminSettingsPage />} />
-                <Route path="stats" element={<AdminStats />} />
-                <Route path="reviews" element={<AdminReviews />} />
-                <Route path="logs" element={<AdminLogs />} />
-                <Route path="incidents" element={<AdminIncidents />} />
-                <Route path="finance" element={<AdminPayments />} />
-                <Route path="payments" element={<AdminPayments />} />
-                <Route path="donations" element={<AdminDonations />} />
-                <Route path="staff" element={<AdminStaff />} />
-                <Route path="insights" element={<AdminInsights />} />
-                <Route path="data" element={<AdminData />} />
-                <Route path="history" element={<AdminHistory />} />
-                <Route path="changes" element={<AdminChangeHistory />} />
-                <Route path="database" element={<AdminDatabase />} />
-                <Route path="warehouse" element={<ScanPackingMode />} />
-                <Route path="overview" element={<SystemOverview />} />
-                <Route path="system-explorer" element={<SystemExplorer />} />
-                <Route path="debug" element={<AdminDebug />} />
-                <Route path="ai" element={<Navigate to="/admin/system-explorer" replace />} />
-                <Route path="security" element={<AdminSecurity />} />
-              </Route>
+  return (
+    <HelmetProvider>
+      <QueryClientProvider client={queryClient}>
+        <LanguageProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <ScrollToTop />
+              <MaintenanceGuard>
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/shop" element={<Navigate to="/produkter" replace />} />
+                  <Route path="/products" element={<Navigate to="/produkter" replace />} />
+                  <Route path="/produkter" element={<Produkter />} />
+                  <Route path="/product/:handle" element={<ProductDetail />} />
+                  <Route path="/about" element={<AboutUs />} />
+                  <Route path="/contact" element={<Contact />} />
+                  <Route path="/track-order" element={<TrackOrder />} />
+                  <Route path="/checkout" element={<Checkout />} />
+                  <Route path="/order-confirmation" element={<OrderConfirmation />} />
+                  <Route path="/order/:id" element={<OrderDetail />} />
 
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </MaintenanceGuard>
-          <CookieBanner />
-          <MiniWorkbench />
-        </BrowserRouter>
-      </TooltipProvider>
-    </LanguageProvider>
-  </QueryClientProvider>
-  </HelmetProvider>
-);
+                  <Route path="/cbd" element={<CBD />} />
+                  <Route path="/policies/returns" element={<ReturnsPolicy />} />
+                  <Route path="/policies/shipping" element={<ShippingPolicy />} />
+                  <Route path="/policies/privacy" element={<PrivacyPolicy />} />
+                  <Route path="/policies/terms" element={<TermsConditions />} />
+                  <Route path="/profile" element={<MemberProfile />} />
+                  <Route path="/affiliate" element={<PageGuard pageId="affiliate"><AffiliateLanding /></PageGuard>} />
+                  <Route path="/business" element={<PageGuard pageId="business"><Business /></PageGuard>} />
+                  <Route path="/suggest-product" element={<PageGuard pageId="suggest-product"><SuggestProduct /></PageGuard>} />
+                  <Route path="/reset-password" element={<ResetPassword />} />
+                  <Route path="/whats-new" element={<PageGuard pageId="whats-new"><WhatsNew /></PageGuard>} />
+                  <Route path="/donations" element={<Navigate to="/" replace />} />
+                  <Route path="/balance" element={<BalancePage />} />
+                  <Route path="/affiliate-panel" element={<AffiliatePanel />} />
+                  <Route path="/donations-panel" element={<Navigate to="/" replace />} />
+                  <Route path="/r/:code" element={<ReferralLanding />} />
+
+                  <Route path="/admin" element={<AdminLayout />}>
+                    <Route index element={<AdminOverview />} />
+                    <Route path="ops" element={<AdminOps />} />
+                    <Route path="growth" element={<AdminGrowth />} />
+                    <Route path="orders" element={<AdminOrders />} />
+                    <Route path="pos" element={<AdminPOS />} />
+                    <Route path="products" element={<AdminProducts />} />
+                    <Route path="categories" element={<AdminCategories />} />
+                    <Route path="members" element={<AdminMembers />} />
+                    <Route path="partners" element={<AdminPartners />} />
+                    <Route path="communication" element={<Navigate to="/admin/content" replace />} />
+                    <Route path="updates" element={<Navigate to="/admin/content" replace />} />
+                    <Route path="visibility" element={<Navigate to="/admin/settings" replace />} />
+                    <Route path="content" element={<AdminContent />} />
+                    <Route path="campaigns" element={<AdminCampaigns />} />
+                    <Route path="shipping" element={<AdminShipping />} />
+                    <Route path="seo" element={<AdminSEO />} />
+                    <Route path="legal" element={<AdminLegal />} />
+                    <Route path="settings" element={<AdminSettingsPage />} />
+                    <Route path="stats" element={<AdminStats />} />
+                    <Route path="reviews" element={<AdminReviews />} />
+                    <Route path="logs" element={<AdminLogs />} />
+                    <Route path="incidents" element={<AdminIncidents />} />
+                    <Route path="finance" element={<AdminPayments />} />
+                    <Route path="payments" element={<AdminPayments />} />
+                    <Route path="donations" element={<AdminDonations />} />
+                    <Route path="staff" element={<AdminStaff />} />
+                    <Route path="insights" element={<AdminInsights />} />
+                    <Route path="data" element={<AdminData />} />
+                    <Route path="history" element={<AdminHistory />} />
+                    <Route path="changes" element={<AdminChangeHistory />} />
+                    <Route path="database" element={<AdminDatabase />} />
+                    <Route path="warehouse" element={<ScanPackingMode />} />
+                    <Route path="overview" element={<SystemOverview />} />
+                    <Route path="system-explorer" element={<SystemExplorer />} />
+                    <Route path="debug" element={<AdminDebug />} />
+                    <Route path="ai" element={<Navigate to="/admin/system-explorer" replace />} />
+                    <Route path="security" element={<AdminSecurity />} />
+                  </Route>
+
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </MaintenanceGuard>
+              {!isPreviewCleanMode && <CookieBanner />}
+              {!isPreviewCleanMode && <MiniWorkbench />}
+            </BrowserRouter>
+          </TooltipProvider>
+        </LanguageProvider>
+      </QueryClientProvider>
+    </HelmetProvider>
+  );
+};
 
 export default App;

@@ -14,8 +14,8 @@ import FloatingContactButton from '@/components/trust/FloatingContactButton';
 import SEOHead from '@/components/seo/SEOHead';
 import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import { usePageSections, PageSection } from '@/hooks/usePageSections';
+import { usePreviewCleanMode } from '@/hooks/usePreviewCleanMode';
 
-// Block registry: maps section_key to component
 const BLOCK_COMPONENTS: Record<string, React.ComponentType<{ sections: PageSection[]; getSection: (key: string) => PageSection | undefined; isSectionVisible: (key: string) => boolean }>> = {
   hero: Hero,
   philosophy: IngredientPhilosophy,
@@ -29,15 +29,14 @@ const BLOCK_COMPONENTS: Record<string, React.ComponentType<{ sections: PageSecti
   timeline: HomepageTimeline,
 };
 
-// Main blocks that should render (not sub-items like philosophy_step_*)
 const MAIN_BLOCK_KEYS = ['hero', 'philosophy', 'about_compact', 'bestsellers', 'reviews', 'contact', 'sustainability', 'new_products', 'values', 'timeline'];
 
 const Index = () => {
   const { language } = useLanguage();
   const lang = getContentLang(language);
   const { sections, getSection, isSectionVisible } = usePageSections('home');
+  const isPreviewCleanMode = usePreviewCleanMode();
 
-  // Sort blocks by display_order from DB, only render visible main blocks
   const orderedBlocks = sections
     .filter(s => MAIN_BLOCK_KEYS.includes(s.section_key) && s.is_visible)
     .sort((a, b) => a.display_order - b.display_order);
@@ -67,13 +66,12 @@ const Index = () => {
             />
           );
         })}
-        {/* Fallback: if no sections loaded yet, show hero */}
         {sections.length === 0 && (
           <Hero sections={[]} getSection={() => undefined} isSectionVisible={() => true} />
         )}
       </main>
       <Footer />
-      <FloatingContactButton />
+      {!isPreviewCleanMode && <FloatingContactButton />}
     </div>
   );
 };
