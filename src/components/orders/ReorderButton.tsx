@@ -71,6 +71,7 @@ const ReorderButton = ({ orderId, items, size = 'sm' }: ReorderButtonProps) => {
             variantTitle: 'Default',
             price: { amount: String(product.price), currencyCode: product.currency || 'SEK' },
             quantity: item.quantity || 1,
+            weightGrams: (product as any).weight_grams || 0,
             selectedOptions: [],
           });
           addedCount++;

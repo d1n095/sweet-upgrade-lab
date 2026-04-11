@@ -49,6 +49,7 @@ const RecentlyViewed = () => {
       variantTitle: 'Default',
       price: { amount: item.price.toString(), currencyCode: 'SEK' },
       quantity: 1,
+      weightGrams: 0,
       selectedOptions: [],
     });
 

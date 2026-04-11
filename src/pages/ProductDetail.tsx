@@ -143,6 +143,7 @@ const ProductDetail = () => {
       variantTitle,
       price: { amount: effectivePrice.toString(), currencyCode: 'SEK' },
       quantity,
+      weightGrams: product.weight_grams || 0,
       selectedOptions: variantForCart ? [{ name: 'Size', value: variantForCart.size }] : [],
     });
 

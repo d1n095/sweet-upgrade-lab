@@ -117,7 +117,7 @@ const CartDrawer = ({ isOpen, onClose }: CartDrawerProps) => {
         variants: { edges: [{ node: { id: dbVariantId(product.id), title: 'Default', availableForSale: true, price: { amount: product.price.toString(), currencyCode: 'SEK' }, selectedOptions: [] } }] },
       }
     } as any;
-    addItem({ product: cartProduct, variantId: dbVariantId(product.id), variantTitle: 'Default', price: { amount: product.price.toString(), currencyCode: 'SEK' }, quantity: 1, selectedOptions: [] });
+    addItem({ product: cartProduct, variantId: dbVariantId(product.id), variantTitle: 'Default', price: { amount: product.price.toString(), currencyCode: 'SEK' }, quantity: 1, weightGrams: 0, selectedOptions: [] });
   };
 
   return (
