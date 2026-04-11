@@ -39,6 +39,7 @@ const CartDrawer = ({ isOpen, onClose }: CartDrawerProps) => {
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const subtotal = items.reduce((sum, item) => sum + (parseFloat(item.price.amount) * item.quantity), 0);
+  const totalWeightGrams = items.reduce((sum, item) => sum + (item.weightGrams || 0) * item.quantity, 0);
   const finalTotal = getDiscountedTotal();
   const currencyCode = items[0]?.price.currencyCode || 'SEK';
 
@@ -249,7 +250,7 @@ const CartDrawer = ({ isOpen, onClose }: CartDrawerProps) => {
             {/* Sticky footer */}
             {items.length > 0 && (
               <div className="p-4 border-t border-border space-y-3 bg-card flex-shrink-0">
-                <div className="flex items-center justify-between text-lg font-bold">
+              <div className="flex items-center justify-between text-lg font-bold">
                   <span>{t.total}</span>
                   <div className="text-right">
                     <span className="text-primary">{formatPrice(finalTotal, currencyCode)}</span>
@@ -258,6 +259,11 @@ const CartDrawer = ({ isOpen, onClose }: CartDrawerProps) => {
                     )}
                   </div>
                 </div>
+                {totalWeightGrams > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {cl === 'sv' ? 'Total vikt' : 'Total weight'}: {totalWeightGrams >= 1000 ? `${(totalWeightGrams / 1000).toFixed(1)} kg` : `${totalWeightGrams} g`}
+                  </p>
+                )}
                 <Button onClick={handleCheckout} className="w-full h-12 text-base font-semibold" disabled={items.length === 0 || isLoading}>
                   <ArrowRight className="w-4 h-4 mr-2" />{t.checkout}
                 </Button>
