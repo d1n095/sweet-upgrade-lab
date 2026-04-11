@@ -44,6 +44,7 @@ export interface CartItem {
     currencyCode: string;
   };
   quantity: number;
+  weightGrams: number;
   selectedOptions: Array<{
     name: string;
     value: string;
