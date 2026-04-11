@@ -132,7 +132,12 @@ const Checkout = () => {
     items.reduce((sum, item) => sum + (parseFloat(item.price.amount) * item.quantity), 0),
     [items]
   );
-  const shippingCost = subtotal >= shippingConfig.freeThreshold ? 0 : shippingConfig.cost;
+  const totalWeightGrams = useMemo(() =>
+    items.reduce((sum, item) => sum + (item.weightGrams || 0) * item.quantity, 0),
+    [items]
+  );
+  const weightShippingCost = getWeightShippingCost(totalWeightGrams);
+  const shippingCost = subtotal >= shippingConfig.freeThreshold ? 0 : weightShippingCost;
   const total = subtotal + shippingCost;
   const amountToFreeShipping = shippingConfig.freeThreshold - subtotal;
 
