@@ -440,6 +440,12 @@ const Checkout = () => {
                 <span className="text-muted-foreground">{t.subtotal}</span>
                 <span>{formatPrice(subtotal)}</span>
               </div>
+              {totalWeightGrams > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">{isSv ? 'Total vikt' : 'Total weight'}</span>
+                  <span>{totalWeightGrams >= 1000 ? `${(totalWeightGrams / 1000).toFixed(1)} kg` : `${totalWeightGrams} g`}</span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{t.shipping}</span>
                 <span className={shippingCost === 0 ? 'text-primary font-medium' : ''}>
