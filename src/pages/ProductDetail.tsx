@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ShoppingCart, Check, Loader2, Minus, Plus, Shield, RotateCcw, Truck, Share2, Languages, Sparkles, Droplets, Heart, Users, Star, Eye, Clock, Package, AlertTriangle } from 'lucide-react';
+import { ShoppingCart, Check, Loader2, Minus, Plus, Shield, RotateCcw, Truck, Share2, Languages, Sparkles, Droplets, Heart, Users, Star, Clock, Package, AlertTriangle } from 'lucide-react';
 import { useProductVariants } from '@/hooks/useProductVariants';
 import VariantSelector from '@/components/product/VariantSelector';
 import { Button } from '@/components/ui/button';
