@@ -124,6 +124,7 @@ const RelatedProducts = ({ productId, limit = 4 }: Props) => {
       variantTitle: 'Default',
       price: { amount: product.price.toString(), currencyCode: 'SEK' },
       quantity: 1,
+      weightGrams: (product as any).weight_grams || 0,
       selectedOptions: [],
     });
 

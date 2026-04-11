@@ -24,6 +24,7 @@ function makeItem(variantId: string, quantity = 1, amount = '100'): CartItem {
     variantTitle: 'Default Title',
     price: { amount, currencyCode: 'SEK' },
     quantity,
+    weightGrams: 0,
     selectedOptions: [],
   };
 }

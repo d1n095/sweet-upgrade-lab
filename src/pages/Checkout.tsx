@@ -49,6 +49,14 @@ const useShippingConfig = () => {
   return config;
 };
 
+/** Weight-based shipping: <1kg → 39kr, 1–5kg → 69kr, >5kg → 99kr */
+const getWeightShippingCost = (weightGrams: number): number => {
+  if (weightGrams <= 0) return 39; // fallback if no weight data
+  if (weightGrams < 1000) return 39;
+  if (weightGrams <= 5000) return 69;
+  return 99;
+};
+
 interface FieldErrors {
   email?: string;
   name?: string;
@@ -124,7 +132,12 @@ const Checkout = () => {
     items.reduce((sum, item) => sum + (parseFloat(item.price.amount) * item.quantity), 0),
     [items]
   );
-  const shippingCost = subtotal >= shippingConfig.freeThreshold ? 0 : shippingConfig.cost;
+  const totalWeightGrams = useMemo(() =>
+    items.reduce((sum, item) => sum + (item.weightGrams || 0) * item.quantity, 0),
+    [items]
+  );
+  const weightShippingCost = getWeightShippingCost(totalWeightGrams);
+  const shippingCost = subtotal >= shippingConfig.freeThreshold ? 0 : weightShippingCost;
   const total = subtotal + shippingCost;
   const amountToFreeShipping = shippingConfig.freeThreshold - subtotal;
 
@@ -427,6 +440,12 @@ const Checkout = () => {
                 <span className="text-muted-foreground">{t.subtotal}</span>
                 <span>{formatPrice(subtotal)}</span>
               </div>
+              {totalWeightGrams > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">{isSv ? 'Total vikt' : 'Total weight'}</span>
+                  <span>{totalWeightGrams >= 1000 ? `${(totalWeightGrams / 1000).toFixed(1)} kg` : `${totalWeightGrams} g`}</span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{t.shipping}</span>
                 <span className={shippingCost === 0 ? 'text-primary font-medium' : ''}>

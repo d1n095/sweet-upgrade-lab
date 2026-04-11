@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ShoppingCart, Check, Loader2, Minus, Plus, Shield, RotateCcw, Truck, Share2, Languages, Sparkles, Droplets, Heart, Users, Star, Eye, Clock, Package, AlertTriangle } from 'lucide-react';
+import { ShoppingCart, Check, Loader2, Minus, Plus, Shield, RotateCcw, Truck, Share2, Languages, Sparkles, Droplets, Heart, Users, Star, Clock, Package, AlertTriangle } from 'lucide-react';
 import { useProductVariants } from '@/hooks/useProductVariants';
 import VariantSelector from '@/components/product/VariantSelector';
 import { Button } from '@/components/ui/button';
@@ -66,7 +66,7 @@ const ProductDetail = () => {
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [isAdded, setIsAdded] = useState(false);
-  const [viewerCount] = useState(() => Math.floor(Math.random() * 8) + 3);
+  const [viewerCount] = useState(0); // removed fake viewer count
   const { hasPurchased } = usePurchaseHistory();
   const { variants, selectedVariant, setSelectedVariant, hasVariants } = useProductVariants(product?.id);
 
@@ -143,6 +143,7 @@ const ProductDetail = () => {
       variantTitle,
       price: { amount: effectivePrice.toString(), currencyCode: 'SEK' },
       quantity,
+      weightGrams: product.weight_grams || 0,
       selectedOptions: variantForCart ? [{ name: 'Size', value: variantForCart.size }] : [],
     });
 
@@ -334,10 +335,14 @@ const ProductDetail = () => {
                     </span>
                   </div>
                 )}
-                <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Eye className="w-3.5 h-3.5" />
-                  {viewerCount} {lang === 'sv' ? 'tittar just nu' : 'viewing now'}
-                </span>
+                {product.weight_grams && product.weight_grams > 0 && (
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Package className="w-3.5 h-3.5" />
+                    {product.weight_grams >= 1000
+                      ? `${(product.weight_grams / 1000).toFixed(1)} kg`
+                      : `${product.weight_grams} g`}
+                  </span>
+                )}
                 {product && hasPurchased(product.id) && (
                   <span className="inline-flex items-center gap-1 text-xs font-medium text-accent bg-accent/10 px-2 py-0.5 rounded-full">
                     <Check className="w-3 h-3" />

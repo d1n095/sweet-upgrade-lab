@@ -44,6 +44,7 @@ export interface CartItem {
     currencyCode: string;
   };
   quantity: number;
+  weightGrams: number;
   selectedOptions: Array<{
     name: string;
     value: string;
@@ -75,6 +76,7 @@ interface CartStore {
   setCheckoutUrl: (url: string | null) => void;
   totalItems: () => number;
   totalPrice: () => number;
+  totalWeightGrams: () => number;
 }
 
 const sanitizeItems = (rawItems: CartItem[] = []): CartItem[] => {
@@ -89,6 +91,7 @@ const sanitizeItems = (rawItems: CartItem[] = []): CartItem[] => {
     const normalized: CartItem = {
       ...raw,
       quantity,
+      weightGrams: Number.isFinite(raw.weightGrams) ? raw.weightGrams : 0,
       price: {
         amount: Number.isFinite(parsedAmount) ? parsedAmount.toString() : '0',
         currencyCode: raw.price?.currencyCode || 'SEK',
@@ -183,6 +186,7 @@ export const useCartStore = create<CartStore>()(
 
       totalItems: () => get().items.reduce((sum, item) => sum + item.quantity, 0),
       totalPrice: () => get().items.reduce((sum, item) => sum + Number.parseFloat(item.price.amount) * item.quantity, 0),
+      totalWeightGrams: () => get().items.reduce((sum, item) => sum + (item.weightGrams || 0) * item.quantity, 0),
     }),
     {
       name: 'cart',

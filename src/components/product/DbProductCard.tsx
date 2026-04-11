@@ -115,6 +115,7 @@ const DbProductCard = ({ product, index, compact = false, isPurchased = false }:
       variantTitle: 'Default',
       price: { amount: product.price.toString(), currencyCode: 'SEK' },
       quantity,
+      weightGrams: product.weight_grams || 0,
       selectedOptions: [],
     });
 
