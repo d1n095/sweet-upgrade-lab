@@ -49,6 +49,14 @@ const useShippingConfig = () => {
   return config;
 };
 
+/** Weight-based shipping: <1kg → 39kr, 1–5kg → 69kr, >5kg → 99kr */
+const getWeightShippingCost = (weightGrams: number): number => {
+  if (weightGrams <= 0) return 39; // fallback if no weight data
+  if (weightGrams < 1000) return 39;
+  if (weightGrams <= 5000) return 69;
+  return 99;
+};
+
 interface FieldErrors {
   email?: string;
   name?: string;
