@@ -36,6 +36,8 @@ const adminPages = [
   { label: 'Dashboard', keywords: ['dashboard', 'översikt', 'hem', 'start'], href: '/admin', icon: BarChart3 },
   { label: 'Ordrar', keywords: ['ordrar', 'orders', 'beställningar'], href: '/admin/orders', icon: ClipboardList },
   { label: 'Produkter', keywords: ['produkter', 'products', 'varor', 'lager'], href: '/admin/products', icon: Package },
+  { label: 'Issues', keywords: ['issues', 'ärenden', 'buggar', 'problem', 'fel'], href: '/admin/issues', icon: ClipboardList },
+  { label: 'Skanningar', keywords: ['skanningar', 'scans', 'scan', 'system'], href: '/admin/scans', icon: Activity },
   { label: 'Kategorier', keywords: ['kategorier', 'categories'], href: '/admin/categories', icon: Grid },
   { label: 'Användare', keywords: ['användare', 'members', 'kunder', 'medlemmar'], href: '/admin/members', icon: Users },
   { label: 'Recensioner', keywords: ['recensioner', 'reviews', 'omdömen'], href: '/admin/reviews', icon: Star },
@@ -181,6 +183,25 @@ const AdminGlobalSearch = () => {
                 href: '/admin/members',
               });
             }
+          }
+        }
+
+        // Search issues (work_items)
+        const { data: issues } = await supabase
+          .from('work_items')
+          .select('id, title, status, priority, item_type')
+          .ilike('title', `%${q}%`)
+          .limit(5);
+
+        if (issues) {
+          for (const issue of issues as any[]) {
+            dbResults.push({
+              type: 'order',
+              id: issue.id,
+              title: issue.title,
+              subtitle: `${issue.item_type} · ${issue.status} · ${issue.priority}`,
+              href: '/admin/issues',
+            });
           }
         }
 
