@@ -36,6 +36,8 @@ const adminPages = [
   { label: 'Dashboard', keywords: ['dashboard', 'översikt', 'hem', 'start'], href: '/admin', icon: BarChart3 },
   { label: 'Ordrar', keywords: ['ordrar', 'orders', 'beställningar'], href: '/admin/orders', icon: ClipboardList },
   { label: 'Produkter', keywords: ['produkter', 'products', 'varor', 'lager'], href: '/admin/products', icon: Package },
+  { label: 'Issues', keywords: ['issues', 'ärenden', 'buggar', 'problem', 'fel'], href: '/admin/issues', icon: ClipboardList },
+  { label: 'Skanningar', keywords: ['skanningar', 'scans', 'scan', 'system'], href: '/admin/scans', icon: Activity },
   { label: 'Kategorier', keywords: ['kategorier', 'categories'], href: '/admin/categories', icon: Grid },
   { label: 'Användare', keywords: ['användare', 'members', 'kunder', 'medlemmar'], href: '/admin/members', icon: Users },
   { label: 'Recensioner', keywords: ['recensioner', 'reviews', 'omdömen'], href: '/admin/reviews', icon: Star },
