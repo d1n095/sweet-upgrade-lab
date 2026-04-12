@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,11 +7,12 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, RefreshCw, AlertTriangle, Bug, ShieldAlert, ChevronRight, ChevronDown } from 'lucide-react';
+import { Search, RefreshCw, AlertTriangle, Bug, ShieldAlert, ChevronRight, ChevronDown, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useSearchParams } from 'react-router-dom';
 import AdminBreadcrumbs from '@/components/admin/AdminBreadcrumbs';
+import { toast } from 'sonner';
 
 const severityColors: Record<string, string> = {
   critical: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
