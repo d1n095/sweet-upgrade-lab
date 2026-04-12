@@ -47,10 +47,18 @@ interface WorkItem {
 const AdminIssues = () => {
   const [searchParams] = useSearchParams();
   const initialStatus = searchParams.get('status') || 'all';
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState(initialStatus);
   const [typeFilter, setTypeFilter] = useState('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const markAsDone = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    await supabase.from('work_items').update({ status: 'done' } as any).eq('id', id);
+    queryClient.invalidateQueries({ queryKey: ['admin-issues-list'] });
+    toast.success('Markerad som klar');
+  };
 
   const { data: items = [], isLoading, refetch } = useQuery({
     queryKey: ['admin-issues-list'],
