@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,11 +7,12 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, RefreshCw, AlertTriangle, Bug, ShieldAlert, ChevronRight, ChevronDown } from 'lucide-react';
+import { Search, RefreshCw, AlertTriangle, Bug, ShieldAlert, ChevronRight, ChevronDown, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useSearchParams } from 'react-router-dom';
 import AdminBreadcrumbs from '@/components/admin/AdminBreadcrumbs';
+import { toast } from 'sonner';
 
 const severityColors: Record<string, string> = {
   critical: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
@@ -46,10 +47,18 @@ interface WorkItem {
 const AdminIssues = () => {
   const [searchParams] = useSearchParams();
   const initialStatus = searchParams.get('status') || 'all';
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState(initialStatus);
   const [typeFilter, setTypeFilter] = useState('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const markAsDone = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    await supabase.from('work_items').update({ status: 'done' } as any).eq('id', id);
+    queryClient.invalidateQueries({ queryKey: ['admin-issues-list'] });
+    toast.success('Markerad som klar');
+  };
 
   const { data: items = [], isLoading, refetch } = useQuery({
     queryKey: ['admin-issues-list'],
@@ -183,6 +192,11 @@ const AdminIssues = () => {
                         {item.due_at && <span>Deadline: {format(new Date(item.due_at), 'dd MMM HH:mm')}</span>}
                         <span>ID: {item.id.slice(0, 8)}</span>
                       </div>
+                      {item.status !== 'done' && (
+                        <Button size="sm" variant="outline" className="gap-1.5 mt-2" onClick={(e) => markAsDone(item.id, e)}>
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Markera som klar
+                        </Button>
+                      )}
                     </div>
                   )}
                 </CardContent>

@@ -159,7 +159,7 @@ const Checkout = () => {
     shipping: isSv ? 'Frakt' : 'Shipping',
     freeShipping: isSv ? 'Fri frakt' : 'Free shipping',
     total: isSv ? 'Totalt' : 'Total',
-    payNow: isSv ? 'KÖP NU' : 'BUY NOW',
+    payNow: isSv ? 'SLUTFÖR KÖP' : 'COMPLETE PURCHASE',
     paySecurely: isSv ? 'Betala säkert' : 'Pay securely',
     backToCart: isSv ? 'Tillbaka' : 'Back',
     emptyCart: isSv ? 'Din kundvagn är tom' : 'Your cart is empty',
