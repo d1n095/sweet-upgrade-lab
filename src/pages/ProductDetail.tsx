@@ -378,7 +378,7 @@ const ProductDetail = () => {
               </div>
 
               {/* 5. URGENCY — stock status */}
-              <div className="mb-4">
+              <div className="mb-4 space-y-2">
                 {isOutOfStock ? (
                   <span className="inline-flex items-center gap-1.5 text-sm text-destructive font-medium bg-destructive/10 px-3 py-1 rounded-full">{t('product.outofstockwarning')}</span>
                 ) : availableStock <= 5 ? (
@@ -388,6 +388,10 @@ const ProductDetail = () => {
                 ) : (
                   <span className="inline-flex items-center gap-1.5 text-sm text-accent font-medium bg-accent/10 px-3 py-1 rounded-full">{t('product.instock')}</span>
                 )}
+                <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  <Truck className="w-3.5 h-3.5" />
+                  {lang === 'sv' ? 'Frakt: 39–99 kr baserat på vikt · Fri frakt över 500 kr' : 'Shipping: 39–99 SEK based on weight · Free over 500 SEK'}
+                </p>
               </div>
 
               {/* 6. EFFECTS — bullet points */}
