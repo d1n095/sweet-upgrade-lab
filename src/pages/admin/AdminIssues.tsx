@@ -192,6 +192,11 @@ const AdminIssues = () => {
                         {item.due_at && <span>Deadline: {format(new Date(item.due_at), 'dd MMM HH:mm')}</span>}
                         <span>ID: {item.id.slice(0, 8)}</span>
                       </div>
+                      {item.status !== 'done' && (
+                        <Button size="sm" variant="outline" className="gap-1.5 mt-2" onClick={(e) => markAsDone(item.id, e)}>
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Markera som klar
+                        </Button>
+                      )}
                     </div>
                   )}
                 </CardContent>
