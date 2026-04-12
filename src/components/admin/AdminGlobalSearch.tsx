@@ -186,6 +186,25 @@ const AdminGlobalSearch = () => {
           }
         }
 
+        // Search issues (work_items)
+        const { data: issues } = await supabase
+          .from('work_items')
+          .select('id, title, status, priority, item_type')
+          .ilike('title', `%${q}%`)
+          .limit(5);
+
+        if (issues) {
+          for (const issue of issues as any[]) {
+            dbResults.push({
+              type: 'order',
+              id: issue.id,
+              title: issue.title,
+              subtitle: `${issue.item_type} · ${issue.status} · ${issue.priority}`,
+              href: '/admin/issues',
+            });
+          }
+        }
+
         setResults([...pageResults, ...dbResults].slice(0, 12));
         setIsOpen(true);
       } catch (err) {
