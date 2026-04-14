@@ -2082,6 +2082,7 @@ export type Database = {
           meta_keywords: string | null
           meta_title: string | null
           original_price: number | null
+          package_weight_grams: number | null
           price: number
           recipe_en: string | null
           recipe_sv: string | null
@@ -2141,6 +2142,7 @@ export type Database = {
           meta_keywords?: string | null
           meta_title?: string | null
           original_price?: number | null
+          package_weight_grams?: number | null
           price?: number
           recipe_en?: string | null
           recipe_sv?: string | null
@@ -2200,6 +2202,7 @@ export type Database = {
           meta_keywords?: string | null
           meta_title?: string | null
           original_price?: number | null
+          package_weight_grams?: number | null
           price?: number
           recipe_en?: string | null
           recipe_sv?: string | null
