@@ -391,12 +391,14 @@ const AdminDbProductManager = () => {
     if (!selected) return;
     setIsSubmitting(true);
     try {
+      // Auto-generate SEO fields
+      const seo = generateAutoSEO(formData);
       await updateDbProduct(selected.id, {
         title_sv: formData.title,
         description_sv: formData.description || null,
         price: parseFloat(formData.price) || selected.price,
         category: formData.productType || null,
-        tags: formData.tags ? formData.tags.split(',').map(s => s.trim()).filter(Boolean) : null,
+        tags: null,
         is_visible: formData.isVisible,
         stock: formData.inventory,
         allow_overselling: formData.allowOverselling,
@@ -410,9 +412,9 @@ const AdminDbProductManager = () => {
         effects_sv: formData.effects || null,
         usage_sv: formData.usage || null,
         extended_description_sv: formData.extendedDescription || null,
-        meta_title: formData.metaTitle || null,
-        meta_description: formData.metaDescription || null,
-        meta_keywords: formData.metaKeywords || null,
+        meta_title: seo.metaTitle,
+        meta_description: seo.metaDescription,
+        meta_keywords: seo.metaKeywords,
         weight_grams: formData.weightGrams ? parseInt(formData.weightGrams) : null,
         hook_sv: formData.hook || null,
         dosage_sv: formData.dosage || null,
