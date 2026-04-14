@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { setProductCategories } from '@/lib/categories';
 import { setProductTags, fetchProductTagIds } from '@/lib/tags';
 import { setProductIngredients, fetchProductIngredients, fetchDbProducts, createDbProduct, updateDbProduct, deleteDbProduct, DbProduct, ProductStatus } from '@/lib/products';
+import { generateAutoSEO, generateSlug } from '@/components/admin/AdminProductForm';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, Package, Edit, Trash2, Loader2, AlertTriangle,
@@ -330,6 +331,9 @@ const AdminDbProductManager = () => {
     e.preventDefault();
     setIsSubmitting(true);
     try {
+      // Auto-generate SEO fields
+      const seo = generateAutoSEO(formData);
+      const slug = generateSlug(formData.title);
       const newProduct = await createDbProduct({
         title_sv: formData.title,
         title_en: null,
@@ -338,7 +342,7 @@ const AdminDbProductManager = () => {
         price: parseFloat(formData.price),
         original_price: null,
         category: formData.productType || null,
-        tags: formData.tags ? formData.tags.split(',').map(s => s.trim()).filter(Boolean) : null,
+        tags: null,
         is_visible: formData.isVisible,
         stock: formData.inventory,
         allow_overselling: formData.allowOverselling,
@@ -346,6 +350,7 @@ const AdminDbProductManager = () => {
         badge: null,
         vendor: formData.vendor || '4ThePeople',
         display_order: 0,
+        handle: slug,
         ingredients_sv: formData.ingredients || null,
         certifications: formData.certifications ? formData.certifications.split(',').map(s => s.trim()).filter(Boolean) : null,
         currency: formData.currency || 'SEK',
@@ -354,9 +359,9 @@ const AdminDbProductManager = () => {
         effects_sv: formData.effects || null,
         usage_sv: formData.usage || null,
         extended_description_sv: formData.extendedDescription || null,
-        meta_title: formData.metaTitle || null,
-        meta_description: formData.metaDescription || null,
-        meta_keywords: formData.metaKeywords || null,
+        meta_title: seo.metaTitle,
+        meta_description: seo.metaDescription,
+        meta_keywords: seo.metaKeywords,
         weight_grams: formData.weightGrams ? parseInt(formData.weightGrams) : null,
         hook_sv: formData.hook || null,
         dosage_sv: formData.dosage || null,
