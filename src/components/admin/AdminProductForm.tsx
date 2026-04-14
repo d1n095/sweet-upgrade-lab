@@ -2,10 +2,9 @@ import * as React from 'react';
 import {
   Save, Eye, EyeOff, Boxes, Minus, Plus, Upload, X, Image,
   FlaskConical, Weight, Loader2, Check, ChevronDown, ChevronRight,
-  Sparkles, Wand2, Package,
+  Package, ArrowLeft, ArrowRight,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { safeInvoke } from '@/lib/safeInvoke';
 import { useQuery } from '@tanstack/react-query';
 import { fetchCategories } from '@/lib/categories';
 import { fetchTags } from '@/lib/tags';
@@ -16,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
+import { Progress } from '@/components/ui/progress';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -49,6 +49,7 @@ export interface ProductFormData {
   metaDescription: string;
   metaKeywords: string;
   weightGrams: string;
+  packageWeightGrams: string;
   ingredientIds?: string[];
   shelfLife: string;
   material: string;
@@ -73,7 +74,7 @@ export const DEFAULT_PRODUCT_FORM_DATA: ProductFormData = {
   inventory: 0, allowOverselling: false, imageUrls: [], ingredients: '',
   certifications: '', recipe: '', feeling: '', effects: '', usage: '',
   extendedDescription: '', metaTitle: '', metaDescription: '', metaKeywords: '',
-  weightGrams: '', ingredientIds: [],
+  weightGrams: '', packageWeightGrams: '', ingredientIds: [],
   shelfLife: '', material: '', specialEffects: '', usageArea: '',
   usageStep1: '', usageStep2: '', usageStep3: '', seoMode: 'auto',
   hook: '', dosage: '', variants: '', storage: '', safety: '',
@@ -107,6 +108,31 @@ export type AdminProductFormStrings = {
   update: string;
 };
 
+// ─── Keyword auto-suggest (rule-based, NO AI) ───
+const KEYWORD_RULES: { keywords: string[]; suggestTagNames: string[] }[] = [
+  { keywords: ['menthol', 'kristall', 'mentol'], suggestTagNames: ['Bastu', 'Andning', 'Kylande', 'Uppfriskande'] },
+  { keywords: ['eukalyptus', 'eucalyptus'], suggestTagNames: ['Andning', 'Uppfriskande', 'Bastu'] },
+  { keywords: ['lavendel', 'lavender'], suggestTagNames: ['Avslappning', 'Aromaterapi'] },
+  { keywords: ['cbd', 'hampa', 'hemp'], suggestTagNames: ['CBD', 'Naturlig'] },
+  { keywords: ['olja', 'oil'], suggestTagNames: ['Olja', 'Hudvård'] },
+  { keywords: ['tvål', 'soap', 'schampo', 'shampoo'], suggestTagNames: ['Kroppsvård', 'Naturlig'] },
+  { keywords: ['ljus', 'candle', 'doftljus'], suggestTagNames: ['Doftljus', 'Hemma'] },
+  { keywords: ['bastu', 'sauna'], suggestTagNames: ['Bastu', 'Aromaterapi'] },
+];
+
+function getAutoSuggestedTagIds(title: string, tags: { id: string; name_sv: string }[]): string[] {
+  const lower = title.toLowerCase();
+  const suggestedNames = new Set<string>();
+  for (const rule of KEYWORD_RULES) {
+    if (rule.keywords.some(kw => lower.includes(kw))) {
+      rule.suggestTagNames.forEach(n => suggestedNames.add(n.toLowerCase()));
+    }
+  }
+  return tags
+    .filter(t => suggestedNames.has(t.name_sv.toLowerCase()))
+    .map(t => t.id);
+}
+
 // ─── Category Multi-Select (compact) ───
 function CategorySelect({
   language, selectedIds, onChange,
@@ -118,7 +144,6 @@ function CategorySelect({
     queryFn: () => fetchCategories(true),
     staleTime: 30_000,
   });
-  const sv = language === 'sv';
   const parents = categories.filter(c => !c.parent_id);
   const getChildren = (parentId: string) => categories.filter(c => c.parent_id === parentId);
   const toggle = (id: string) => {
@@ -131,7 +156,7 @@ function CategorySelect({
       <CollapsibleTrigger asChild>
         <button type="button" className="w-full text-left border border-input rounded-md px-3 py-2 text-sm hover:bg-accent/50 transition-colors flex items-center justify-between">
           <span className={selectedNames.length ? 'text-foreground' : 'text-muted-foreground'}>
-            {selectedNames.length ? selectedNames.join(', ') : (sv ? 'Välj kategori...' : 'Select category...')}
+            {selectedNames.length ? selectedNames.join(', ') : 'Välj kategori...'}
           </span>
           <ChevronDown className="w-4 h-4 text-muted-foreground" />
         </button>
@@ -171,11 +196,11 @@ function CategorySelect({
   );
 }
 
-// ─── Tag Multi-Select (compact chips) ───
+// ─── Tag Multi-Select (structured chips) ───
 function TagSelect({
-  language, selectedIds, onChange,
+  selectedIds, onChange, suggestedIds,
 }: {
-  language: string; selectedIds: string[]; onChange: (ids: string[]) => void;
+  selectedIds: string[]; onChange: (ids: string[]) => void; suggestedIds: string[];
 }) {
   const { data: tags = [] } = useQuery({
     queryKey: ['form-tags'],
@@ -186,36 +211,51 @@ function TagSelect({
     onChange(selectedIds.includes(id) ? selectedIds.filter(x => x !== id) : [...selectedIds, id]);
   };
 
+  const suggested = tags.filter(t => suggestedIds.includes(t.id) && !selectedIds.includes(t.id));
+
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {tags.map(tag => {
-        const sel = selectedIds.includes(tag.id);
-        return (
-          <button key={tag.id} type="button" onClick={() => toggle(tag.id)}
-            className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
-              sel ? 'bg-primary/15 border-primary/30 text-primary font-medium' : 'bg-background border-border hover:bg-accent hover:border-primary/20'
-            }`}>
-            {sel ? '✓ ' : '+ '}{tag.name_sv}
-          </button>
-        );
-      })}
-      {tags.length === 0 && (
-        <p className="text-xs text-muted-foreground py-1">{language === 'sv' ? 'Inga taggar ännu' : 'No tags yet'}</p>
+    <div className="space-y-2">
+      {suggested.length > 0 && (
+        <div className="space-y-1">
+          <p className="text-xs text-muted-foreground">Föreslagna (baserat på produktnamn):</p>
+          <div className="flex flex-wrap gap-1.5">
+            {suggested.map(tag => (
+              <button key={tag.id} type="button" onClick={() => toggle(tag.id)}
+                className="text-xs px-2.5 py-1 rounded-full border border-primary/30 bg-primary/5 text-primary hover:bg-primary/15 transition-colors">
+                + {tag.name_sv}
+              </button>
+            ))}
+          </div>
+        </div>
       )}
+      <div className="flex flex-wrap gap-1.5">
+        {tags.map(tag => {
+          const sel = selectedIds.includes(tag.id);
+          return (
+            <button key={tag.id} type="button" onClick={() => toggle(tag.id)}
+              className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                sel ? 'bg-primary/15 border-primary/30 text-primary font-medium' : 'bg-background border-border hover:bg-accent hover:border-primary/20'
+              }`}>
+              {sel ? '✓ ' : '+ '}{tag.name_sv}
+            </button>
+          );
+        })}
+        {tags.length === 0 && (
+          <p className="text-xs text-muted-foreground py-1">Inga taggar ännu</p>
+        )}
+      </div>
     </div>
   );
 }
 
 // ─── Image Upload Section ───
 function ImageUploadSection({
-  imageUrls, setFormData, language,
+  imageUrls, setFormData,
 }: {
   imageUrls: string[];
   setFormData: React.Dispatch<React.SetStateAction<ProductFormData>>;
-  language: string;
 }) {
   const [isUploading, setIsUploading] = React.useState(false);
-  const sv = language === 'sv';
 
   const handleUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -242,7 +282,7 @@ function ImageUploadSection({
   return (
     <div className="space-y-2">
       <Label className="flex items-center gap-1.5 text-sm font-medium">
-        <Image className="w-4 h-4" /> {sv ? 'Bilder' : 'Images'}
+        <Image className="w-4 h-4" /> Bilder
       </Label>
       <div className="flex flex-wrap gap-2">
         {imageUrls.map(url => (
@@ -272,6 +312,7 @@ function ImageUploadSection({
 // ─── Live Product Card Preview ───
 function ProductCardPreview({ formData }: { formData: ProductFormData }) {
   const price = parseFloat(formData.price) || 0;
+  const weightG = parseInt(formData.weightGrams) || 0;
   return (
     <div className="border border-border rounded-lg overflow-hidden bg-card shadow-sm">
       <div className="aspect-square bg-muted flex items-center justify-center">
@@ -287,135 +328,75 @@ function ProductCardPreview({ formData }: { formData: ProductFormData }) {
         <p className="text-sm font-bold text-primary">
           {price > 0 ? `${price} ${formData.currency || 'SEK'}` : '– kr'}
         </p>
+        {weightG > 0 && <p className="text-[10px] text-muted-foreground">{weightG >= 1000 ? `${(weightG / 1000).toFixed(1)} kg` : `${weightG} g`}</p>}
       </div>
     </div>
   );
 }
 
-// ─── Smart Assist (AI Suggestions) ───
-function SmartAssistPanel({
-  language, formData, setFormData,
-}: {
-  language: string;
-  formData: ProductFormData;
-  setFormData: React.Dispatch<React.SetStateAction<ProductFormData>>;
-}) {
-  const [suggesting, setSuggesting] = React.useState(false);
-  const sv = language === 'sv';
-
-  const handleSuggest = async () => {
-    if (!formData.title.trim()) {
-      toast.error(sv ? 'Ange ett produktnamn först' : 'Enter a product name first');
-      return;
-    }
-    setSuggesting(true);
-    try {
-      const { data, error } = await safeInvoke('suggest-product-metadata', {
-        body: {
-          productName: formData.title,
-          description: formData.description || null,
-          ingredients: formData.ingredients || null,
-        },
-      });
-      if (error) throw error;
-      const s = data?.suggestions;
-      if (!s) throw new Error('No suggestions');
-
-      setFormData(prev => ({
-        ...prev,
-        categoryIds: s.categoryIds?.length ? s.categoryIds : prev.categoryIds,
-        tagIds: s.tagIds?.length ? s.tagIds : prev.tagIds,
-      }));
-      toast.success(sv ? 'Förslag tillagda!' : 'Suggestions applied!');
-    } catch {
-      toast.error(sv ? 'Kunde inte hämta förslag' : 'Failed to get suggestions');
-    } finally {
-      setSuggesting(false);
-    }
-  };
-
-  return (
-    <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-3">
-      <div className="flex items-center gap-2">
-        <Wand2 className="w-4 h-4 text-primary" />
-        <p className="text-sm font-medium">{sv ? 'Smart Assist' : 'Smart Assist'}</p>
-      </div>
-      <p className="text-xs text-muted-foreground">
-        {sv ? 'Låt AI föreslå kategorier och taggar baserat på produktnamn och beskrivning.'
-          : 'Let AI suggest categories and tags based on product name and description.'}
-      </p>
-      <Button type="button" variant="outline" size="sm" className="w-full gap-1.5 text-xs"
-        onClick={handleSuggest} disabled={suggesting || !formData.title.trim()}>
-        {suggesting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-        {suggesting ? (sv ? 'Analyserar...' : 'Analyzing...') : (sv ? 'Föreslå kategorier & taggar' : 'Suggest categories & tags')}
-      </Button>
-    </div>
-  );
-}
-
-// ─── Advanced Panel (collapsible) ───
+// ─── Advanced Panel (collapsible, for extra fields) ───
 function AdvancedPanel({
-  language, formData, setFormData,
+  formData, setFormData,
 }: {
-  language: string;
   formData: ProductFormData;
   setFormData: React.Dispatch<React.SetStateAction<ProductFormData>>;
 }) {
   const [open, setOpen] = React.useState(false);
-  const sv = language === 'sv';
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
       <CollapsibleTrigger asChild>
         <button type="button" className="flex items-center gap-2 w-full text-left px-3 py-2.5 rounded-lg border border-border hover:bg-accent transition-colors">
           {open ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-          <span className="text-sm font-medium">{sv ? 'Avancerat' : 'Advanced'}</span>
+          <span className="text-sm font-medium">Avancerat</span>
           <span className="text-xs text-muted-foreground ml-auto">
-            {sv ? 'Lager, frakt, innehåll, SEO' : 'Inventory, shipping, content, SEO'}
+            Lager, innehåll, ingredienser
           </span>
         </button>
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="mt-3 space-y-5 pl-1">
           {/* ── Inventory ── */}
-          <InventorySection language={language} formData={formData} setFormData={setFormData} />
-
-          {/* ── Weight ── */}
-          <div className="space-y-2">
-            <Label htmlFor="weightGrams" className="flex items-center gap-1.5 text-sm">
-              <Weight className="w-4 h-4" /> {sv ? 'Vikt (gram)' : 'Weight (grams)'}
-            </Label>
-            <Input id="weightGrams" type="number" value={formData.weightGrams} min="0" className="w-40"
-              onChange={e => setFormData(prev => ({ ...prev, weightGrams: e.target.value }))}
-              placeholder={sv ? 'Ex: 250' : 'e.g. 250'} />
-          </div>
+          <InventorySection formData={formData} setFormData={setFormData} />
 
           {/* ── Product Content (Hook, Usage, Effects etc) ── */}
-          <ContentSection language={language} formData={formData} setFormData={setFormData} />
+          <ContentSection formData={formData} setFormData={setFormData} />
 
           {/* ── Ingredients ── */}
           <div className="space-y-2">
             <Label className="flex items-center gap-1.5 text-sm">
-              <FlaskConical className="w-4 h-4" /> {sv ? 'Ingredienser' : 'Ingredients'}
+              <FlaskConical className="w-4 h-4" /> Ingredienser
             </Label>
             <Textarea value={formData.ingredients}
               onChange={e => setFormData(prev => ({ ...prev, ingredients: e.target.value }))}
-              placeholder={sv ? 'Kokosolja, Sheasmör...' : 'Coconut Oil, Shea Butter...'}
+              placeholder="Kokosolja, Sheasmör..."
               rows={2} className="text-xs" />
           </div>
 
           {/* ── Concentrate toggle ── */}
           <div className="flex items-center justify-between p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
             <div>
-              <p className="text-sm font-medium">{sv ? 'Koncentrat' : 'Concentrate'}</p>
-              <p className="text-xs text-muted-foreground">{sv ? 'Ska spädas före användning' : 'Must be diluted before use'}</p>
+              <p className="text-sm font-medium">Koncentrat</p>
+              <p className="text-xs text-muted-foreground">Ska spädas före användning</p>
             </div>
             <Switch checked={formData.isConcentrate}
               onCheckedChange={checked => setFormData(prev => ({ ...prev, isConcentrate: checked }))} />
           </div>
 
-          {/* ── SEO ── */}
-          <SEOSection language={language} formData={formData} setFormData={setFormData} />
+          {/* ── Visibility toggle ── */}
+          <div className="flex items-center justify-between py-2">
+            <div className="flex items-center gap-2">
+              {formData.isVisible ? <Eye className="w-4 h-4 text-primary" /> : <EyeOff className="w-4 h-4 text-muted-foreground" />}
+              <div>
+                <p className="text-sm font-medium">Synlig i butiken</p>
+                <p className="text-xs text-muted-foreground">
+                  {formData.isVisible ? 'Kunder kan se produkten' : 'Dold från kunder'}
+                </p>
+              </div>
+            </div>
+            <Switch checked={formData.isVisible}
+              onCheckedChange={checked => setFormData(prev => ({ ...prev, isVisible: checked }))} />
+          </div>
         </div>
       </CollapsibleContent>
     </Collapsible>
@@ -424,13 +405,11 @@ function AdvancedPanel({
 
 // ─── Inventory sub-section ───
 function InventorySection({
-  language, formData, setFormData,
+  formData, setFormData,
 }: {
-  language: string;
   formData: ProductFormData;
   setFormData: React.Dispatch<React.SetStateAction<ProductFormData>>;
 }) {
-  const sv = language === 'sv';
   const [draft, setDraft] = React.useState(String(formData.inventory || 0));
   const focusRef = React.useRef(false);
 
@@ -447,7 +426,7 @@ function InventorySection({
     <div className="space-y-3">
       <div className="flex items-center gap-2">
         <Boxes className="w-4 h-4 text-primary" />
-        <Label className="text-sm font-medium">{sv ? 'Lager' : 'Inventory'}</Label>
+        <Label className="text-sm font-medium">Lager</Label>
       </div>
       <div className="flex items-center gap-2">
         <Button type="button" variant="outline" size="icon" className="h-8 w-8"
@@ -466,8 +445,8 @@ function InventorySection({
       </div>
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm">{sv ? 'Tillåt överkorsförsäljning' : 'Allow overselling'}</p>
-          <p className="text-xs text-muted-foreground">{sv ? 'Kunder kan köpa även vid 0 st' : 'Customers can buy at 0 stock'}</p>
+          <p className="text-sm">Tillåt överförsäljning</p>
+          <p className="text-xs text-muted-foreground">Kunder kan köpa även vid 0 st</p>
         </div>
         <Switch checked={formData.allowOverselling}
           onCheckedChange={checked => setFormData(prev => ({ ...prev, allowOverselling: checked }))} />
@@ -478,22 +457,20 @@ function InventorySection({
 
 // ─── Product content sub-section ───
 function ContentSection({
-  language, formData, setFormData,
+  formData, setFormData,
 }: {
-  language: string;
   formData: ProductFormData;
   setFormData: React.Dispatch<React.SetStateAction<ProductFormData>>;
 }) {
-  const sv = language === 'sv';
   const fields: { key: keyof ProductFormData; label: string; placeholder: string; rows?: number }[] = [
-    { key: 'hook', label: sv ? 'Hook (kort säljmening)' : 'Hook (selling line)', placeholder: sv ? 'Öppnar luftvägarna direkt' : 'Opens your airways instantly' },
-    { key: 'extendedDescription', label: sv ? 'Full beskrivning' : 'Full description', placeholder: sv ? 'Detaljerad produktbeskrivning...' : 'Detailed product description...', rows: 3 },
-    { key: 'usage', label: sv ? 'Användning' : 'Usage', placeholder: sv ? '1. Tillsätt\n2. Häll vatten\n3. Njut' : '1. Add\n2. Pour water\n3. Enjoy', rows: 3 },
-    { key: 'dosage', label: sv ? 'Dosering' : 'Dosage', placeholder: sv ? '10ml = ca 200 droppar' : '10ml = ~200 drops', rows: 2 },
-    { key: 'effects', label: sv ? 'Fördelar' : 'Benefits', placeholder: sv ? '✓ Öppnar luftvägarna\n✓ Uppfriskande' : '✓ Opens airways\n✓ Refreshing', rows: 2 },
-    { key: 'feeling', label: sv ? 'Känsla' : 'Feeling', placeholder: sv ? 'En kylande känsla...' : 'A cooling sensation...', rows: 2 },
-    { key: 'storage', label: sv ? 'Förvaring' : 'Storage', placeholder: sv ? 'Svalt och mörkt' : 'Cool and dark' },
-    { key: 'safety', label: sv ? 'Säkerhet' : 'Safety', placeholder: sv ? 'Endast utvärtes bruk' : 'External use only', rows: 2 },
+    { key: 'hook', label: 'Hook (kort säljmening)', placeholder: 'Öppnar luftvägarna direkt' },
+    { key: 'extendedDescription', label: 'Full beskrivning', placeholder: 'Detaljerad produktbeskrivning...', rows: 3 },
+    { key: 'usage', label: 'Användning', placeholder: '1. Tillsätt\n2. Häll vatten\n3. Njut', rows: 3 },
+    { key: 'dosage', label: 'Dosering', placeholder: '10ml = ca 200 droppar', rows: 2 },
+    { key: 'effects', label: 'Fördelar', placeholder: '✓ Öppnar luftvägarna\n✓ Uppfriskande', rows: 2 },
+    { key: 'feeling', label: 'Känsla', placeholder: 'En kylande känsla...', rows: 2 },
+    { key: 'storage', label: 'Förvaring', placeholder: 'Svalt och mörkt' },
+    { key: 'safety', label: 'Säkerhet', placeholder: 'Endast utvärtes bruk', rows: 2 },
   ];
 
   return (
@@ -501,7 +478,7 @@ function ContentSection({
       <CollapsibleTrigger asChild>
         <button type="button" className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
           <ChevronRight className="w-3.5 h-3.5" />
-          {sv ? 'Produktinnehåll (hook, användning, effekter...)' : 'Product content (hook, usage, effects...)'}
+          Produktinnehåll (hook, användning, effekter...)
         </button>
       </CollapsibleTrigger>
       <CollapsibleContent>
@@ -526,70 +503,40 @@ function ContentSection({
   );
 }
 
-// ─── SEO sub-section ───
-function SEOSection({
-  language, formData, setFormData,
-}: {
-  language: string;
-  formData: ProductFormData;
-  setFormData: React.Dispatch<React.SetStateAction<ProductFormData>>;
-}) {
-  const sv = language === 'sv';
-  return (
-    <Collapsible>
-      <CollapsibleTrigger asChild>
-        <button type="button" className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-          <ChevronRight className="w-3.5 h-3.5" />
-          {sv ? 'SEO & marknadsföring' : 'SEO & marketing'}
-        </button>
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <div className="space-y-3 mt-3">
-          {/* Preview */}
-          <div className="p-3 rounded-lg bg-secondary/30 border border-border/50 space-y-0.5">
-            <p className="text-xs text-muted-foreground mb-1">{sv ? 'Google-förhandsgranskning' : 'Google Preview'}</p>
-            <p className="text-primary text-sm font-medium truncate">{formData.metaTitle || `${formData.title} | 4thepeople`}</p>
-            <p className="text-xs text-muted-foreground truncate">
-              4thepeople.se › produkt › {(formData.title || 'produkt').toLowerCase().replace(/\s+/g, '-').replace(/[^a-zåäö0-9-]/g, '')}
-            </p>
-            <p className="text-xs text-foreground/70 line-clamp-2">
-              {formData.metaDescription || (sv ? 'Genereras automatiskt...' : 'Auto-generated...')}
-            </p>
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">SEO-titel</Label>
-            <Input value={formData.metaTitle}
-              onChange={e => setFormData(prev => ({ ...prev, metaTitle: e.target.value }))}
-              placeholder={sv ? 'Produktnamn | 4thepeople' : 'Product Name | 4thepeople'}
-              className="text-xs" maxLength={70} />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Meta-beskrivning</Label>
-            <Textarea value={formData.metaDescription}
-              onChange={e => setFormData(prev => ({ ...prev, metaDescription: e.target.value }))}
-              placeholder={sv ? 'Köp [produkt] hos 4thepeople...' : 'Buy [product] at 4thepeople...'}
-              rows={2} className="text-xs" maxLength={165} />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">{sv ? 'Nyckelord' : 'Keywords'}</Label>
-            <Input value={formData.metaKeywords}
-              onChange={e => setFormData(prev => ({ ...prev, metaKeywords: e.target.value }))}
-              placeholder={sv ? 'bastudoft, naturlig, premium' : 'sauna, natural, premium'}
-              className="text-xs" />
-          </div>
-        </div>
-      </CollapsibleContent>
-    </Collapsible>
-  );
+// ═══════════════════════════════════════════════
+// AUTO SEO — generates meta fields from product data (no UI)
+// ═══════════════════════════════════════════════
+export function generateAutoSEO(formData: ProductFormData): { metaTitle: string; metaDescription: string; metaKeywords: string } {
+  const title = formData.title.trim();
+  const metaTitle = `${title} | 4ThePeople`;
+  const desc = (formData.description || '').trim();
+  const metaDescription = desc.length > 120 ? desc.slice(0, 117) + '...' : desc;
+  // Keywords from title words
+  const metaKeywords = title.toLowerCase()
+    .replace(/[^a-zåäö0-9\s]/g, '')
+    .split(/\s+/)
+    .filter(w => w.length > 2)
+    .join(', ');
+  return { metaTitle, metaDescription, metaKeywords };
+}
+
+export function generateSlug(title: string): string {
+  return title.toLowerCase()
+    .replace(/[åÅ]/g, 'a').replace(/[äÄ]/g, 'a').replace(/[öÖ]/g, 'o')
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
 }
 
 // ═══════════════════════════════════════════════
-// MAIN FORM — 3-Mode Layout
+// MAIN FORM — 4-Step Wizard
 // ═══════════════════════════════════════════════
+const STEP_LABELS = ['Namn & Kategori', 'Pris & Vikt', 'Beskrivning & Bilder', 'Taggar & Egenskaper'];
+
 export function AdminProductForm({
   t, language, formData, setFormData,
   isEdit, isSubmitting, onCancel, onSubmit,
-  // kept for backward compat but unused in new UI
   productCategories: _pc, suggestedTags: _st, onImageUpload: _oiu,
 }: {
   t: AdminProductFormStrings;
@@ -604,124 +551,192 @@ export function AdminProductForm({
   onSubmit: (e: React.FormEvent) => void;
   onImageUpload?: (urls: string[]) => void;
 }) {
-  const sv = language === 'sv';
-  const [showAssist, setShowAssist] = React.useState(false);
+  const [step, setStep] = React.useState(0);
+  const { data: allTags = [] } = useQuery({ queryKey: ['form-tags'], queryFn: fetchTags, staleTime: 30_000 });
+
+  const suggestedTagIds = React.useMemo(
+    () => getAutoSuggestedTagIds(formData.title, allTags),
+    [formData.title, allTags]
+  );
+
+  const canProceed = (s: number): boolean => {
+    switch (s) {
+      case 0: return !!formData.title.trim();
+      case 1: return !!formData.price && !!formData.weightGrams;
+      case 2: return true; // description/images optional
+      case 3: return true;
+      default: return true;
+    }
+  };
+
+  const progress = ((step + 1) / STEP_LABELS.length) * 100;
+
+  const handleSubmitWrapper = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Validate weight
+    if (!formData.weightGrams || parseInt(formData.weightGrams) <= 0) {
+      toast.error('Produktvikt krävs');
+      setStep(1);
+      return;
+    }
+    onSubmit(e);
+  };
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col lg:flex-row gap-6 max-h-[85vh] overflow-y-auto pr-1 -mr-1">
+    <form onSubmit={handleSubmitWrapper} className="flex flex-col lg:flex-row gap-6 max-h-[85vh] overflow-y-auto pr-1 -mr-1">
       {/* ── LEFT: Form ── */}
       <div className="flex-1 space-y-5 min-w-0">
-        {/* ══ QUICK CREATE — Primary inputs ══ */}
-        <div className="space-y-4">
-          {/* Product Name */}
-          <div className="space-y-1.5">
-            <Label htmlFor="title" className="text-sm font-semibold">{sv ? 'Produktnamn' : 'Product name'} *</Label>
-            <Input id="title" value={formData.title}
-              onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))}
-              placeholder={sv ? 'Naturlig Deodorant' : 'Natural Deodorant'}
-              className="text-base h-11" required autoFocus />
+        {/* Progress */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-muted-foreground">
+              Steg {step + 1} av {STEP_LABELS.length}: {STEP_LABELS[step]}
+            </p>
+            <p className="text-xs text-muted-foreground">{Math.round(progress)}%</p>
           </div>
+          <Progress value={progress} className="h-1.5" />
+          <div className="flex gap-1">
+            {STEP_LABELS.map((label, i) => (
+              <button key={i} type="button"
+                onClick={() => setStep(i)}
+                className={`flex-1 h-1 rounded-full transition-colors ${
+                  i <= step ? 'bg-primary' : 'bg-border'
+                }`}
+                title={label}
+              />
+            ))}
+          </div>
+        </div>
 
-          {/* Price */}
-          <div className="space-y-1.5">
-            <Label className="text-sm font-semibold">{sv ? 'Pris' : 'Price'} *</Label>
-            <div className="flex gap-2">
-              <Select value={formData.currency || 'SEK'}
-                onValueChange={v => setFormData(prev => ({ ...prev, currency: v }))}>
-                <SelectTrigger className="w-[80px] h-11"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {['SEK', 'EUR', 'USD', 'NOK', 'DKK', 'GBP'].map(c => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Input type="text" inputMode="decimal" value={formData.price}
-                onChange={e => {
-                  const val = e.target.value.replace(',', '.');
-                  if (val === '' || /^\d*\.?\d*$/.test(val)) setFormData(prev => ({ ...prev, price: val }));
-                }}
-                placeholder="159" className="text-lg font-bold h-11 flex-1" required />
+        {/* ── STEP 1: Name + Category ── */}
+        {step === 0 && (
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="title" className="text-sm font-semibold">Produktnamn *</Label>
+              <Input id="title" value={formData.title}
+                onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                placeholder="Naturlig Deodorant"
+                className="text-base h-11" required autoFocus />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Kategori</Label>
+              <CategorySelect language={language} selectedIds={formData.categoryIds}
+                onChange={ids => setFormData(prev => ({ ...prev, categoryIds: ids }))} />
             </div>
           </div>
+        )}
 
-          {/* Description */}
-          <div className="space-y-1.5">
-            <Label htmlFor="desc" className="text-sm font-semibold">{sv ? 'Beskrivning' : 'Description'}</Label>
-            <Textarea id="desc" value={formData.description}
-              onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              placeholder={sv ? 'Kort produktbeskrivning...' : 'Short product description...'}
-              rows={3} />
-          </div>
-
-          {/* Images */}
-          <ImageUploadSection imageUrls={formData.imageUrls} setFormData={setFormData} language={language} />
-
-          {/* Category */}
-          <div className="space-y-1.5">
-            <Label className="text-sm font-medium">{sv ? 'Kategori' : 'Category'}</Label>
-            <CategorySelect language={language} selectedIds={formData.categoryIds}
-              onChange={ids => setFormData(prev => ({ ...prev, categoryIds: ids }))} />
-          </div>
-
-          {/* Tags */}
-          <div className="space-y-1.5">
-            <Label className="text-sm font-medium">{sv ? 'Taggar' : 'Tags'}</Label>
-            <TagSelect language={language} selectedIds={formData.tagIds}
-              onChange={ids => setFormData(prev => ({ ...prev, tagIds: ids }))} />
-          </div>
-
-          {/* Visibility toggle */}
-          <div className="flex items-center justify-between py-2">
-            <div className="flex items-center gap-2">
-              {formData.isVisible ? <Eye className="w-4 h-4 text-primary" /> : <EyeOff className="w-4 h-4 text-muted-foreground" />}
-              <div>
-                <p className="text-sm font-medium">{sv ? 'Synlig i butiken' : 'Visible in store'}</p>
-                <p className="text-xs text-muted-foreground">
-                  {formData.isVisible ? (sv ? 'Kunder kan se produkten' : 'Customers can see this') : (sv ? 'Dold från kunder' : 'Hidden from customers')}
-                </p>
+        {/* ── STEP 2: Price + Weight ── */}
+        {step === 1 && (
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label className="text-sm font-semibold">Pris *</Label>
+              <div className="flex gap-2">
+                <Select value={formData.currency || 'SEK'}
+                  onValueChange={v => setFormData(prev => ({ ...prev, currency: v }))}>
+                  <SelectTrigger className="w-[80px] h-11"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {['SEK', 'EUR', 'USD', 'NOK', 'DKK', 'GBP'].map(c => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input type="text" inputMode="decimal" value={formData.price}
+                  onChange={e => {
+                    const val = e.target.value.replace(',', '.');
+                    if (val === '' || /^\d*\.?\d*$/.test(val)) setFormData(prev => ({ ...prev, price: val }));
+                  }}
+                  placeholder="159" className="text-lg font-bold h-11 flex-1" required />
               </div>
             </div>
-            <Switch checked={formData.isVisible}
-              onCheckedChange={checked => setFormData(prev => ({ ...prev, isVisible: checked }))} />
-          </div>
-        </div>
 
-        {/* ══ SMART ASSIST — Optional toggle ══ */}
-        <div>
-          <button type="button" onClick={() => setShowAssist(!showAssist)}
-            className="text-xs text-primary hover:underline flex items-center gap-1">
-            <Wand2 className="w-3 h-3" />
-            {showAssist ? (sv ? 'Dölj AI-hjälp' : 'Hide AI assist') : (sv ? 'Visa AI-hjälp' : 'Show AI assist')}
-          </button>
-          {showAssist && (
-            <div className="mt-2">
-              <SmartAssistPanel language={language} formData={formData} setFormData={setFormData} />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="weightGrams" className="flex items-center gap-1.5 text-sm font-semibold">
+                  <Weight className="w-4 h-4" /> Vikt per produkt (g) *
+                </Label>
+                <Input id="weightGrams" type="number" value={formData.weightGrams} min="1"
+                  onChange={e => setFormData(prev => ({ ...prev, weightGrams: e.target.value }))}
+                  placeholder="250" className="h-11" required />
+                <p className="text-[10px] text-muted-foreground">Nettovikt utan emballage</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="packageWeight" className="flex items-center gap-1.5 text-sm font-medium">
+                  <Package className="w-4 h-4" /> Total vikt inkl emballage (g)
+                </Label>
+                <Input id="packageWeight" type="number" value={formData.packageWeightGrams} min="0"
+                  onChange={e => setFormData(prev => ({ ...prev, packageWeightGrams: e.target.value }))}
+                  placeholder="300" className="h-11" />
+                <p className="text-[10px] text-muted-foreground">Används för fraktberäkning</p>
+              </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
-        {/* ══ ADVANCED — Collapsible ══ */}
-        <AdvancedPanel language={language} formData={formData} setFormData={setFormData} />
+        {/* ── STEP 3: Description + Images ── */}
+        {step === 2 && (
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="desc" className="text-sm font-semibold">Beskrivning</Label>
+              <Textarea id="desc" value={formData.description}
+                onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Kort produktbeskrivning..."
+                rows={4} />
+            </div>
+            <ImageUploadSection imageUrls={formData.imageUrls} setFormData={setFormData} />
+          </div>
+        )}
 
-        {/* ── Actions ── */}
+        {/* ── STEP 4: Tags + Properties ── */}
+        {step === 3 && (
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label className="text-sm font-semibold">Taggar (användningsområde, effekt, typ)</Label>
+              <TagSelect
+                selectedIds={formData.tagIds}
+                onChange={ids => setFormData(prev => ({ ...prev, tagIds: ids }))}
+                suggestedIds={suggestedTagIds}
+              />
+            </div>
+
+            {/* Advanced (collapsed) */}
+            <AdvancedPanel formData={formData} setFormData={setFormData} />
+          </div>
+        )}
+
+        {/* ── Navigation ── */}
         <div className="flex gap-2 pt-3 border-t border-border">
-          <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
-            {t.cancel}
-          </Button>
-          <Button type="submit" className="flex-1"
-            disabled={isSubmitting || !formData.title || (!isEdit && !formData.price)}>
-            {isSubmitting ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <><Save className="w-4 h-4 mr-2" />{isEdit ? t.update : t.save}</>
-            )}
-          </Button>
+          {step > 0 ? (
+            <Button type="button" variant="outline" onClick={() => setStep(s => s - 1)} className="gap-1.5">
+              <ArrowLeft className="w-4 h-4" /> Tillbaka
+            </Button>
+          ) : (
+            <Button type="button" variant="outline" onClick={onCancel}>
+              {t.cancel}
+            </Button>
+          )}
+          <div className="flex-1" />
+          {step < STEP_LABELS.length - 1 ? (
+            <Button type="button" onClick={() => setStep(s => s + 1)}
+              disabled={!canProceed(step)} className="gap-1.5">
+              Nästa <ArrowRight className="w-4 h-4" />
+            </Button>
+          ) : (
+            <Button type="submit"
+              disabled={isSubmitting || !formData.title || !formData.price}>
+              {isSubmitting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <><Save className="w-4 h-4 mr-2" />{isEdit ? t.update : t.save}</>
+              )}
+            </Button>
+          )}
         </div>
       </div>
 
       {/* ── RIGHT: Live Preview (desktop only) ── */}
       <div className="hidden lg:block w-52 shrink-0 sticky top-0 self-start">
-        <p className="text-xs font-medium text-muted-foreground mb-2">{sv ? 'Förhandsgranskning' : 'Preview'}</p>
+        <p className="text-xs font-medium text-muted-foreground mb-2">Förhandsgranskning</p>
         <ProductCardPreview formData={formData} />
       </div>
     </form>
