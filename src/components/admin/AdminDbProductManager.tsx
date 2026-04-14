@@ -245,6 +245,7 @@ const AdminDbProductManager = () => {
       metaDescription: (product as any).meta_description || '',
       metaKeywords: (product as any).meta_keywords || '',
       weightGrams: (product as any).weight_grams?.toString() || '',
+      packageWeightGrams: (product as any).package_weight_grams?.toString() || '',
       hook: (product as any).hook_sv || '',
       dosage: (product as any).dosage_sv || '',
       variants: (product as any).variants_sv || '',
