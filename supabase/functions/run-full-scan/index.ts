@@ -2615,6 +2615,55 @@ serve(async (req) => {
       (finalUnifiedResult as any).scanners_failed_count = _failedScanners.length;
       (finalUnifiedResult as any).scanners_total_count = _scannerEntries.length;
 
+      // ── STATIC SCAN DETECTION: same fingerprints + same count + same scan_id reused ──
+      try {
+        const _currentIssues: any[] = (finalUnifiedResult as any)?.issues
+          ?? [
+            ...((unified.broken_flows as any[]) || []),
+            ...((unified.fake_features as any[]) || []),
+            ...((unified.interaction_failures as any[]) || []),
+            ...((unified.data_issues as any[]) || []),
+          ];
+        const _currentFingerprints = _currentIssues.map((i: any) => generateFingerprint(i)).sort();
+        const _currentCount = _currentFingerprints.length;
+        const _currentFpHash = _currentFingerprints.join("|");
+
+        const { data: _prevRuns } = await supabase
+          .from("scan_runs")
+          .select("id, unified_result")
+          .eq("status", "done")
+          .neq("id", scan_run_id)
+          .order("completed_at", { ascending: false })
+          .limit(1);
+
+        if (_prevRuns?.length) {
+          const _prev = _prevRuns[0];
+          const _prevUR = _prev.unified_result as any;
+          const _prevIssues: any[] = _prevUR?.issues
+            ?? [
+              ...((_prevUR?.broken_flows as any[]) || []),
+              ...((_prevUR?.fake_features as any[]) || []),
+              ...((_prevUR?.interaction_failures as any[]) || []),
+              ...((_prevUR?.data_issues as any[]) || []),
+            ];
+          const _prevFingerprints = _prevIssues.map((i: any) => generateFingerprint(i)).sort();
+          const _prevFpHash = _prevFingerprints.join("|");
+          const _sameCount = _prevFingerprints.length === _currentCount;
+          const _sameFps = _prevFpHash === _currentFpHash;
+          const _scanIdReused = _prevUR?._scan_source_id && _prevUR._scan_source_id === scan_run_id;
+
+          if (_sameCount && _sameFps) {
+            (finalUnifiedResult as any).static_scan_detected = true;
+            (finalUnifiedResult as any).static_scan_reason = _scanIdReused
+              ? "Identical fingerprints, count, and scan_id reused"
+              : "Identical fingerprints and count as previous scan";
+            console.log("[STATIC SCAN DETECTED]", { scan_run_id, prev_id: _prev.id, count: _currentCount });
+          }
+        }
+      } catch (e) {
+        console.log("[STATIC SCAN CHECK FAILED]", (e as Error).message);
+      }
+
       await supabase.from("scan_runs").update({
         status: "done", completed_at: new Date().toISOString(), steps_results: updatedResults, progress: 100,
         unified_result: finalUnifiedResult, system_health_score: unified.system_health_score,
