@@ -1075,6 +1075,41 @@ const SystemExplorer = () => {
           )}
         </div>
 
+        {/* SCAN INPUT SECTION */}
+        {(() => {
+          const ur = (latestRun as any)?.unified_result as Record<string, any> | null;
+          const stepsResults = (latestRun as any)?.steps_results as Record<string, any> | null;
+          const si = ur?.steps_results?._scan_input || stepsResults?._scan_input || null;
+          const components = si?.components_count;
+          const routes = si?.routes_count;
+          const dataEntities = si?.data_entities_count;
+          const hasData = si != null;
+          return (
+            <div className="rounded-md border border-border bg-muted/30 p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-foreground">Scan Input</span>
+                {!hasData && (
+                  <span className="text-[10px] font-semibold text-destructive">⚠ No scan input data</span>
+                )}
+              </div>
+              <div className="flex gap-4 text-xs flex-wrap">
+                <div className="flex items-center gap-1">
+                  <span className="text-muted-foreground">components_count:</span>
+                  <span className={`font-mono font-bold ${components === 0 ? "text-destructive" : "text-foreground"}`}>{components ?? "–"}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-muted-foreground">routes_count:</span>
+                  <span className={`font-mono font-bold ${routes === 0 ? "text-destructive" : "text-foreground"}`}>{routes ?? "–"}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-muted-foreground">data_entities_count:</span>
+                  <span className={`font-mono font-bold ${dataEntities === 0 ? "text-destructive" : "text-foreground"}`}>{dataEntities ?? "–"}</span>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* SCANNER EXECUTION SECTION */}
         {(() => {
           const stepsResults = (latestRun?.steps_results ?? null) as Record<string, any> | null;
