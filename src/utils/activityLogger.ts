@@ -59,6 +59,36 @@ export const logSecurityEvent = async (message: string, details?: Record<string,
   });
 };
 
+// Track access-denied attempts per resource key (in-memory)
+const accessDeniedAttempts = new Map<string, number>();
+
+export const logAccessDenied = async (resource: string, details?: Record<string, any>) => {
+  const prev = accessDeniedAttempts.get(resource) ?? 0;
+  const next = prev + 1;
+  accessDeniedAttempts.set(resource, next);
+
+  await safeLog('warning', 'security', `Access denied: ${resource}`, {
+    ...(details || {}),
+    attempt: next,
+    retried: next > 1,
+    timestamp: new Date().toISOString(),
+  });
+
+  // If access denied but retried → log as security_event
+  if (next > 1) {
+    try {
+      await supabase.from('security_events' as any).insert({
+        type: 'auth',
+        severity: 'medium',
+        message: `Access denied retried for resource: ${resource} (attempt ${next})`,
+        endpoint: resource,
+      });
+    } catch {
+      // silent
+    }
+  }
+};
+
 // Settings change tracking
 export const logSettingsChange = async (setting: string, oldValue: any, newValue: any) => {
   await logActivity({
