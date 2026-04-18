@@ -2598,6 +2598,23 @@ serve(async (req) => {
         }],
         system_health_score: 0,
       };
+      // ── Partial scan flag: some scanners succeeded AND some failed ──
+      const _scannerEntries = Object.entries(updatedResults || {}).filter(([k]) => !k.startsWith("_"));
+      const _failedScanners = _scannerEntries.filter(([, v]: [string, any]) => {
+        const st = v?.scanner_execution?.status;
+        if (st) return st === "failed" || st === "timeout";
+        return !!v?.failed || !!v?.error;
+      });
+      const _successScanners = _scannerEntries.filter(([, v]: [string, any]) => {
+        const st = v?.scanner_execution?.status;
+        if (st) return st === "success";
+        return !v?.failed && !v?.error;
+      });
+      const _partialScan = _failedScanners.length > 0 && _successScanners.length > 0;
+      (finalUnifiedResult as any).partial_scan = _partialScan;
+      (finalUnifiedResult as any).scanners_failed_count = _failedScanners.length;
+      (finalUnifiedResult as any).scanners_total_count = _scannerEntries.length;
+
       await supabase.from("scan_runs").update({
         status: "done", completed_at: new Date().toISOString(), steps_results: updatedResults, progress: 100,
         unified_result: finalUnifiedResult, system_health_score: unified.system_health_score,

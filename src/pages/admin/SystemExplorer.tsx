@@ -1064,7 +1064,7 @@ const SystemExplorer = () => {
         </div>
 
         {/* SCANNER FILE COUNT INDICATOR */}
-        <div className="flex items-center gap-3 px-3 py-2 rounded-md border border-border bg-muted/30">
+        <div className="flex items-center gap-3 px-3 py-2 rounded-md border border-border bg-muted/30 flex-wrap">
           <span className="text-xs font-medium text-foreground">
             Files detected: <span className="font-bold">{fileSystemMap.length}</span>
           </span>
@@ -1073,6 +1073,17 @@ const SystemExplorer = () => {
               ⚠ Scanner not connected to codebase
             </span>
           )}
+          {(() => {
+            const ur = (latestRun as any)?.unified_result ?? null;
+            if (!ur?.partial_scan) return null;
+            const failed = ur.scanners_failed_count ?? 0;
+            const total = ur.scanners_total_count ?? 0;
+            return (
+              <span className="text-xs font-semibold text-destructive flex items-center gap-1">
+                ⚠ Partial scan ({failed}/{total} scanners failed)
+              </span>
+            );
+          })()}
         </div>
 
         {/* SCANNER EXECUTION SECTION */}
