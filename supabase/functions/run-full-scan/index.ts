@@ -916,7 +916,7 @@ async function runDataIntegrityScan(supabase: any, scanRunId: string): Promise<a
         }).then(() => {}, () => {});
       }
 
-      // 2. Users spike abnormally (last hour > 5x previous hour AND >10)
+      // 2. Users spike abnormally (last hour >= 10x previous hour AND >10)
       const { count: usersLastHour } = await supabase
         .from("profiles")
         .select("id", { count: "exact", head: true })
@@ -927,15 +927,15 @@ async function runDataIntegrityScan(supabase: any, scanRunId: string): Promise<a
         .gte("created_at", twoHoursAgo)
         .lt("created_at", oneHourAgo);
       const baseline = Math.max(usersPrevHour ?? 0, 1);
-      if ((usersLastHour ?? 0) > 10 && (usersLastHour ?? 0) > baseline * 5) {
+      if ((usersLastHour ?? 0) > 10 && (usersLastHour ?? 0) >= baseline * 10) {
         issues.push({
           type: "business_anomaly", severity: "critical", entity: "users",
-          title: `User signup spike: ${usersLastHour} in last hour (prev: ${usersPrevHour})`,
-          root_cause: "user_signup_spike", component: "profiles",
+          title: `User signup spike 10x: ${usersLastHour} in last hour (prev: ${usersPrevHour})`,
+          root_cause: "user_signup_spike_10x", component: "profiles",
         });
         await supabase.from("security_events").insert({
           type: "anomaly", severity: "critical",
-          message: `Abnormal user spike: ${usersLastHour} signups last hour (prev hour: ${usersPrevHour})`,
+          message: `Abnormal user spike (10x): ${usersLastHour} signups last hour (prev hour: ${usersPrevHour})`,
           endpoint: "data_integrity_scan",
         }).then(() => {}, () => {});
       }
