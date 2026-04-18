@@ -75,7 +75,12 @@ const AdminIssues = () => {
   const filtered = useMemo(() => {
     return items
       .filter(i => !i.ignored)
-      .filter(i => statusFilter === 'all' || i.status === statusFilter)
+      .filter(i => {
+        if (statusFilter === 'all') return true;
+        if (statusFilter === 'active') return !['done', 'cancelled', 'completed'].includes(i.status);
+        if (statusFilter === 'open') return i.status === 'open';
+        return i.status === statusFilter;
+      })
       .filter(i => typeFilter === 'all' || i.item_type === typeFilter)
       .filter(i =>
         !search ||
@@ -135,6 +140,7 @@ const AdminIssues = () => {
           <SelectTrigger className="w-[130px]"><SelectValue placeholder="Status" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Alla</SelectItem>
+            <SelectItem value="active">Aktiva</SelectItem>
             <SelectItem value="open">Öppen</SelectItem>
             <SelectItem value="in_progress">Pågår</SelectItem>
             <SelectItem value="escalated">Eskalerad</SelectItem>
