@@ -1107,6 +1107,15 @@ const SystemExplorer = () => {
               </span>
             );
           })()}
+          {(() => {
+            const ur = (latestRun as any)?.unified_result ?? null;
+            if (!ur?.static_scan_detected) return null;
+            return (
+              <span className="text-xs font-semibold text-destructive flex items-center gap-1" title={ur.static_scan_reason || ""}>
+                ⚠ Scan returned identical results (STATIC SCAN DETECTED)
+              </span>
+            );
+          })()}
         </div>
 
         {/* SCAN INPUT SECTION */}
