@@ -175,7 +175,19 @@ const SystemExplorer = () => {
   const [aiAnswer, setAiAnswer] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiFocusArea, setAiFocusArea] = useState<string | null>(null);
-  const [mainTab, setMainTab] = useState<"system" | "files" | "patch" | "codeindex" | "backendscan" | "analysis">("system");
+  const [mainTab, setMainTab] = useState<"system" | "files" | "patch" | "codeindex" | "backendscan" | "analysis" | "security">("system");
+  const [securityFilter, setSecurityFilter] = useState<"all" | "critical" | "high">("all");
+  const { data: securityEvents = [] } = useQuery({
+    queryKey: ["system-explorer-security-events", securityFilter],
+    queryFn: async () => {
+      let q = (supabase as any).from("security_events").select("id, type, severity, message, endpoint, ip, user_id, timestamp").order("timestamp", { ascending: false }).limit(100);
+      if (securityFilter !== "all") q = q.eq("severity", securityFilter);
+      const { data, error } = await q;
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 15_000,
+  });
   const [filesFilter, setFilesFilter] = useState<"all" | "orphan" | "has_issues">("all");
   const [selectedFile, setSelectedFile] = useState<FileEntry | null>(null);
   const [patchInput, setPatchInput] = useState("");
