@@ -883,6 +883,7 @@ async function runDataIntegrityScan(supabase: any, scanRunId: string): Promise<a
       console.error("[DATA SCAN] Price anomaly check failed:", (e as Error).message);
     }
 
+  } catch (e: any) {
     console.error("Data integrity scan error:", e);
     issues.push({ type: "scan_error", severity: "critical", entity: "integrity_scan", title: `Integrity scan fel: ${e.message}`, step: "scan", root_cause: e.message, component: "integrity_scan" });
   }
