@@ -3535,6 +3535,39 @@ export type Database = {
         }
         Relationships: []
       }
+      system_health_checks: {
+        Row: {
+          api_ms: number | null
+          checked_at: string
+          db_ok: boolean
+          details: Json
+          id: string
+          overall_status: string
+          queue_ok: boolean
+          scan_ok: boolean
+        }
+        Insert: {
+          api_ms?: number | null
+          checked_at?: string
+          db_ok?: boolean
+          details?: Json
+          id?: string
+          overall_status: string
+          queue_ok?: boolean
+          scan_ok?: boolean
+        }
+        Update: {
+          api_ms?: number | null
+          checked_at?: string
+          db_ok?: boolean
+          details?: Json
+          id?: string
+          overall_status?: string
+          queue_ok?: boolean
+          scan_ok?: boolean
+        }
+        Relationships: []
+      }
       system_history: {
         Row: {
           ai_review_at: string | null
@@ -4277,6 +4310,7 @@ export type Database = {
           read_ct: number
         }[]
       }
+      system_health_check: { Args: never; Returns: Json }
       validate_affiliate_code: {
         Args: { p_code: string }
         Returns: {

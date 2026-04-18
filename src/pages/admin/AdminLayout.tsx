@@ -23,6 +23,7 @@ import BugReportButton from '@/components/admin/BugReportButton';
 import { AnimatePresence, motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useAdminRealtime } from '@/hooks/useAdminRealtime';
+import { SystemHealthAlert } from '@/components/admin/SystemHealthAlert';
 
 
 // role: 'all' = everyone with admin/employee access, 'admin' = admin only, 'founder' = founder only
@@ -366,6 +367,7 @@ const AdminLayout = () => {
         {/* Content */}
         <main className="flex-1 min-h-0 overflow-x-hidden overflow-y-auto">
           <div className="md:px-6 md:py-6 p-4 pt-24 pb-8 md:pt-6 md:pb-8 h-full">
+            <SystemHealthAlert />
             <Outlet />
           </div>
         </main>
