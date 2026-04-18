@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { checkRateLimit } from "../_shared/rateLimit.ts";
 
 async function logRuntimeTrace(source: string, function_name: string, endpoint: string, error_message: string, payload_snapshot: any, request_trace_id?: string) {
   try {
@@ -87,6 +88,10 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     supabase = createClient(supabaseUrl, supabaseKey);
+
+    if (await checkRateLimit(supabase, req, "create-checkout")) {
+      return json({ error: "Too many requests" }, 429);
+    }
 
     const authenticatedUserId = await resolveUserId(req);
 
