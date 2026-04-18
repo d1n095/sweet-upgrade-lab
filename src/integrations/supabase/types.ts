@@ -3142,6 +3142,39 @@ export type Database = {
           },
         ]
       }
+      security_events: {
+        Row: {
+          endpoint: string | null
+          id: string
+          ip: string | null
+          message: string
+          severity: string
+          timestamp: string
+          type: string
+          user_id: string | null
+        }
+        Insert: {
+          endpoint?: string | null
+          id?: string
+          ip?: string | null
+          message: string
+          severity: string
+          timestamp?: string
+          type: string
+          user_id?: string | null
+        }
+        Update: {
+          endpoint?: string | null
+          id?: string
+          ip?: string | null
+          message?: string
+          severity?: string
+          timestamp?: string
+          type?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       shipping_carriers: {
         Row: {
           created_at: string
