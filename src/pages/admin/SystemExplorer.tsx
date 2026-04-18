@@ -1406,57 +1406,81 @@ const SystemExplorer = () => {
         )}
 
         {/* SECURITY TAB */}
-        {mainTab === "security" && (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Shield className="w-4 h-4" /> Security Events
-              </CardTitle>
-              <div className="flex gap-2 pt-2">
-                {(["all", "critical", "high"] as const).map((f) => (
-                  <button
-                    key={f}
-                    onClick={() => setSecurityFilter(f)}
-                    className={`px-3 py-1 text-xs font-medium rounded-md border transition-colors ${
-                      securityFilter === f
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-muted/30 text-muted-foreground border-border hover:bg-muted/50"
-                    }`}
-                  >
-                    {f === "all" ? "All" : f === "critical" ? "Critical" : "High"}
-                  </button>
-                ))}
+        {mainTab === "security" && (() => {
+          const all = securityEvents as any[];
+          const critical = all.filter(e => e.severity === "critical");
+          const anomalies = all.filter(e => (e.type || "").toLowerCase() === "anomaly" || (e.message || "").toLowerCase().includes("anomaly") || (e.message || "").toLowerCase().includes("spike") || (e.message || "").toLowerCase().includes("dropped"));
+          const authFailures = all.filter(e => (e.type || "").toLowerCase() === "auth" || (e.endpoint || "").toLowerCase().includes("login") || (e.message || "").toLowerCase().includes("access denied") || (e.message || "").toLowerCase().includes("unauthorized") || (e.message || "").toLowerCase().includes("login"));
+          const dataViolations = all.filter(e => (e.type || "").toLowerCase() === "data" || (e.message || "").toLowerCase().includes("blocked") || (e.message || "").toLowerCase().includes("invalid price") || (e.message || "").toLowerCase().includes("without id") || (e.message || "").toLowerCase().includes("rls"));
+
+          const renderEvent = (ev: any) => (
+            <div key={ev.id} className="flex items-start gap-2 p-2 rounded-md border border-border bg-muted/20">
+              <Badge variant={ev.severity === "critical" || ev.severity === "high" ? "destructive" : "secondary"} className="text-[10px] uppercase shrink-0">{ev.severity}</Badge>
+              <Badge variant="outline" className="text-[10px] shrink-0">{ev.type}</Badge>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium break-words">{ev.message}</p>
+                <p className="text-[10px] text-muted-foreground font-mono">
+                  {ev.timestamp ? new Date(ev.timestamp).toLocaleString("sv-SE") : "–"}
+                  {ev.endpoint ? ` · ${ev.endpoint}` : ""}
+                  {ev.ip ? ` · ${ev.ip}` : ""}
+                </p>
               </div>
-            </CardHeader>
-            <CardContent>
-              {securityEvents.length === 0 ? (
-                <p className="text-xs text-muted-foreground italic py-4">No security events found.</p>
-              ) : (
-                <div className="space-y-1.5">
-                  {securityEvents.map((ev: any) => (
-                    <div key={ev.id} className="flex items-start gap-2 p-2 rounded-md border border-border bg-muted/20">
-                      <Badge
-                        variant={ev.severity === "critical" || ev.severity === "high" ? "destructive" : "secondary"}
-                        className="text-[10px] uppercase shrink-0"
-                      >
-                        {ev.severity}
-                      </Badge>
-                      <Badge variant="outline" className="text-[10px] shrink-0">{ev.type}</Badge>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium break-words">{ev.message}</p>
-                        <p className="text-[10px] text-muted-foreground font-mono">
-                          {ev.timestamp ? new Date(ev.timestamp).toLocaleString("sv-SE") : "–"}
-                          {ev.endpoint ? ` · ${ev.endpoint}` : ""}
-                          {ev.ip ? ` · ${ev.ip}` : ""}
-                        </p>
-                      </div>
-                    </div>
+            </div>
+          );
+
+          const Section = ({ title, icon: Icon, items, tone }: { title: string; icon: any; items: any[]; tone: "destructive" | "warning" | "default" }) => (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center justify-between text-sm">
+                  <span className="flex items-center gap-2">
+                    <Icon className={`w-4 h-4 ${tone === "destructive" ? "text-destructive" : tone === "warning" ? "text-amber-500" : "text-muted-foreground"}`} />
+                    {title}
+                  </span>
+                  <Badge variant={tone === "destructive" ? "destructive" : "secondary"} className="text-[10px]">{items.length}</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {items.length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic">Inga händelser.</p>
+                ) : (
+                  <div className="space-y-1.5 max-h-72 overflow-y-auto">
+                    {items.slice(0, 25).map(renderEvent)}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+
+          return (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-semibold flex items-center gap-2"><Shield className="w-4 h-4" /> Security Overview</h3>
+                <div className="flex gap-2">
+                  {(["all", "critical", "high"] as const).map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => setSecurityFilter(f)}
+                      className={`px-3 py-1 text-xs font-medium rounded-md border transition-colors ${
+                        securityFilter === f
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-muted/30 text-muted-foreground border-border hover:bg-muted/50"
+                      }`}
+                    >
+                      {f === "all" ? "Alla" : f === "critical" ? "Critical" : "High"}
+                    </button>
                   ))}
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Section title="Critical Alerts" icon={AlertTriangle} items={critical} tone="destructive" />
+                <Section title="Anomalies" icon={Radar} items={anomalies} tone="warning" />
+                <Section title="Auth Failures" icon={Lock} items={authFailures} tone="warning" />
+                <Section title="Data Violations" icon={Database} items={dataViolations} tone="destructive" />
+              </div>
+            </div>
+          );
+        })()}
 
         {/* CODE INDEX TAB */}
         {mainTab === "codeindex" && (() => {
