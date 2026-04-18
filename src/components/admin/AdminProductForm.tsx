@@ -579,6 +579,19 @@ export function AdminProductForm({
       setStep(1);
       return;
     }
+    // Guard: block invalid price (< 0 or > 100000) and log security_event
+    const priceNum = parseFloat(formData.price);
+    if (isNaN(priceNum) || priceNum < 0 || priceNum > 100000) {
+      toast.error('Invalid price anomaly: pris måste vara mellan 0 och 100 000');
+      supabase.from('security_events').insert({
+        type: 'data',
+        severity: 'critical',
+        message: `Blocked invalid product price entry: ${formData.price} (product: ${formData.title || 'unknown'})`,
+        endpoint: 'admin_product_form',
+      }).then(() => {}, () => {});
+      setStep(0);
+      return;
+    }
     onSubmit(e);
   };
 
