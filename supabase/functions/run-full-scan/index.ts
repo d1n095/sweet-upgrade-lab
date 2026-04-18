@@ -2250,6 +2250,7 @@ serve(async (req) => {
       if (file_system_map.length === 0) {
         scanInput.issue = "No files detected for scanning";
         console.warn(`[SCAN:${tid}] ⚠ No files detected for scanning (file_system_map empty)`);
+        return new Response(JSON.stringify({ success: false, error: "No files available for scan" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       await supabase.from("scan_runs").update({ steps_results: { _scan_input: scanInput } }).eq("id", scanRun.id);
 
