@@ -1,5 +1,6 @@
 import { useRef, useCallback } from 'react';
 import { logSecurityEvent } from '@/utils/activityLogger';
+import { supabase } from '@/integrations/supabase/client';
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_MS = 60 * 1000; // 1 minute lockout
