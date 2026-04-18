@@ -61,6 +61,14 @@ export const logSecurityEvent = async (message: string, details?: Record<string,
 
 // Track access-denied attempts per resource key (in-memory)
 const accessDeniedAttempts = new Map<string, number>();
+const accessDeniedLocks = new Map<string, number>();
+const ACCESS_LOCK_THRESHOLD = 5;
+const ACCESS_LOCK_MS = 60 * 1000;
+
+export const isAccessLocked = (resource: string): boolean => {
+  const until = accessDeniedLocks.get(resource) ?? 0;
+  return until > Date.now();
+};
 
 export const logAccessDenied = async (resource: string, details?: Record<string, any>) => {
   const prev = accessDeniedAttempts.get(resource) ?? 0;
@@ -81,6 +89,22 @@ export const logAccessDenied = async (resource: string, details?: Record<string,
         type: 'auth',
         severity: 'medium',
         message: `Access denied retried for resource: ${resource} (attempt ${next})`,
+        endpoint: resource,
+      });
+    } catch {
+      // silent
+    }
+  }
+
+  // Lock after 5 unauthorized access attempts
+  if (next >= ACCESS_LOCK_THRESHOLD) {
+    accessDeniedLocks.set(resource, Date.now() + ACCESS_LOCK_MS);
+    accessDeniedAttempts.set(resource, 0);
+    try {
+      await supabase.from('security_events' as any).insert({
+        type: 'auth',
+        severity: 'high',
+        message: `Resource locked after ${ACCESS_LOCK_THRESHOLD} unauthorized access attempts: ${resource}`,
         endpoint: resource,
       });
     } catch {
