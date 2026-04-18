@@ -1400,6 +1400,59 @@ const SystemExplorer = () => {
           />
         )}
 
+        {/* SECURITY TAB */}
+        {mainTab === "security" && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Shield className="w-4 h-4" /> Security Events
+              </CardTitle>
+              <div className="flex gap-2 pt-2">
+                {(["all", "critical", "high"] as const).map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setSecurityFilter(f)}
+                    className={`px-3 py-1 text-xs font-medium rounded-md border transition-colors ${
+                      securityFilter === f
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-muted/30 text-muted-foreground border-border hover:bg-muted/50"
+                    }`}
+                  >
+                    {f === "all" ? "All" : f === "critical" ? "Critical" : "High"}
+                  </button>
+                ))}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {securityEvents.length === 0 ? (
+                <p className="text-xs text-muted-foreground italic py-4">No security events found.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {securityEvents.map((ev: any) => (
+                    <div key={ev.id} className="flex items-start gap-2 p-2 rounded-md border border-border bg-muted/20">
+                      <Badge
+                        variant={ev.severity === "critical" || ev.severity === "high" ? "destructive" : "secondary"}
+                        className="text-[10px] uppercase shrink-0"
+                      >
+                        {ev.severity}
+                      </Badge>
+                      <Badge variant="outline" className="text-[10px] shrink-0">{ev.type}</Badge>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium break-words">{ev.message}</p>
+                        <p className="text-[10px] text-muted-foreground font-mono">
+                          {ev.timestamp ? new Date(ev.timestamp).toLocaleString("sv-SE") : "–"}
+                          {ev.endpoint ? ` · ${ev.endpoint}` : ""}
+                          {ev.ip ? ` · ${ev.ip}` : ""}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* CODE INDEX TAB */}
         {mainTab === "codeindex" && (() => {
           const index = getCodeIndex();
