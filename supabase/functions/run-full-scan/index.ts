@@ -965,8 +965,46 @@ async function runDataIntegrityScan(supabase: any, scanRunId: string): Promise<a
         }).then(() => {}, () => {});
       }
 
-      if (massiveChanges.length > 0 || (ordersLast24 ?? 0) === 0 || (usersLastHour ?? 0) > 10) {
-        console.log(`[DATA SCAN] Business anomalies — orders24h:${ordersLast24} usersHr:${usersLastHour} massivePriceChanges:${massiveChanges.length}`);
+      // 4. Invalid price range scan (price < 0 OR price > 100000)
+      const { data: invalidPriceProducts } = await supabase
+        .from("products")
+        .select("id, title_sv, price")
+        .or("price.lt.0,price.gt.100000")
+        .limit(200);
+      for (const p of invalidPriceProducts || []) {
+        issues.push({
+          type: "business_anomaly", severity: "critical", entity: "product",
+          title: `Invalid price anomaly: ${p.title_sv} (price: ${p.price})`,
+          root_cause: "invalid_price_range", component: `product:${p.id}`,
+        });
+        await supabase.from("security_events").insert({
+          type: "data", severity: "critical",
+          message: `Invalid price anomaly on product ${p.id} (${p.title_sv}): ${p.price}`,
+          endpoint: "data_integrity_scan",
+        }).then(() => {}, () => {});
+      }
+
+      // 5. Profiles created without user_id
+      const { data: orphanProfiles } = await supabase
+        .from("profiles")
+        .select("id")
+        .is("user_id", null)
+        .limit(100);
+      for (const prof of orphanProfiles || []) {
+        issues.push({
+          type: "business_anomaly", severity: "critical", entity: "user",
+          title: `User created without id (profile: ${prof.id})`,
+          root_cause: "user_without_id", component: `profile:${prof.id}`,
+        });
+        await supabase.from("security_events").insert({
+          type: "data", severity: "critical",
+          message: `User created without id (profile: ${prof.id})`,
+          endpoint: "data_integrity_scan",
+        }).then(() => {}, () => {});
+      }
+
+      if (massiveChanges.length > 0 || (ordersLast24 ?? 0) === 0 || (usersLastHour ?? 0) > 10 || (invalidPriceProducts?.length ?? 0) > 0 || (orphanProfiles?.length ?? 0) > 0) {
+        console.log(`[DATA SCAN] Business anomalies — orders24h:${ordersLast24} usersHr:${usersLastHour} massivePriceChanges:${massiveChanges.length} invalidPrices:${invalidPriceProducts?.length ?? 0} orphanProfiles:${orphanProfiles?.length ?? 0}`);
       }
     } catch (e) {
       console.error("[DATA SCAN] Business anomaly check failed:", (e as Error).message);

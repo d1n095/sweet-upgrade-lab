@@ -90,6 +90,16 @@ export const useAuth = () => {
         data: Object.keys(metadata).length > 0 ? metadata : undefined,
       },
     });
+    // Guard: block user created without id and log security_event
+    if (!error && (!data.user || !data.user.id)) {
+      supabase.from('security_events').insert({
+        type: 'data',
+        severity: 'critical',
+        message: 'Blocked signup: user created without id',
+        endpoint: 'auth.signUp',
+      }).then(() => {}, () => {});
+      return { data, error: new Error('User created without id') as any };
+    }
     // Save phone to profile after signup
     if (!error && data.user && phone) {
       supabase.from('profiles').update({ phone }).eq('user_id', data.user.id).then(() => {});
