@@ -1063,6 +1063,29 @@ const SystemExplorer = () => {
           </button>
         </div>
 
+        {/* LAST SCAN INDICATOR */}
+        <div className="flex items-center gap-3 px-3 py-2 rounded-md border border-border bg-muted/30 flex-wrap">
+          <span className="text-xs font-medium text-foreground">
+            Last Scan:{" "}
+            {latestRun ? (
+              <span className="font-mono">
+                Scan ID: {String(latestRun.id).slice(0, 8)} | Time:{" "}
+                {(() => {
+                  const ts = (latestRun as any).completed_at ?? (latestRun as any).created_at;
+                  if (!ts) return "–";
+                  try {
+                    return new Date(ts).toLocaleTimeString("sv-SE", { hour12: false });
+                  } catch {
+                    return "–";
+                  }
+                })()}
+              </span>
+            ) : (
+              <span className="text-muted-foreground">No scan run yet</span>
+            )}
+          </span>
+        </div>
+
         {/* SCANNER FILE COUNT INDICATOR */}
         <div className="flex items-center gap-3 px-3 py-2 rounded-md border border-border bg-muted/30 flex-wrap">
           <span className="text-xs font-medium text-foreground">
