@@ -203,6 +203,11 @@ const SystemExplorer = () => {
   const [globalIssues, setGlobalIssues] = useState<{ type: string; message: string; file: string }[]>([]);
 
   useEffect(() => {
+    // Freeze system state before scanning — pause work queue, do not auto-resume
+    useWorkQueueStore.getState().pauseQueue();
+  }, []);
+
+  useEffect(() => {
     const rawSources = getRawSources();
     if (!rawSources) {
       return;
