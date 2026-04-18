@@ -824,7 +824,65 @@ async function runDataIntegrityScan(supabase: any, scanRunId: string): Promise<a
       }
     } catch (_) {}
 
-  } catch (e: any) {
+    // ── PRICE ANOMALY CHECK (data scanner) ──
+    // Flag price < 0 OR price > expected_range (10000 SEK)
+    try {
+      const PRICE_MAX = 10000;
+      const { data: anomalousProducts } = await supabase
+        .from("products")
+        .select("id, title_sv, price")
+        .or(`price.lt.0,price.gt.${PRICE_MAX}`)
+        .limit(50);
+
+      const { data: anomalousVariants } = await supabase
+        .from("product_variants")
+        .select("id, product_id, size, price")
+        .or(`price.lt.0,price.gt.${PRICE_MAX}`)
+        .limit(50);
+
+      const anomalies = [
+        ...((anomalousProducts || []).map((p: any) => ({
+          kind: "product",
+          id: p.id,
+          label: p.title_sv,
+          price: p.price,
+        }))),
+        ...((anomalousVariants || []).map((v: any) => ({
+          kind: "variant",
+          id: v.id,
+          label: `${v.product_id}/${v.size}`,
+          price: v.price,
+        }))),
+      ];
+
+      for (const a of anomalies) {
+        const reason = a.price < 0 ? "price < 0" : `price > ${PRICE_MAX}`;
+        issues.push({
+          type: "data_validation",
+          severity: "critical",
+          entity: a.kind,
+          title: `Invalid price anomaly: ${a.label} (${a.price})`,
+          field: "price",
+          value: a.price,
+          root_cause: reason,
+          component: `${a.kind}:${a.id}`,
+        });
+
+        await supabase.from("security_events").insert({
+          type: "data",
+          severity: "critical",
+          message: `Invalid price anomaly on ${a.kind} ${a.id}: ${a.price} (${reason})`,
+          endpoint: "data_integrity_scan",
+        }).then(() => {}, () => {});
+      }
+
+      if (anomalies.length > 0) {
+        console.log(`[DATA SCAN] Price anomalies detected: ${anomalies.length}`);
+      }
+    } catch (e) {
+      console.error("[DATA SCAN] Price anomaly check failed:", (e as Error).message);
+    }
+
     console.error("Data integrity scan error:", e);
     issues.push({ type: "scan_error", severity: "critical", entity: "integrity_scan", title: `Integrity scan fel: ${e.message}`, step: "scan", root_cause: e.message, component: "integrity_scan" });
   }
