@@ -13,6 +13,7 @@ import { Database, Activity, Bug, CheckCircle, AlertTriangle, Clock, Shield, Che
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import ReactMarkdown from "react-markdown";
+import { useNavigate } from "react-router-dom";
 import { ScanControls, IssueAnalysisPanel, SystemCommandCenter } from "./system";
 
 type WorkItem = {
@@ -157,6 +158,7 @@ const RuntimeTraceSection = ({ traceId }: { traceId?: string }) => {
 
 const SystemExplorer = () => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const { isAdmin, isLoading: adminLoading } = useAdminRole();
   const { isFounder, isLoading: founderLoading } = useFounderRole();
   const isSystemAdmin = isFounder || false; // founder = full access
