@@ -883,6 +883,95 @@ async function runDataIntegrityScan(supabase: any, scanRunId: string): Promise<a
       console.error("[DATA SCAN] Price anomaly check failed:", (e as Error).message);
     }
 
+    // ── BUSINESS ANOMALY CHECK (orders drop / user spike / price massive change) ──
+    try {
+      const now = Date.now();
+      const oneDayAgo = new Date(now - 24 * 60 * 60 * 1000).toISOString();
+      const twoDaysAgo = new Date(now - 48 * 60 * 60 * 1000).toISOString();
+      const oneHourAgo = new Date(now - 60 * 60 * 1000).toISOString();
+      const twoHoursAgo = new Date(now - 2 * 60 * 60 * 1000).toISOString();
+
+      // 1. Orders suddenly drop to 0 (last 24h = 0 while previous 24h had >5)
+      const { count: ordersLast24 } = await supabase
+        .from("orders")
+        .select("id", { count: "exact", head: true })
+        .gte("created_at", oneDayAgo)
+        .is("deleted_at", null);
+      const { count: ordersPrev24 } = await supabase
+        .from("orders")
+        .select("id", { count: "exact", head: true })
+        .gte("created_at", twoDaysAgo)
+        .lt("created_at", oneDayAgo)
+        .is("deleted_at", null);
+      if ((ordersLast24 ?? 0) === 0 && (ordersPrev24 ?? 0) > 5) {
+        issues.push({
+          type: "business_anomaly", severity: "critical", entity: "orders",
+          title: `Orders dropped to 0 (previous 24h: ${ordersPrev24})`,
+          root_cause: "orders_dropped_to_zero", component: "orders",
+        });
+        await supabase.from("security_events").insert({
+          type: "anomaly", severity: "critical",
+          message: `Orders suddenly dropped to 0 (previous 24h had ${ordersPrev24})`,
+          endpoint: "data_integrity_scan",
+        }).then(() => {}, () => {});
+      }
+
+      // 2. Users spike abnormally (last hour > 5x previous hour AND >10)
+      const { count: usersLastHour } = await supabase
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
+        .gte("created_at", oneHourAgo);
+      const { count: usersPrevHour } = await supabase
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
+        .gte("created_at", twoHoursAgo)
+        .lt("created_at", oneHourAgo);
+      const baseline = Math.max(usersPrevHour ?? 0, 1);
+      if ((usersLastHour ?? 0) > 10 && (usersLastHour ?? 0) > baseline * 5) {
+        issues.push({
+          type: "business_anomaly", severity: "critical", entity: "users",
+          title: `User signup spike: ${usersLastHour} in last hour (prev: ${usersPrevHour})`,
+          root_cause: "user_signup_spike", component: "profiles",
+        });
+        await supabase.from("security_events").insert({
+          type: "anomaly", severity: "critical",
+          message: `Abnormal user spike: ${usersLastHour} signups last hour (prev hour: ${usersPrevHour})`,
+          endpoint: "data_integrity_scan",
+        }).then(() => {}, () => {});
+      }
+
+      // 3. Prices change massively (updated in last 24h with >5x change vs original_price)
+      const { data: recentPriceChanges } = await supabase
+        .from("products")
+        .select("id, title_sv, price, original_price, updated_at")
+        .gte("updated_at", oneDayAgo)
+        .not("original_price", "is", null)
+        .limit(200);
+      const massiveChanges = (recentPriceChanges || []).filter((p: any) => {
+        if (!p.original_price || p.original_price <= 0 || !p.price || p.price <= 0) return false;
+        const ratio = p.price / p.original_price;
+        return ratio > 5 || ratio < 0.2;
+      });
+      for (const p of massiveChanges) {
+        issues.push({
+          type: "business_anomaly", severity: "critical", entity: "product",
+          title: `Massive price change: ${p.title_sv} (${p.original_price} → ${p.price})`,
+          root_cause: "massive_price_change", component: `product:${p.id}`,
+        });
+        await supabase.from("security_events").insert({
+          type: "anomaly", severity: "critical",
+          message: `Massive price change on product ${p.id} (${p.title_sv}): ${p.original_price} → ${p.price}`,
+          endpoint: "data_integrity_scan",
+        }).then(() => {}, () => {});
+      }
+
+      if (massiveChanges.length > 0 || (ordersLast24 ?? 0) === 0 || (usersLastHour ?? 0) > 10) {
+        console.log(`[DATA SCAN] Business anomalies — orders24h:${ordersLast24} usersHr:${usersLastHour} massivePriceChanges:${massiveChanges.length}`);
+      }
+    } catch (e) {
+      console.error("[DATA SCAN] Business anomaly check failed:", (e as Error).message);
+    }
+
   } catch (e: any) {
     console.error("Data integrity scan error:", e);
     issues.push({ type: "scan_error", severity: "critical", entity: "integrity_scan", title: `Integrity scan fel: ${e.message}`, step: "scan", root_cause: e.message, component: "integrity_scan" });
