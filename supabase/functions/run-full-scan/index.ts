@@ -2128,20 +2128,37 @@ serve(async (req) => {
       const stepStart = Date.now();
 
       trace(scan_run_id, `process_step[${step_index}] start id=${step.id} scanner=${step.scanType}`);
+      const SCANNER_TIMEOUT_MS = 5000;
       try {
         const realScanner = REAL_DB_SCANNERS[step.scanType];
         if (realScanner) {
-          const dbResult = await realScanner(supabase, scan_run_id);
-          stepResult = { ...dbResult };
+          const dbResult = await Promise.race([
+            realScanner(supabase, scan_run_id),
+            new Promise((_, reject) =>
+              setTimeout(() => {
+                const err = new Error("Scanner timeout");
+                (err as any).name = "ScannerTimeoutError";
+                reject(err);
+              }, SCANNER_TIMEOUT_MS)
+            ),
+          ]);
+          stepResult = { ...(dbResult as any) };
           scanner_status = "success";
         } else {
           stepResult = { skipped: true, reason: "NO_SCANNER", failed: false };
           scanner_status = "skipped";
         }
       } catch (e: any) {
-        stepResult = { error: e.message, failed: true, _timed_out: e.name === "AbortError" };
-        scanner_status = "failed";
-        scanner_error = e?.message ?? String(e);
+        const isTimeout = e?.name === "ScannerTimeoutError" || e?.name === "AbortError" || (Date.now() - stepStart) > SCANNER_TIMEOUT_MS;
+        if (isTimeout) {
+          stepResult = { error: "Scanner timeout", failed: true, _timed_out: true };
+          scanner_status = "timeout" as any;
+          scanner_error = "Scanner timeout";
+        } else {
+          stepResult = { error: e.message, failed: true, _timed_out: false };
+          scanner_status = "failed";
+          scanner_error = e?.message ?? String(e);
+        }
       }
 
       const duration_ms = Date.now() - stepStart;
