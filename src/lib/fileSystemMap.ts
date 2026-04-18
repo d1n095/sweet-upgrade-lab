@@ -29,7 +29,15 @@ function extractFolder(path: string): string {
 // Gather all relevant source files at build time (paths only)
 console.log("[FILE MAP BUILD START]");
 
-const files = import.meta.glob("/src/**/*.{ts,tsx,js,jsx}", { eager: true });
+const files = import.meta.glob("/src/**/*.{ts,tsx,js,jsx}", {
+  eager: true,
+});
+// Filter out test files which import vitest and crash the app at runtime
+for (const key of Object.keys(files)) {
+  if (/\.(test|spec)\.[tj]sx?$/.test(key) || key.startsWith("/src/test/")) {
+    delete (files as any)[key];
+  }
+}
 
 console.log("[FILE MAP COUNT]:", Object.keys(files).length);
 
