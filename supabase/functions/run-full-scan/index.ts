@@ -2123,7 +2123,7 @@ serve(async (req) => {
       await supabase.from("scan_runs").update({ current_step: step_index, current_step_label: step.label, iteration: currentIteration, progress: Math.round((step_index / STEPS.length) * 85) }).eq("id", scan_run_id);
 
       let stepResult: any = { error: "unknown", failed: true };
-      let scanner_status: "success" | "failed" | "skipped" = "failed";
+      let scanner_status: "success" | "failed" | "skipped" | "timeout" = "failed";
       let scanner_error: string | null = null;
       const stepStart = Date.now();
 
