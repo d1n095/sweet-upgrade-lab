@@ -1,5 +1,6 @@
 import { useRef, useCallback } from 'react';
 import { logSecurityEvent } from '@/utils/activityLogger';
+import { supabase } from '@/integrations/supabase/client';
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_MS = 60 * 1000; // 1 minute lockout
@@ -39,6 +40,13 @@ export const useLoginRateLimit = () => {
         attempts: MAX_ATTEMPTS,
         lockout_seconds: LOCKOUT_MS / 1000,
       });
+      // Insert security_event for repeated login failures (>5)
+      supabase.from('security_events' as any).insert({
+        type: 'auth',
+        severity: 'high',
+        message: `Repeated login failures (>${MAX_ATTEMPTS} attempts)`,
+        endpoint: 'auth/login',
+      }).then(() => {}, () => {});
       return { allowed: false, remainingSeconds: Math.ceil(LOCKOUT_MS / 1000) };
     }
 
