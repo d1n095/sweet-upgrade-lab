@@ -2123,6 +2123,8 @@ serve(async (req) => {
       await supabase.from("scan_runs").update({ current_step: step_index, current_step_label: step.label, iteration: currentIteration, progress: Math.round((step_index / STEPS.length) * 85) }).eq("id", scan_run_id);
 
       let stepResult: any = { error: "unknown", failed: true };
+      let scanner_status: "success" | "failed" | "skipped" = "failed";
+      let scanner_error: string | null = null;
       const stepStart = Date.now();
 
       trace(scan_run_id, `process_step[${step_index}] start id=${step.id} scanner=${step.scanType}`);
@@ -2131,13 +2133,27 @@ serve(async (req) => {
         if (realScanner) {
           const dbResult = await realScanner(supabase, scan_run_id);
           stepResult = { ...dbResult };
+          scanner_status = "success";
         } else {
           stepResult = { skipped: true, reason: "NO_SCANNER", failed: false };
+          scanner_status = "skipped";
         }
-      } catch (e: any) { stepResult = { error: e.message, failed: true, _timed_out: e.name === "AbortError" }; }
+      } catch (e: any) {
+        stepResult = { error: e.message, failed: true, _timed_out: e.name === "AbortError" };
+        scanner_status = "failed";
+        scanner_error = e?.message ?? String(e);
+      }
 
       const duration_ms = Date.now() - stepStart;
       const issueCount = stepResult.issues?.length ?? 0;
+
+      // Per-scanner execution record (passed through to ai_scan_results via steps_results)
+      stepResult.scanner_execution = {
+        name: step.id,
+        status: scanner_status,
+        error: scanner_error,
+        duration_ms,
+      };
       trace(scan_run_id, `process_step[${step_index}] done id=${step.id} issues=${issueCount} duration_ms=${duration_ms}${stepResult.failed ? ` ERROR=${stepResult.error}` : ""}`);
 
       const scanFinishedAt = new Date().toISOString();
