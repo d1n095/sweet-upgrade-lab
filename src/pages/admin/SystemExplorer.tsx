@@ -1063,6 +1063,18 @@ const SystemExplorer = () => {
           </button>
         </div>
 
+        {/* SCANNER FILE COUNT INDICATOR */}
+        <div className="flex items-center gap-3 px-3 py-2 rounded-md border border-border bg-muted/30">
+          <span className="text-xs font-medium text-foreground">
+            Files detected: <span className="font-bold">{fileSystemMap.length}</span>
+          </span>
+          {fileSystemMap.length < 10 && (
+            <span className="text-xs font-semibold text-destructive flex items-center gap-1">
+              ⚠ Scanner not connected to codebase
+            </span>
+          )}
+        </div>
+
         {/* BACKEND SCAN TAB */}
         {mainTab === "backendscan" && (() => {
           const run = latestRun;
