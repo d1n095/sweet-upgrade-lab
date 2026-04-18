@@ -2088,10 +2088,21 @@ serve(async (req) => {
 
       // Input snapshot
       const { data: structure_map } = await supabase.from("system_structure_map").select("entity_type, entity_name").limit(500);
-      const routes = (structure_map || []).filter((e: any) => e.entity_type === "page");
-      const components = (structure_map || []).filter((e: any) => e.entity_type === "component");
-      const dataEntities = (structure_map || []).filter((e: any) => e.entity_type !== "page" && e.entity_type !== "component");
-      const scanInput = { components_count: components.length, routes_count: routes.length, data_entities_count: dataEntities.length };
+      const file_system_map = structure_map || [];
+      console.log("[FILE MAP SIZE]:", file_system_map.length);
+      const routes = file_system_map.filter((e: any) => e.entity_type === "page");
+      const components = file_system_map.filter((e: any) => e.entity_type === "component");
+      const dataEntities = file_system_map.filter((e: any) => e.entity_type !== "page" && e.entity_type !== "component");
+      const scanInput: Record<string, any> = {
+        components_count: components.length,
+        routes_count: routes.length,
+        data_entities_count: dataEntities.length,
+        file_map_size: file_system_map.length,
+      };
+      if (file_system_map.length === 0) {
+        scanInput.issue = "No files detected for scanning";
+        console.warn(`[SCAN:${tid}] ⚠ No files detected for scanning (file_system_map empty)`);
+      }
       await supabase.from("scan_runs").update({ steps_results: { _scan_input: scanInput } }).eq("id", scanRun.id);
 
       if (!structure_map || structure_map.length === 0) {
