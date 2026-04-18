@@ -1075,6 +1075,79 @@ const SystemExplorer = () => {
           )}
         </div>
 
+        {/* SCANNER EXECUTION SECTION */}
+        {(() => {
+          const stepsResults = (latestRun?.steps_results ?? null) as Record<string, any> | null;
+          if (!stepsResults) return null;
+          const executions = Object.entries(stepsResults)
+            .filter(([k]) => !k.startsWith("_"))
+            .map(([k, v]: [string, any]) => {
+              const exec = v?.scanner_execution;
+              if (exec) return exec;
+              const failed = !!v?.failed || !!v?.error;
+              const skipped = !!v?.skipped;
+              return {
+                name: k,
+                status: skipped ? "skipped" : failed ? "failed" : "success",
+                error: v?.error ?? null,
+                duration_ms: v?._duration_ms ?? v?._execution_time_ms ?? 0,
+              };
+            });
+          if (executions.length === 0) return null;
+          const failedCount = executions.filter((e: any) => e.status === "failed").length;
+          return (
+            <div className="rounded-md border border-border bg-muted/30 p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-foreground">Scanner Execution</span>
+                {failedCount > 0 && (
+                  <span className="text-[10px] font-semibold text-destructive">
+                    {failedCount} failed
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
+                {executions.map((exec: any, idx: number) => {
+                  const isFailed = exec.status === "failed";
+                  const isSkipped = exec.status === "skipped";
+                  return (
+                    <div
+                      key={`${exec.name}-${idx}`}
+                      className={`flex flex-col gap-0.5 rounded px-2 py-1.5 text-xs border ${
+                        isFailed
+                          ? "bg-destructive/10 border-destructive/40 text-destructive"
+                          : "bg-background border-border"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-mono font-medium truncate">{exec.name}</span>
+                        <span
+                          className={`text-[10px] font-semibold uppercase shrink-0 ${
+                            isFailed
+                              ? "text-destructive"
+                              : isSkipped
+                              ? "text-muted-foreground"
+                              : "text-emerald-600 dark:text-emerald-500"
+                          }`}
+                        >
+                          {exec.status}
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {exec.duration_ms ?? 0} ms
+                      </div>
+                      {isFailed && exec.error && (
+                        <p className="text-[10px] font-mono text-destructive break-all mt-0.5">
+                          {exec.error}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* BACKEND SCAN TAB */}
         {mainTab === "backendscan" && (() => {
           const run = latestRun;
