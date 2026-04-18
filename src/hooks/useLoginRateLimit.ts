@@ -40,6 +40,13 @@ export const useLoginRateLimit = () => {
         attempts: MAX_ATTEMPTS,
         lockout_seconds: LOCKOUT_MS / 1000,
       });
+      // Insert security_event for repeated login failures (>5)
+      supabase.from('security_events' as any).insert({
+        type: 'auth',
+        severity: 'high',
+        message: `Repeated login failures (>${MAX_ATTEMPTS} attempts)`,
+        endpoint: 'auth/login',
+      }).then(() => {}, () => {});
       return { allowed: false, remainingSeconds: Math.ceil(LOCKOUT_MS / 1000) };
     }
 
