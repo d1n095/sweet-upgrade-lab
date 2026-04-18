@@ -2114,7 +2114,7 @@ const SystemExplorer = () => {
 
         {/* FLOW STATUS */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-          <Card>
+          <Card className="cursor-pointer transition-shadow hover:shadow-md" onClick={() => navigate('/admin/issues')}>
             <CardContent className="p-4 text-center">
               <AlertTriangle className="h-5 w-5 mx-auto mb-1 text-orange-500" />
               <div className="text-2xl font-bold">{detectedIssues}</div>
@@ -2128,21 +2128,21 @@ const SystemExplorer = () => {
               <div className="text-xs text-muted-foreground">Total Work Items</div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="cursor-pointer transition-shadow hover:shadow-md" onClick={() => navigate('/admin/issues?status=active')}>
             <CardContent className="p-4 text-center">
               <Clock className="h-5 w-5 mx-auto mb-1 text-yellow-500" />
               <div className="text-2xl font-bold">{activeCount}</div>
               <div className="text-xs text-muted-foreground">Active</div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="cursor-pointer transition-shadow hover:shadow-md" onClick={() => navigate('/admin/issues?status=done')}>
             <CardContent className="p-4 text-center">
               <CheckCircle className="h-5 w-5 mx-auto mb-1 text-green-500" />
               <div className="text-2xl font-bold">{completedCount}</div>
               <div className="text-xs text-muted-foreground">Completed</div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="cursor-pointer transition-shadow hover:shadow-md" onClick={() => navigate('/admin/scans')}>
             <CardContent className="p-4 text-center">
               <Bug className="h-5 w-5 mx-auto mb-1 text-purple-500" />
               <div className="text-2xl font-bold">{scanSourceCount}</div>
