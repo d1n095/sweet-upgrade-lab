@@ -2621,6 +2621,8 @@ serve(async (req) => {
         executive_summary: execSummary, work_items_created: workItemsCreated,
         current_step: STEPS.length, current_step_label: `Klar ✓ (${systemStage})`,
       }).eq("id", scan_run_id);
+      console.log("[SCAN ID]:", scan_run_id);
+      console.log("[SCAN RESULTS UPDATED]");
 
       // Store scan snapshot for historical tracking
       const totalScanners = STEPS.length;
