@@ -1073,6 +1073,9 @@ const SystemExplorer = () => {
           <button onClick={() => setMainTab("analysis")} className={`px-3 py-1.5 text-xs font-medium rounded-t-md transition-colors ${mainTab === "analysis" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"}`}>
             Issues
           </button>
+          <button onClick={() => setMainTab("security")} className={`px-3 py-1.5 text-xs font-medium rounded-t-md transition-colors ${mainTab === "security" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"}`}>
+            Security
+          </button>
         </div>
 
         {/* LAST SCAN INDICATOR */}
