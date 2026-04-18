@@ -2152,7 +2152,7 @@ serve(async (req) => {
         const isTimeout = e?.name === "ScannerTimeoutError" || e?.name === "AbortError" || (Date.now() - stepStart) > SCANNER_TIMEOUT_MS;
         if (isTimeout) {
           stepResult = { error: "Scanner timeout", failed: true, _timed_out: true };
-          scanner_status = "timeout" as any;
+          scanner_status = "timeout";
           scanner_error = "Scanner timeout";
         } else {
           stepResult = { error: e.message, failed: true, _timed_out: false };
