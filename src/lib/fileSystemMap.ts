@@ -27,6 +27,16 @@ function extractFolder(path: string): string {
 }
 
 // Gather all relevant source files at build time (paths only)
+console.log("[FILE MAP BUILD START]");
+
+const files = import.meta.glob("/src/**/*.{ts,tsx,js,jsx}", { eager: true });
+
+console.log("[FILE MAP COUNT]:", Object.keys(files).length);
+
+if (Object.keys(files).length === 0) {
+  throw new Error("No files detected in project");
+}
+
 const componentFiles = import.meta.glob("/src/components/**/*.{ts,tsx}", { eager: false });
 const pageFiles = import.meta.glob("/src/pages/**/*.{ts,tsx}", { eager: false });
 const hookFiles = import.meta.glob("/src/hooks/**/*.{ts,tsx}", { eager: false });
