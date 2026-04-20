@@ -356,7 +356,49 @@ export default function GodModeOverlay() {
             </Section>
           </Panel>
 
-          {/* Hover detail */}
+          {/* 6. COMMAND / MODE — registry-driven */}
+          <Panel id="command" pos={positions.command} onDragStart={beginDrag("command")}>
+            <Row k="active_mode" v={activeMode} tone={activeMode === "STRICT" ? "warn" : "ok"} />
+            <Row k="sync_status" v={syncStatus.toUpperCase()} tone={syncStatus === "in_sync" ? "ok" : "warn"} />
+            <Row k="last_command" v={lastCommand?.name ?? "UNKNOWN"} />
+            <Row
+              k="result"
+              v={lastCommand ? lastCommand.status.toUpperCase() : "UNKNOWN"}
+              tone={lastCommand?.status === "ok" ? "ok" : lastCommand?.status === "error" ? "err" : "warn"}
+            />
+            <Row
+              k="affected"
+              v={lastCommand?.affected_modules.length ? lastCommand.affected_modules.join(", ") : "none"}
+            />
+            <Section label="HISTORY">
+              <div className="max-h-24 overflow-auto space-y-0.5">
+                {commandLog.slice(0, 6).map((c) => (
+                  <div key={c.id} className="flex justify-between gap-2 truncate" title={c.error ?? c.result_preview}>
+                    <span
+                      className={
+                        c.status === "ok"
+                          ? "text-emerald-400"
+                          : c.status === "error"
+                            ? "text-red-400"
+                            : "text-amber-400"
+                      }
+                    >
+                      ●
+                    </span>
+                    <span className="truncate flex-1 text-zinc-200">{c.name}</span>
+                    <span className="text-zinc-500 shrink-0">{c.started_at.slice(11, 19)}</span>
+                  </div>
+                ))}
+                {commandLog.length === 0 && <div className="text-zinc-500">no commands dispatched</div>}
+              </div>
+            </Section>
+            <Section label="MODES">
+              <div className="text-zinc-400 text-[10px]">
+                __godmode.mode("normal" | "god" | "stealth" | "strict" | "minimal")
+              </div>
+            </Section>
+          </Panel>
+
           {hoverFile && (
             <div className="absolute bottom-8 left-2 bg-black/90 border border-emerald-700/40 text-emerald-300 px-2 py-1 rounded pointer-events-none">
               {hoverFile}
