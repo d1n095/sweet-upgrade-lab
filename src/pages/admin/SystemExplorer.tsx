@@ -22,6 +22,7 @@ import { NoAiArchitectureDashboard } from "@/components/admin/NoAiArchitectureDa
 import { ExecutionGovernorPanel } from "@/components/admin/ExecutionGovernorPanel";
 import { SystemStateRegistryPanel } from "@/components/admin/SystemStateRegistryPanel";
 import { RealityCheckPanel } from "@/components/admin/RealityCheckPanel";
+import { LoopPreventionPanel } from "@/components/admin/LoopPreventionPanel";
 
 type WorkItem = {
   id: string;
@@ -1749,6 +1750,8 @@ const SystemExplorer = () => {
         {/* FILES TAB */}
         {mainTab === "files" && (
           <div className="space-y-3">
+            {/* LOOP PREVENTION — L1/L2/L3 deterministic anti-loop guard */}
+            <LoopPreventionPanel />
             {/* REALITY CHECK — RC1/RC2/RC3 against state registry */}
             <RealityCheckPanel />
             {/* SYSTEM STATE REGISTRY — single source of truth (append-only) */}
