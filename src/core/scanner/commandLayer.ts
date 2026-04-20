@@ -314,5 +314,13 @@ if (typeof window !== "undefined") {
       return report;
     }, [`${(input.known_patterns ?? []).length} patterns`]),
     lastSyntheticUniverse: () => lastSyntheticUniverseReport,
+    protocolSpec: () => dispatchCommand("protocol.spec", () => getProtocolSpec()),
+    protocolEvaluate: (submissions) => dispatchCommand("protocol.evaluate", () => {
+      const report = evaluateProtocolCompliance(submissions);
+      lastProtocolReport = report;
+      return report;
+    }, [`${submissions.length} projects`]),
+    lastProtocolReport: () => lastProtocolReport,
+    lastProtocolSpec: () => getProtocolSpec(),
   };
 }
