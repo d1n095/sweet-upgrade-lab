@@ -28,6 +28,7 @@ import {
 } from "@/core/architecture/architectureEnforcementCore";
 import { finalSnapshotEngine, type ImmutableSnapshot } from "@/core/scanner/finalSnapshotEngine";
 import { versionedArchitectureStore } from "@/core/scanner/versionedArchitectureStore";
+import { rollbackEngine } from "@/core/scanner/rollbackEngine";
 
 export type PipelineStageName =
   | "TRUTH_SCAN"
