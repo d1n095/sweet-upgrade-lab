@@ -185,9 +185,19 @@ export default function GodModeOverlay() {
     [slots],
   );
 
-  const visibleModules: PanelId[] = open ? ["system", "heatmap", "clusters", "execution", "reality"] : [];
+  const visibleModules: PanelId[] = open
+    ? ["system", "heatmap", "clusters", "execution", "reality", "command"]
+    : [];
+
+  // Subscribe to command layer (always — even when overlay closed, so panel stays in sync)
+  const lastCommand = useCommandLayerStore((s) => s.last_command);
+  const commandLog = useCommandLayerStore((s) => s.log);
+  const syncStatus = useCommandLayerStore((s) => s.sync_status);
+  const uiUpdateLog = useCommandLayerStore((s) => s.ui_update_log);
+  const stealthActive = useStealthStore((s) => s.status === "ACTIVE");
 
   if (!isAdmin) return null;
+  if (stealthActive) return null;
 
   // ── Render ───────────────────────────────────────────────────────────
   return (
