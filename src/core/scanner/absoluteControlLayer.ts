@@ -152,6 +152,12 @@ export const SYSTEM_ROLE_REGISTRY: ReadonlyArray<SystemRoleEntry> = Object.freez
     can_block_execution: false,
     description: "Stores per-version observations: top 10 connected files, violations, file kinds. Derives stable files, repeated violations, and frequently moved files by raw counting only.",
   },
+  {
+    module: "ruleEvolution",
+    role: "READ_ONLY_REPORTER",
+    can_block_execution: false,
+    description: "Derives evolved rule severities from patternMemory + regressionGuard: upgrades violations seen in ≥3 versions to CRITICAL, downgrades violations absent for 3 consecutive observations, and marks stable violation-free files as ENFORCED_STANDARD.",
+  },
   // ── 3. DATA PRODUCERS ────────────────────────────────────────────────────
   {
     module: "fileSystemMap",
