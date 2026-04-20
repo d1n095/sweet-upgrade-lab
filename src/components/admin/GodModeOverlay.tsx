@@ -10,9 +10,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSystemStateStore, type ModuleKey } from "@/stores/systemStateStore";
 import { systemStateRegistry, type RegistrySnapshot } from "@/core/scanner/systemStateRegistry";
+import { useStealthStore } from "@/core/scanner/stealthMode";
+import { useCommandLayerStore } from "@/core/scanner/commandLayer";
 import { useAdminRole } from "@/hooks/useAdminRole";
 
-type PanelId = "system" | "heatmap" | "clusters" | "execution" | "reality";
+type PanelId = "system" | "heatmap" | "clusters" | "execution" | "reality" | "command";
 
 interface PanelPos {
   x: number;
@@ -25,6 +27,7 @@ const DEFAULT_POS: Record<PanelId, PanelPos> = {
   clusters: { x: 704, y: 16 },
   execution: { x: 16, y: 280 },
   reality: { x: 360, y: 280 },
+  command: { x: 704, y: 280 },
 };
 
 const PANEL_LABELS: Record<PanelId, string> = {
@@ -33,6 +36,7 @@ const PANEL_LABELS: Record<PanelId, string> = {
   clusters: "CLUSTER VIEW",
   execution: "EXECUTION FLOW",
   reality: "REALITY CHECK",
+  command: "COMMAND LAYER",
 };
 
 function useRegistrySnapshot(): RegistrySnapshot {
