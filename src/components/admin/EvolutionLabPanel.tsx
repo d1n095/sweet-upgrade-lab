@@ -1063,8 +1063,12 @@ export function EvolutionLabPanel({ isFounder }: Props) {
     {
       key: "production_readiness",
       icon: <Rocket className="w-4 h-4" />,
-      run: () => {
-        setReadiness(runProductionReadiness({ sources: normalizedSources }));
+      run: async () => {
+        await runAndStore("production_readiness", () => {
+          const r = runProductionReadiness({ sources: normalizedSources });
+          setReadiness(r);
+          return r;
+        });
       },
       body: readiness ? (
         <div className="text-xs space-y-2">
