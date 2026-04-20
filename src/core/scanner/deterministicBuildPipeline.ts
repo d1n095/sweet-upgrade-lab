@@ -277,6 +277,18 @@ class DeterministicBuildPipeline {
   private finish(run: PipelineRun): PipelineRun {
     run.finished_at = Date.now();
     if (run.status === "RUNNING") run.status = "SUCCESS";
+    // ── Rollback Engine — evaluate every finished pipeline (success or failure) ──
+    try {
+      const event = rollbackEngine.evaluatePipelineRun(run);
+      if (event) {
+        this.log(
+          run,
+          `↩ rollback ${event.trigger} → ${event.rollback_to_version ?? "no target"} — ${event.reason}`
+        );
+      }
+    } catch (e: any) {
+      this.log(run, `… rollback evaluation threw: ${e?.message ?? e}`);
+    }
     this.history.push(clone(run));
     if (this.history.length > 30) this.history.shift();
     this.locked = false;
