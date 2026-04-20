@@ -911,11 +911,15 @@ export function EvolutionLabPanel({ isFounder }: Props) {
       icon: <Flame className="w-4 h-4" />,
       run: async () => {
         await loadHistorySignals();
-        setRisk(buildRiskHeatmap({
-          edges: inputs.depGraph.edges,
-          change_frequency: changeCounts,
-          bug_density: bugCounts,
-        }));
+        await runAndStore("risk_heatmap", () => {
+          const r = buildRiskHeatmap({
+            edges: inputs.depGraph.edges,
+            change_frequency: changeCounts,
+            bug_density: bugCounts,
+          });
+          setRisk(r);
+          return r;
+        });
       },
       body: risk ? (
         <div className="text-xs space-y-2">
