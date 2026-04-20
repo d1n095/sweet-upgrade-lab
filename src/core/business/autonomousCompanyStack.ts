@@ -294,7 +294,7 @@ export function buildGrowthLoop(
 
   // Upsell points: deterministic ladder through tiers triggered by high-value clusters.
   const sortedTiers = [...base_tiers].sort((a, b) => a.monthly_price_usd - b.monthly_price_usd);
-  const upsell_points: GrowthLoopReport["upsell_points"] = [];
+  const upsell_points: Array<{ from_tier: string; to_tier: string; trigger: string }> = [];
   for (let i = 0; i < sortedTiers.length - 1; i++) {
     const trigger =
       high_value_clusters[i] ??
