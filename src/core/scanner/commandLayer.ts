@@ -240,6 +240,9 @@ declare global {
       protocolEvaluate: (submissions: ReadonlyArray<ProjectProtocolSubmission>) => Promise<CommandEntry>;
       lastProtocolReport: () => ComplianceReport | null;
       lastProtocolSpec: () => ProtocolSpec;
+      securityReport: () => Promise<CommandEntry>;
+      tamperLog: () => Promise<CommandEntry>;
+      lastSecurityReport: () => SecurityReport | null;
     };
   }
 }
