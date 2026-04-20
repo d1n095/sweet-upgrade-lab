@@ -68,6 +68,11 @@ import {
   type CompanyStackInput,
   type CompanyStackReport,
 } from "@/core/business/autonomousCompanyStack";
+import {
+  runAutoCampaignTrigger,
+  type AutoTriggerInput,
+  type AutoTriggerReport,
+} from "@/core/business/autoCampaignTrigger";
 
 export type CommandStatus = "pending" | "ok" | "error";
 
@@ -267,6 +272,8 @@ declare global {
       lastCompanyStack: () => CompanyStackReport | null;
       runDiscountEngine: (input: DiscountEngineInput) => Promise<CommandEntry>;
       lastDiscountReport: () => DiscountEngineReport | null;
+      runAutoCampaignTrigger: (input: AutoTriggerInput) => Promise<CommandEntry>;
+      lastAutoCampaignReport: () => AutoTriggerReport | null;
     };
   }
 }
@@ -282,6 +289,7 @@ let lastSecurityReport: SecurityReport | null = null;
 let lastMetaReport: MetaSystemReport | null = null;
 let lastDiscountReport: DiscountEngineReport | null = null;
 let lastCompanyStackReport: CompanyStackReport | null = null;
+let lastAutoCampaignReport: AutoTriggerReport | null = null;
 
 if (typeof window !== "undefined") {
   ensureRegistrySubscription();
@@ -392,5 +400,11 @@ if (typeof window !== "undefined") {
       return report;
     }, [`${input.products.length}p / ${input.events.length}ev`]),
     lastDiscountReport: () => lastDiscountReport,
+    runAutoCampaignTrigger: (input) => dispatchCommand("autoCampaign.run", () => {
+      const report = runAutoCampaignTrigger(input);
+      lastAutoCampaignReport = report;
+      return report;
+    }, [`${input.products.length} products`]),
+    lastAutoCampaignReport: () => lastAutoCampaignReport,
   };
 }
