@@ -30,6 +30,11 @@ import {
   type PreFailureReport,
 } from "@/core/evolution/preFailureDetection";
 import {
+  generateSyntheticUniverse,
+  type SyntheticUniverseInput,
+  type SyntheticUniverseReport,
+} from "@/core/evolution/syntheticUniverse";
+import {
   buildConsciousness,
   type ProjectSnapshot,
   type ConsciousnessReport,
