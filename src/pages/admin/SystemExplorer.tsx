@@ -27,6 +27,9 @@ import { ArchitectureEnforcementPanel } from "@/components/admin/ArchitectureEnf
 import { ExecutionControllerPanel } from "@/components/admin/ExecutionControllerPanel";
 import { SystemTruthPanel } from "@/components/admin/SystemTruthPanel";
 import { AbsoluteControlPanel } from "@/components/admin/AbsoluteControlPanel";
+import { QueueCollapsePanel } from "@/components/admin/QueueCollapsePanel";
+import { SignalDeduplicatorPanel } from "@/components/admin/SignalDeduplicatorPanel";
+import { HardStateLockPanel } from "@/components/admin/HardStateLockPanel";
 
 type WorkItem = {
   id: string;

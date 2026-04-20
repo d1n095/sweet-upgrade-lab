@@ -74,6 +74,24 @@ export const SYSTEM_ROLE_REGISTRY: ReadonlyArray<SystemRoleEntry> = Object.freez
     can_block_execution: false,
     description: "Reports identical-output / stagnation loops.",
   },
+  {
+    module: "queueCollapseEngine",
+    role: "READ_ONLY_REPORTER",
+    can_block_execution: false,
+    description: "Reports duplicate, already-executed, or stale-scan queue items.",
+  },
+  {
+    module: "signalDeduplicator",
+    role: "READ_ONLY_REPORTER",
+    can_block_execution: false,
+    description: "Aggregates raw signals from all reporters into unique issues with severity scores.",
+  },
+  {
+    module: "hardStateLock",
+    role: "READ_ONLY_REPORTER",
+    can_block_execution: false,
+    description: "Enforces write-access policy on systemStateRegistry. Logs unauthorized attempts.",
+  },
   // ── 3. DATA PRODUCERS ────────────────────────────────────────────────────
   {
     module: "fileSystemMap",
