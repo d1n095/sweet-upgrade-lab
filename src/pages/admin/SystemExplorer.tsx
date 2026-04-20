@@ -20,6 +20,7 @@ import { useNavigate } from "react-router-dom";
 import { ScanControls, IssueAnalysisPanel, SystemCommandCenter } from "./system";
 import { NoAiArchitectureDashboard } from "@/components/admin/NoAiArchitectureDashboard";
 import { ExecutionGovernorPanel } from "@/components/admin/ExecutionGovernorPanel";
+import { SystemStateRegistryPanel } from "@/components/admin/SystemStateRegistryPanel";
 
 type WorkItem = {
   id: string;
@@ -1747,6 +1748,8 @@ const SystemExplorer = () => {
         {/* FILES TAB */}
         {mainTab === "files" && (
           <div className="space-y-3">
+            {/* SYSTEM STATE REGISTRY — single source of truth (append-only) */}
+            <SystemStateRegistryPanel />
             {/* EXECUTION GOVERNOR — single-flight scheduler */}
             <ExecutionGovernorPanel />
             {/* NO-AI ARCHITECTURE LAYER — deterministic rule-based engines */}
