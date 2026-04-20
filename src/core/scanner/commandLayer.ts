@@ -231,6 +231,10 @@ declare global {
       lastPreFailure: () => PreFailureReport | null;
       generateSyntheticUniverse: (input: SyntheticUniverseInput) => Promise<CommandEntry>;
       lastSyntheticUniverse: () => SyntheticUniverseReport | null;
+      protocolSpec: () => Promise<CommandEntry>;
+      protocolEvaluate: (submissions: ReadonlyArray<ProjectProtocolSubmission>) => Promise<CommandEntry>;
+      lastProtocolReport: () => ComplianceReport | null;
+      lastProtocolSpec: () => ProtocolSpec;
     };
   }
 }
