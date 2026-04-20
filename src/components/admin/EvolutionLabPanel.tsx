@@ -1125,14 +1125,18 @@ export function EvolutionLabPanel({ isFounder }: Props) {
       icon: <History className="w-4 h-4" />,
       run: async () => {
         await loadHistorySignals();
-        const coupling: Record<string, number> = {};
-        const dep = buildDepGraph(inputs.depGraph.edges);
-        for (const n of dep.nodes) coupling[n.id] = n.in_degree + n.out_degree;
-        setEvoTrack(runEvolutionTracker({
-          change_counts: changeCounts,
-          coupling,
-          failures: bugCounts,
-        }));
+        await runAndStore("evolution_tracker", () => {
+          const coupling: Record<string, number> = {};
+          const dep = buildDepGraph(inputs.depGraph.edges);
+          for (const n of dep.nodes) coupling[n.id] = n.in_degree + n.out_degree;
+          const r = runEvolutionTracker({
+            change_counts: changeCounts,
+            coupling,
+            failures: bugCounts,
+          });
+          setEvoTrack(r);
+          return r;
+        });
       },
       body: evoTrack ? (
         <div className="text-xs space-y-2">
