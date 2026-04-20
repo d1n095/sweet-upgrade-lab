@@ -21,6 +21,7 @@ import { systemStateRegistry, type StateKey, type StateRecord } from "@/core/sca
 import { runScannerV2 } from "@/architecture/scannerV2";
 import { runDependencyHeatmap } from "@/core/architecture/dependencyHeatmap";
 import { runArchitectureWatchdog } from "@/core/architecture/architectureWatchdog";
+import { shouldSkipInMinimalMode } from "@/core/scanner/minimalMode";
 
 export type ValidityStatus = "REALITY VERIFIED" | "REALITY FAILURE" | "NO STATE TO VERIFY";
 
@@ -104,6 +105,23 @@ function evidenceFileExists(ref: string): boolean {
 
 export function runRealityCheck(): RealityReport {
   const generated_at = new Date().toISOString();
+  if (shouldSkipInMinimalMode("realityCheckEngine")) {
+    return {
+      generated_at,
+      validity_status: "NO STATE TO VERIFY",
+      checked_count: 0,
+      accepted_states: [],
+      rejected_states: [],
+      live_truth: {
+        file_count: fileSystemMap.length,
+        component_count: 0,
+        route_count: 0,
+        dependency_graph: { nodes: 0, edges: 0, cycles: 0, isolated: 0 },
+        architecture_status: { system_state: "VALID", compliance_score: 100, violations: 0 },
+      },
+      blocked: false,
+    };
+  }
   const accepted: AcceptedState[] = [];
   const rejected: RejectedState[] = [];
 
