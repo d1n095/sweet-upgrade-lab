@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Beaker, FlaskConical, Network, ShieldCheck, Workflow, Sparkles, Activity, Shuffle, HeartPulse, Radar, Brain, Lock, Gauge, Eye } from "lucide-react";
+import { Beaker, FlaskConical, Network, ShieldCheck, Workflow, Sparkles, Activity, Shuffle, HeartPulse, Radar, Brain, Lock, Gauge, Eye, FileSearch, GitBranch } from "lucide-react";
 import {
   useFeatureFlagsStore,
   FLAG_LABELS,
@@ -33,6 +33,8 @@ import { evaluateClusterMemory, recordSnapshot, type ClusterMemoryReport } from 
 import { enforceClusterBoundaries, type BoundaryReport } from "@/core/evolution/clusterBoundaryEnforcer";
 import { evaluateClusterRenderOptimizer, type RenderOptimizerReport } from "@/core/evolution/clusterRenderOptimizer";
 import { evaluateClusterMetaObserver, type MetaObserverReport } from "@/core/evolution/clusterMetaObserver";
+import { analyzeProjectStructure, type StructureReport } from "@/core/evolution/projectStructureAnalyzer";
+import { buildDepGraph, traceChain, type DepGraphReport } from "@/core/evolution/liveDependencyGraph";
 import { useSystemStateStore } from "@/stores/systemStateStore";
 
 interface Props {
@@ -62,6 +64,10 @@ export function EvolutionLabPanel({ isFounder }: Props) {
   const [boundary, setBoundary] = useState<BoundaryReport | null>(null);
   const [renderOpt, setRenderOpt] = useState<RenderOptimizerReport | null>(null);
   const [meta, setMeta] = useState<MetaObserverReport | null>(null);
+  const [structure, setStructure] = useState<StructureReport | null>(null);
+  const [depGraph, setDepGraph] = useState<DepGraphReport | null>(null);
+  const [chainFile, setChainFile] = useState("");
+  const [chain, setChain] = useState<{ upstream: ReadonlyArray<string>; downstream: ReadonlyArray<string> } | null>(null);
 
   // Best-effort inputs derived from systemStateStore — all degrade safely.
   const inputs = useMemo(() => {
@@ -611,6 +617,183 @@ export function EvolutionLabPanel({ isFounder }: Props) {
         </div>
       ) : (
         <p className="text-xs text-muted-foreground">No meta observation yet.</p>
+      ),
+    },
+    {
+      key: "project_structure_analyzer",
+      icon: <FileSearch className="w-4 h-4" />,
+      run: () => setStructure(analyzeProjectStructure({ edges: inputs.depGraph.edges })),
+      body: structure ? (
+        <div className="text-xs space-y-2">
+          <div className="flex flex-wrap gap-2">
+            <Badge
+              variant={
+                structure.status === "OK"
+                  ? "outline"
+                  : structure.status === "WARN"
+                    ? "secondary"
+                    : "destructive"
+              }
+            >
+              {structure.status}
+            </Badge>
+            <Badge variant="outline">cycles {structure.summary.circular_dependency}</Badge>
+            <Badge variant="outline">orphans {structure.summary.orphan_module}</Badge>
+            <Badge variant="outline">dupes {structure.summary.duplicated_logic}</Badge>
+            <Badge
+              variant={structure.summary.broken_import ? "destructive" : "outline"}
+            >
+              broken {structure.summary.broken_import}
+            </Badge>
+            <Badge variant="outline">naming {structure.summary.inconsistent_pattern}</Badge>
+          </div>
+          <p className="text-muted-foreground">{structure.notes}</p>
+          {structure.suggestions.length > 0 && (
+            <div>
+              <p className="font-medium">Diff-style suggestions</p>
+              <ul className="space-y-1">
+                {structure.suggestions.slice(0, 5).map((s) => (
+                  <li key={s.id} className="border rounded p-2">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline">{s.category}</Badge>
+                      {s.safe && <Badge variant="secondary">safe</Badge>}
+                    </div>
+                    <p className="mt-1 text-muted-foreground">{s.rationale}</p>
+                    <pre className="mt-1 font-mono text-[10px] bg-muted/40 rounded p-2 whitespace-pre-wrap break-all">
+                      {s.diff}
+                    </pre>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">No structure analysis yet.</p>
+      ),
+    },
+    {
+      key: "live_dependency_graph",
+      icon: <GitBranch className="w-4 h-4" />,
+      run: () => {
+        const g = buildDepGraph(inputs.depGraph.edges);
+        setDepGraph(g);
+        if (chainFile.trim()) {
+          setChain(traceChain(chainFile.trim(), inputs.depGraph.edges));
+        }
+      },
+      body: (
+        <div className="text-xs space-y-2">
+          {depGraph && (
+            <>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="outline">{depGraph.totals.nodes} nodes</Badge>
+                <Badge variant="outline">{depGraph.totals.edges} edges</Badge>
+                <Badge variant="destructive">{depGraph.totals.red} red</Badge>
+                <Badge variant="secondary">{depGraph.totals.green} green</Badge>
+                <Badge variant="outline">{depGraph.totals.grey} grey</Badge>
+              </div>
+              <p className="text-muted-foreground">{depGraph.notes}</p>
+              {depGraph.tight_clusters.length > 0 && (
+                <div>
+                  <p className="font-medium">Tight-coupling clusters</p>
+                  <ul className="space-y-1">
+                    {depGraph.tight_clusters.slice(0, 4).map((c) => (
+                      <li key={c.cluster_id} className="border rounded p-2">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="destructive">
+                            {(c.tightness * 100).toFixed(0)}% tight
+                          </Badge>
+                          <span className="font-mono">{c.cluster_id}</span>
+                        </div>
+                        <p className="text-muted-foreground mt-1">
+                          internal {c.internal_edges} / external {c.external_edges} ({c.files.length} files)
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {depGraph.violations.length > 0 && (
+                <div>
+                  <p className="font-medium">Architecture violations</p>
+                  <ul className="space-y-1">
+                    {depGraph.violations.slice(0, 4).map((v, i) => (
+                      <li key={i} className="border rounded p-2 font-mono text-[10px] break-all">
+                        <p>{v.from}</p>
+                        <p className="text-muted-foreground">↳ {v.to}</p>
+                        <p className="text-destructive mt-1">{v.detail}</p>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <details className="rounded-md border p-2">
+                <summary className="text-[11px] font-medium cursor-pointer">
+                  Top hubs (by total degree)
+                </summary>
+                <ul className="mt-1 space-y-0.5 font-mono text-[10px]">
+                  {[...depGraph.nodes]
+                    .sort((a, b) => (b.in_degree + b.out_degree) - (a.in_degree + a.out_degree))
+                    .slice(0, 8)
+                    .map((n) => (
+                      <li
+                        key={n.id}
+                        title={n.reason}
+                        className={
+                          n.color === "red"
+                            ? "text-destructive break-all"
+                            : n.color === "green"
+                              ? "text-emerald-500 break-all"
+                              : n.color === "grey"
+                                ? "text-muted-foreground break-all"
+                                : "break-all"
+                        }
+                      >
+                        [{n.in_degree}/{n.out_degree}] {n.id}
+                      </li>
+                    ))}
+                </ul>
+              </details>
+            </>
+          )}
+          <div className="space-y-1">
+            <p className="font-medium">Trace chain</p>
+            <Input
+              placeholder="src/components/SomeFile.tsx"
+              value={chainFile}
+              onChange={(e) => setChainFile(e.target.value)}
+              className="h-7 text-xs"
+            />
+            {chain && (
+              <div className="grid grid-cols-2 gap-2 mt-1">
+                <div className="border rounded p-2">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    Upstream ({chain.upstream.length})
+                  </p>
+                  <ul className="mt-1 font-mono text-[10px] max-h-32 overflow-auto">
+                    {chain.upstream.slice(0, 20).map((u) => (
+                      <li key={u} className="break-all">{u}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="border rounded p-2">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    Downstream ({chain.downstream.length})
+                  </p>
+                  <ul className="mt-1 font-mono text-[10px] max-h-32 overflow-auto">
+                    {chain.downstream.slice(0, 20).map((u) => (
+                      <li key={u} className="break-all">{u}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+          </div>
+          {!depGraph && !chain && (
+            <p className="text-muted-foreground">Run to build the live graph.</p>
+          )}
+        </div>
       ),
     },
   ];
