@@ -136,6 +136,8 @@ const App = () => {
                   <Route path="/donations-panel" element={<Navigate to="/" replace />} />
                   <Route path="/r/:code" element={<ReferralLanding />} />
 
+                  <Route path="/devos" element={<Suspense fallback={null}><DevOS /></Suspense>} />
+
                   <Route path="/admin" element={<AdminLayout />}>
                     <Route index element={<AdminOverview />} />
                     <Route path="ops" element={<AdminOps />} />
