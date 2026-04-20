@@ -222,6 +222,8 @@ declare global {
       lastCrossEvolution: () => CrossSystemEvolutionReport | null;
       detectPreFailures: (input: PreFailureInput) => Promise<CommandEntry>;
       lastPreFailure: () => PreFailureReport | null;
+      generateSyntheticUniverse: (input: SyntheticUniverseInput) => Promise<CommandEntry>;
+      lastSyntheticUniverse: () => SyntheticUniverseReport | null;
     };
   }
 }
