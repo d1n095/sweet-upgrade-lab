@@ -221,9 +221,9 @@ export default function GodModeOverlay() {
         >
           {/* Header bar */}
           <div className="absolute top-0 left-0 right-0 h-7 bg-black/85 text-emerald-400 border-b border-emerald-700/40 flex items-center justify-between px-3 pointer-events-auto">
-            <span className="font-bold tracking-widest">⚡ GOD MODE</span>
+            <span className="font-bold tracking-widest">⚡ GOD MODE · {activeMode}</span>
             <span className="text-zinc-400">
-              registry v{registry.last_validated_state?.version ?? "—"} · slots {Object.keys(slots).length} ·{" "}
+              registry v{registry.last_validated_state?.version ?? "—"} · slots {Object.keys(slots).length} · sync {syncStatus} ·{" "}
               {recoveryMode ? <span className="text-red-400">RECOVERY</span> : "live"}
             </span>
             <button
