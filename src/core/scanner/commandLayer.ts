@@ -9,6 +9,11 @@ import { useSystemStateStore } from "@/stores/systemStateStore";
 import { useStealthStore, StealthScheduler } from "./stealthMode";
 import { predictNextActions, resetIntentHistory } from "./systemIntent";
 import { applyMode, getModeStatus, SUPER_MODES, type SuperMode } from "./superControl";
+import {
+  runRefactorCycle,
+  type RefactorCycleInput,
+  type RefactorCycleReport,
+} from "@/core/evolution/autonomousRefactor";
 
 export type CommandStatus = "pending" | "ok" | "error";
 
@@ -180,11 +185,15 @@ declare global {
       resetIntent: () => Promise<CommandEntry>;
       mode: (type: SuperMode | string) => Promise<CommandEntry>;
       modeStatus: () => Promise<CommandEntry>;
+      refactorCycle: (input: RefactorCycleInput) => Promise<CommandEntry>;
       lastCommand: () => CommandEntry | null;
       commandLog: () => CommandEntry[];
+      lastRefactor: () => RefactorCycleReport | null;
     };
   }
 }
+
+let lastRefactorReport: RefactorCycleReport | null = null;
 
 if (typeof window !== "undefined") {
   ensureRegistrySubscription();
@@ -215,7 +224,13 @@ if (typeof window !== "undefined") {
       return applyMode(upper);
     }, [type]),
     modeStatus: () => dispatchCommand("mode.status", () => getModeStatus()),
+    refactorCycle: (input) => dispatchCommand("refactor.runCycle", () => {
+      const report = runRefactorCycle(input);
+      lastRefactorReport = report;
+      return report;
+    }, [`v${input.current_version}`]),
     lastCommand: () => useCommandLayerStore.getState().last_command,
     commandLog: () => useCommandLayerStore.getState().log,
+    lastRefactor: () => lastRefactorReport,
   };
 }
