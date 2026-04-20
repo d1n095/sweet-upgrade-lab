@@ -76,7 +76,7 @@ export interface ConsciousnessReport {
   shared_violations: ReadonlyArray<SharedViolation>;
   recommended_global_rules: ReadonlyArray<RecommendedGlobalRule>;
   shared_unstable_modules: ReadonlyArray<{ module: string; projects: ReadonlyArray<string> }>;
-  isolation_audit: { mutations_attempted: 0; runtime_state_shared: false; file_access_attempted: 0 };
+  isolation_audit: { mutations_attempted: number; runtime_state_shared: boolean; file_access_attempted: number };
   summary: string;
 }
 

@@ -14,6 +14,11 @@ import {
   type RefactorCycleInput,
   type RefactorCycleReport,
 } from "@/core/evolution/autonomousRefactor";
+import {
+  buildConsciousness,
+  type ProjectSnapshot,
+  type ConsciousnessReport,
+} from "@/core/evolution/multiProjectConsciousness";
 
 export type CommandStatus = "pending" | "ok" | "error";
 
