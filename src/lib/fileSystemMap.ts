@@ -139,6 +139,41 @@ function buildMap(): FileEntry[] {
 
 export const fileSystemMap: FileEntry[] = buildMap();
 
+// ── Step 4: Count components and routes ──
+const componentsList = fileSystemMap.filter((f) => {
+  const src = typeof rawSources["/" + f.path] === "string" ? rawSources["/" + f.path] : "";
+  const hasJsx = /<[A-Z][A-Za-z0-9]*[\s/>]|return\s*\(\s*</.test(src);
+  const isReactComp = /export\s+(default\s+)?(function|const)\s+[A-Z]/.test(src);
+  return hasJsx || isReactComp;
+});
+
+const routesList = fileSystemMap.filter((f) => {
+  if (f.path.startsWith("src/pages/")) return true;
+  const src = typeof rawSources["/" + f.path] === "string" ? rawSources["/" + f.path] : "";
+  return /react-router-dom|<Route\s|createBrowserRouter/.test(src);
+});
+
+export const scanInputSummary = {
+  total_files: fileSystemMap.length,
+  components_count: componentsList.length,
+  routes_count: routesList.length,
+  excluded_count: excluded.length,
+  sample_components: componentsList.slice(0, 10).map((c) => c.path),
+  sample_routes: routesList.slice(0, 10).map((r) => r.path),
+};
+
+console.log("[FILE MAP] components_count:", scanInputSummary.components_count);
+console.log("[FILE MAP] routes_count:", scanInputSummary.routes_count);
+console.log("[FILE MAP] Full scan input summary:", scanInputSummary);
+
+// ── Step 5: Fail loudly ──
+if (scanInputSummary.components_count === 0) {
+  throw new Error("NO COMPONENTS DETECTED");
+}
+if (scanInputSummary.routes_count === 0) {
+  throw new Error("NO ROUTES DETECTED");
+}
+
 export type { FileEntry };
 
 export function getFileContent(path: string): string | null {
