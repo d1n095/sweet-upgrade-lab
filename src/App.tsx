@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -73,11 +74,12 @@ import AdminHistory from "./pages/admin/AdminHistory";
 import AdminChangeHistory from "./pages/admin/AdminChangeHistory";
 import AdminPOS from "./pages/admin/AdminPOS";
 import ScanPackingMode from "./components/admin/warehouse/ScanPackingMode";
-import SystemExplorer from "./pages/admin/SystemExplorer";
 import AdminDebug from "./pages/admin/AdminDebug";
 import AdminSecurity from "./pages/admin/AdminSecurity";
 import AdminIssues from "./pages/admin/AdminIssues";
 import AdminScans from "./pages/admin/AdminScans";
+
+const SystemExplorer = lazy(() => import("./pages/admin/SystemExplorer"));
 
 const queryClient = new QueryClient();
 
@@ -166,7 +168,7 @@ const App = () => {
                     <Route path="database" element={<AdminDatabase />} />
                     <Route path="warehouse" element={<ScanPackingMode />} />
                     <Route path="overview" element={<SystemOverview />} />
-                    <Route path="system-explorer" element={<SystemExplorer />} />
+                    <Route path="system-explorer" element={<Suspense fallback={null}><SystemExplorer /></Suspense>} />
                     <Route path="debug" element={<AdminDebug />} />
                     <Route path="ai" element={<Navigate to="/admin/system-explorer" replace />} />
                     <Route path="security" element={<AdminSecurity />} />
