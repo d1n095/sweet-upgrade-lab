@@ -145,6 +145,63 @@ export type Database = {
         }
         Relationships: []
       }
+      affiliate_clicks: {
+        Row: {
+          affiliate_id: string
+          code: string
+          converted_at: string | null
+          converted_order_id: string | null
+          created_at: string
+          id: string
+          ip_hash: string | null
+          landing_path: string | null
+          referrer: string | null
+          session_id: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          affiliate_id: string
+          code: string
+          converted_at?: string | null
+          converted_order_id?: string | null
+          created_at?: string
+          id?: string
+          ip_hash?: string | null
+          landing_path?: string | null
+          referrer?: string | null
+          session_id?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          affiliate_id?: string
+          code?: string
+          converted_at?: string | null
+          converted_order_id?: string | null
+          created_at?: string
+          id?: string
+          ip_hash?: string | null
+          landing_path?: string | null
+          referrer?: string | null
+          session_id?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_clicks_affiliate_id_fkey"
+            columns: ["affiliate_id"]
+            isOneToOne: false
+            referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "affiliate_clicks_converted_order_id_fkey"
+            columns: ["converted_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       affiliate_orders: {
         Row: {
           affiliate_id: string
@@ -4543,6 +4600,10 @@ export type Database = {
       }
       auto_assign_task: { Args: { p_task_type: string }; Returns: string }
       auto_assign_work_item: { Args: { p_item_type: string }; Returns: string }
+      calculate_affiliate_commission: {
+        Args: { p_affiliate_id: string; p_order_total: number }
+        Returns: Json
+      }
       calculate_level: { Args: { p_xp: number }; Returns: number }
       check_review_eligibility: {
         Args: { p_product_id: string; p_user_id: string }
@@ -4637,6 +4698,10 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      get_affiliate_performance: {
+        Args: { p_affiliate_id: string; p_from?: string; p_to?: string }
+        Returns: Json
+      }
       get_dashboard_stats:
         | { Args: { p_from: string; p_to: string }; Returns: Json }
         | { Args: { p_from: string; p_to: string }; Returns: Json }
@@ -4698,6 +4763,14 @@ export type Database = {
         }
         Returns: undefined
       }
+      mark_affiliate_click_converted: {
+        Args: {
+          p_affiliate_id: string
+          p_order_id: string
+          p_session_id: string
+        }
+        Returns: number
+      }
       move_to_dlq: {
         Args: {
           dlq_name: string
@@ -4730,6 +4803,17 @@ export type Database = {
       }
       run_campaign_scheduler: { Args: never; Returns: Json }
       system_health_check: { Args: never; Returns: Json }
+      track_affiliate_click: {
+        Args: {
+          p_code: string
+          p_ip_hash?: string
+          p_landing_path?: string
+          p_referrer?: string
+          p_session_id?: string
+          p_user_agent?: string
+        }
+        Returns: string
+      }
       validate_affiliate_code: {
         Args: { p_code: string }
         Returns: {
