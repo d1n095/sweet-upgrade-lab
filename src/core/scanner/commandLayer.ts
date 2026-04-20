@@ -73,6 +73,11 @@ import {
   type AutoTriggerInput,
   type AutoTriggerReport,
 } from "@/core/business/autoCampaignTrigger";
+import {
+  resolvePriorities,
+  type PriorityResolverInput,
+  type PriorityResolverReport,
+} from "@/core/business/priorityResolver";
 
 export type CommandStatus = "pending" | "ok" | "error";
 
@@ -274,6 +279,8 @@ declare global {
       lastDiscountReport: () => DiscountEngineReport | null;
       runAutoCampaignTrigger: (input: AutoTriggerInput) => Promise<CommandEntry>;
       lastAutoCampaignReport: () => AutoTriggerReport | null;
+      resolvePriorities: (input: PriorityResolverInput) => Promise<CommandEntry>;
+      lastPriorityResolution: () => PriorityResolverReport | null;
     };
   }
 }
@@ -290,6 +297,7 @@ let lastMetaReport: MetaSystemReport | null = null;
 let lastDiscountReport: DiscountEngineReport | null = null;
 let lastCompanyStackReport: CompanyStackReport | null = null;
 let lastAutoCampaignReport: AutoTriggerReport | null = null;
+let lastPriorityResolution: PriorityResolverReport | null = null;
 
 if (typeof window !== "undefined") {
   ensureRegistrySubscription();
@@ -406,5 +414,11 @@ if (typeof window !== "undefined") {
       return report;
     }, [`${input.products.length} products`]),
     lastAutoCampaignReport: () => lastAutoCampaignReport,
+    resolvePriorities: (input) => dispatchCommand("priority.resolve", () => {
+      const report = resolvePriorities(input);
+      lastPriorityResolution = report;
+      return report;
+    }, [`${input.rules.length} rules`]),
+    lastPriorityResolution: () => lastPriorityResolution,
   };
 }
