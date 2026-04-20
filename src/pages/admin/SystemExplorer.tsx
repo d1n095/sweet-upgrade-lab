@@ -31,6 +31,7 @@ import { QueueCollapsePanel } from "@/components/admin/QueueCollapsePanel";
 import { SignalDeduplicatorPanel } from "@/components/admin/SignalDeduplicatorPanel";
 import { HardStateLockPanel } from "@/components/admin/HardStateLockPanel";
 import { MinimalModePanel } from "@/components/admin/MinimalModePanel";
+import { FinalSnapshotPanel } from "@/components/admin/FinalSnapshotPanel";
 
 type WorkItem = {
   id: string;
@@ -1768,6 +1769,8 @@ const SystemExplorer = () => {
             <HardStateLockPanel />
             {/* MINIMAL MODE — kill-switch for non-essential subsystems on instability */}
             <MinimalModePanel />
+            {/* FINAL SNAPSHOT — immutable, hash-verified state taken once per controller run */}
+            <FinalSnapshotPanel />
             {/* UNIFIED SYSTEM TRUTH — single source of truth, orchestrated by ExecutionController */}
             <SystemTruthPanel />
 
