@@ -14,6 +14,11 @@ import {
   type RefactorCycleInput,
   type RefactorCycleReport,
 } from "@/core/evolution/autonomousRefactor";
+import {
+  buildConsciousness,
+  type ProjectSnapshot,
+  type ConsciousnessReport,
+} from "@/core/evolution/multiProjectConsciousness";
 
 export type CommandStatus = "pending" | "ok" | "error";
 
@@ -186,14 +191,17 @@ declare global {
       mode: (type: SuperMode | string) => Promise<CommandEntry>;
       modeStatus: () => Promise<CommandEntry>;
       refactorCycle: (input: RefactorCycleInput) => Promise<CommandEntry>;
+      consciousness: (snapshots: ReadonlyArray<ProjectSnapshot>) => Promise<CommandEntry>;
       lastCommand: () => CommandEntry | null;
       commandLog: () => CommandEntry[];
       lastRefactor: () => RefactorCycleReport | null;
+      lastConsciousness: () => ConsciousnessReport | null;
     };
   }
 }
 
 let lastRefactorReport: RefactorCycleReport | null = null;
+let lastConsciousnessReport: ConsciousnessReport | null = null;
 
 if (typeof window !== "undefined") {
   ensureRegistrySubscription();
@@ -229,8 +237,14 @@ if (typeof window !== "undefined") {
       lastRefactorReport = report;
       return report;
     }, [`v${input.current_version}`]),
+    consciousness: (snapshots) => dispatchCommand("consciousness.build", () => {
+      const report = buildConsciousness(snapshots);
+      lastConsciousnessReport = report;
+      return report;
+    }, [`${snapshots.length} projects`]),
     lastCommand: () => useCommandLayerStore.getState().last_command,
     commandLog: () => useCommandLayerStore.getState().log,
     lastRefactor: () => lastRefactorReport,
+    lastConsciousness: () => lastConsciousnessReport,
   };
 }
