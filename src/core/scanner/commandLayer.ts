@@ -265,6 +265,7 @@ let lastPreFailureReport: PreFailureReport | null = null;
 let lastSyntheticUniverseReport: SyntheticUniverseReport | null = null;
 let lastProtocolReport: ComplianceReport | null = null;
 let lastSecurityReport: SecurityReport | null = null;
+let lastMetaReport: MetaSystemReport | null = null;
 
 if (typeof window !== "undefined") {
   ensureRegistrySubscription();
