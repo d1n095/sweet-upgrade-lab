@@ -81,6 +81,7 @@ import AdminIssues from "./pages/admin/AdminIssues";
 import AdminScans from "./pages/admin/AdminScans";
 
 const SystemExplorer = lazy(() => import("./pages/admin/SystemExplorer"));
+const DevOS = lazy(() => import("./pages/admin/DevOS"));
 
 const queryClient = new QueryClient();
 
@@ -134,6 +135,8 @@ const App = () => {
                   <Route path="/affiliate-panel" element={<AffiliatePanel />} />
                   <Route path="/donations-panel" element={<Navigate to="/" replace />} />
                   <Route path="/r/:code" element={<ReferralLanding />} />
+
+                  <Route path="/devos" element={<Suspense fallback={null}><DevOS /></Suspense>} />
 
                   <Route path="/admin" element={<AdminLayout />}>
                     <Route index element={<AdminOverview />} />
