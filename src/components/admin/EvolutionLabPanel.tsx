@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Beaker, FlaskConical, Network, ShieldCheck, Workflow, Sparkles, Activity, Shuffle, HeartPulse, Radar, Brain, Lock, Gauge, Eye, FileSearch, GitBranch, Database } from "lucide-react";
+import { Beaker, FlaskConical, Network, ShieldCheck, Workflow, Sparkles, Activity, Shuffle, HeartPulse, Radar, Brain, Lock, Gauge, Eye, FileSearch, GitBranch, Database, Flame, CheckCircle2, ShieldAlert, Rocket, History, Boxes } from "lucide-react";
 import {
   useFeatureFlagsStore,
   FLAG_LABELS,
@@ -36,7 +36,14 @@ import { evaluateClusterMetaObserver, type MetaObserverReport } from "@/core/evo
 import { analyzeProjectStructure, type StructureReport } from "@/core/evolution/projectStructureAnalyzer";
 import { buildDepGraph, traceChain, type DepGraphReport } from "@/core/evolution/liveDependencyGraph";
 import { scanStateUsage, type StateScanReport } from "@/core/evolution/stateUsageScanner";
-import { getRawSources } from "@/lib/fileSystemMap";
+import { buildRiskHeatmap, type RiskHeatmapReport } from "@/core/evolution/riskHeatmap";
+import { runInFrontendCi, type CiPipelineReport } from "@/core/evolution/inFrontendCi";
+import { runIntegrityMonitor, type IntegrityReport } from "@/core/evolution/integrityMonitor";
+import { runProductionReadiness, type ReadinessReport } from "@/core/evolution/productionReadiness";
+import { runEvolutionTracker, type EvolutionReport as EvoTrackerReport } from "@/core/evolution/evolutionTracker";
+import { runArchitectureClusterer, type ClustererReport } from "@/core/evolution/architectureClusterer";
+import { fileSystemMap, getRawSources } from "@/lib/fileSystemMap";
+import { supabase } from "@/integrations/supabase/client";
 import { useSystemStateStore } from "@/stores/systemStateStore";
 
 interface Props {
@@ -71,6 +78,51 @@ export function EvolutionLabPanel({ isFounder }: Props) {
   const [chainFile, setChainFile] = useState("");
   const [chain, setChain] = useState<{ upstream: ReadonlyArray<string>; downstream: ReadonlyArray<string> } | null>(null);
   const [stateScan, setStateScan] = useState<StateScanReport | null>(null);
+  const [risk, setRisk] = useState<RiskHeatmapReport | null>(null);
+  const [ci, setCi] = useState<CiPipelineReport | null>(null);
+  const [integrity, setIntegrity] = useState<IntegrityReport | null>(null);
+  const [readiness, setReadiness] = useState<ReadinessReport | null>(null);
+  const [evoTrack, setEvoTrack] = useState<EvoTrackerReport | null>(null);
+  const [clusterer, setClusterer] = useState<ClustererReport | null>(null);
+  const [changeCounts, setChangeCounts] = useState<Record<string, number>>({});
+  const [bugCounts, setBugCounts] = useState<Record<string, number>>({});
+
+  const loadHistorySignals = async () => {
+    try {
+      const { data: changes } = await supabase
+        .from("change_log")
+        .select("affected_components")
+        .order("created_at", { ascending: false })
+        .limit(500);
+      const cMap: Record<string, number> = {};
+      for (const row of changes ?? []) {
+        for (const c of (row.affected_components as string[] | null) ?? []) {
+          cMap[c] = (cMap[c] ?? 0) + 1;
+        }
+      }
+      setChangeCounts(cMap);
+      const { data: bugs } = await supabase
+        .from("bug_reports")
+        .select("page_url")
+        .limit(500);
+      const bMap: Record<string, number> = {};
+      for (const b of bugs ?? []) {
+        if (b.page_url) bMap[b.page_url] = (bMap[b.page_url] ?? 0) + 1;
+      }
+      setBugCounts(bMap);
+    } catch {
+      /* engines degrade safely */
+    }
+  };
+
+  const normalizedSources = useMemo(() => {
+    const out: Record<string, string> = {};
+    const raw = getRawSources();
+    for (const [k, v] of Object.entries(raw)) {
+      if (typeof v === "string") out[k.replace(/^\//, "")] = v;
+    }
+    return out;
+  }, []);
 
   // Best-effort inputs derived from systemStateStore — all degrade safely.
   const inputs = useMemo(() => {
