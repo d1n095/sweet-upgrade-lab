@@ -33,3 +33,6 @@ verify_jwt = false
 
 [functions.generate-receipt]
 verify_jwt = false
+
+[functions.submit-contact]
+verify_jwt = false
