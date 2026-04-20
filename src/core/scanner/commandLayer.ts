@@ -331,5 +331,12 @@ if (typeof window !== "undefined") {
     }, [`${submissions.length} projects`]),
     lastProtocolReport: () => lastProtocolReport,
     lastProtocolSpec: () => getProtocolSpec(),
+    securityReport: () => dispatchCommand("blackbox.report", () => {
+      const report = getSecurityReport();
+      lastSecurityReport = report;
+      return report;
+    }),
+    tamperLog: () => dispatchCommand("blackbox.tamperLog", () => getTamperLog()),
+    lastSecurityReport: () => lastSecurityReport,
   };
 }
