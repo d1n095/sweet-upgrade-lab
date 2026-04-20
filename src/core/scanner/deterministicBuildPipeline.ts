@@ -142,22 +142,19 @@ class DeterministicBuildPipeline {
       if (run.stages.length > 0) {
         const prev = run.stages[run.stages.length - 1];
         if (prev.status !== "ok") {
-          this.fail(run, stage, `previous stage ${prev.phase()} is ${prev.status} — cannot advance`);
+          this.fail(run, stage, `previous stage ${prev.stage} is ${prev.status} — cannot advance`);
           return this.finish(run);
         }
       }
 
-      const rec: PipelineStageRecord & { phase: () => string } = Object.assign(
-        {
-          stage,
-          status: "running" as const,
-          started_at: Date.now(),
-          finished_at: null,
-          duration_ms: null,
-          detail: null as string | null,
-        },
-        { phase: () => stage }
-      );
+      const rec: PipelineStageRecord = {
+        stage,
+        status: "running",
+        started_at: Date.now(),
+        finished_at: null,
+        duration_ms: null,
+        detail: null,
+      };
       run.stages.push(rec);
       this.log(run, `→ ${stage} started`);
       this.emit();
