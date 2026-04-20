@@ -324,7 +324,7 @@ function RightPanel() {
           <div
             className={cn(
               "h-full transition-all",
-              score >= 80 ? "bg-primary" : score >= 50 ? "bg-amber-500" : "bg-destructive",
+              score >= 80 ? "bg-primary" : score >= 50 ? "bg-secondary" : "bg-destructive",
             )}
             style={{ width: `${Math.min(100, Math.max(0, score))}%` }}
           />
@@ -364,7 +364,7 @@ function RightPanel() {
                 "flex items-center gap-2 rounded border px-2 py-1 text-[11px]",
                 s.status === "ok" && "border-primary/30 bg-primary/5",
                 s.status === "error" && "border-destructive/40 bg-destructive/5",
-                s.status === "pending" && "border-amber-500/40 bg-amber-500/5",
+                s.status === "pending" && "border-secondary bg-secondary/30",
               )}
             >
               <span className="h-2 w-2 shrink-0 rounded-full bg-current opacity-60" />
@@ -392,7 +392,7 @@ function RightPanel() {
             </li>
           ))}
           {security.detected_tampering.slice(0, 10).map((t) => (
-            <li key={t.id} className="rounded bg-amber-500/10 px-2 py-1 text-[11px]">
+            <li key={t.id} className="rounded bg-secondary/40 px-2 py-1 text-[11px]">
               <span className="font-mono">{t.kind}</span> · {t.detail}
             </li>
           ))}
