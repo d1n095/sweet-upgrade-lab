@@ -140,6 +140,12 @@ export const SYSTEM_ROLE_REGISTRY: ReadonlyArray<SystemRoleEntry> = Object.freez
     can_block_execution: false,
     description: "Final aggregate verdict (APPROVED/BLOCKED). Combines pipeline status, regression result, architecture score, and critical violations.",
   },
+  {
+    module: "strictMode",
+    role: "READ_ONLY_REPORTER",
+    can_block_execution: false,
+    description: "Zero-tolerance binary verdict (PASS/FAIL). Any violation across architecture, dep graph, regression, release gate, or drift = FAIL. No warnings.",
+  },
   // ── 3. DATA PRODUCERS ────────────────────────────────────────────────────
   {
     module: "fileSystemMap",

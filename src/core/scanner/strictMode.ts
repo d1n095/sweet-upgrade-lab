@@ -10,10 +10,10 @@
  *
  * SOURCES (all read-only — strict mode never mutates):
  *   - architecture report  → any violation = FAIL
- *   - dependency heatmap   → any cycle or coupling > strict threshold = FAIL
+ *   - dependency heatmap   → any cycle or isolated node = FAIL
  *   - regression guard     → any regression = FAIL
  *   - release gate         → BLOCKED = FAIL
- *   - drift detector       → DRIFT_DETECTED = FAIL
+ *   - drift detector       → DRIFT_DETECTED or NO_BASELINE = FAIL
  *
  * AUTHORITY: read-only reporter. Cannot block other systems on its own — but
  * other gates are encouraged to refuse to advance while strict_status = FAIL.
@@ -38,16 +38,18 @@ export interface StrictViolation {
   readonly detail: string;
 }
 
+export interface StrictCheck {
+  readonly name: string;
+  readonly passed: boolean;
+  readonly detail: string;
+}
+
 export interface StrictReport {
   readonly evaluated_at: string;
   readonly strict_status: StrictStatus;
   readonly violations: ReadonlyArray<StrictViolation>;
   readonly violation_count: number;
-  readonly checks: ReadonlyArray<{
-    name: string;
-    passed: boolean;
-    detail: string;
-  }>;
+  readonly checks: ReadonlyArray<StrictCheck>;
   readonly summary: string;
 }
 
@@ -60,7 +62,7 @@ interface StrictModeState {
   last_fail_at: string | null;
 }
 
-// In strict mode, ANY cycle or non-trivial coupling is failure.
+// In strict mode, ANY cycle or isolated node is failure.
 const STRICT_MAX_CYCLES = 0;
 const STRICT_MAX_ISOLATED = 0;
 
@@ -105,7 +107,7 @@ class StrictMode {
    */
   evaluate(): StrictReport {
     const violations: StrictViolation[] = [];
-    const checks: StrictReport["checks"] = [];
+    const checks: StrictCheck[] = [];
 
     // 1. Architecture
     let arch: ArchitectureReport | null = null;
@@ -136,7 +138,7 @@ class StrictMode {
       }
     }
 
-    // 2. Dependency graph — cycles = instant fail; isolated nodes = warning → fail.
+    // 2. Dependency graph — cycles or isolated nodes = instant fail.
     let dep: HeatmapReport | null = null;
     try {
       dep = runDependencyHeatmap();
@@ -176,7 +178,7 @@ class StrictMode {
 
     // 3. Regression guard
     const regState = regressionGuard.getState();
-    const regLast = regState.last_evaluation;
+    const regLast = regState.last;
     if (regLast) {
       const regPass = !regLast.regression_detected;
       checks.push({
@@ -190,8 +192,8 @@ class StrictMode {
         for (const d of regLast.differences) {
           violations.push({
             source: "regression_guard",
-            rule: d.kind,
-            detail: d.detail,
+            rule: d.check,
+            detail: d.message,
           });
         }
       }
@@ -205,7 +207,7 @@ class StrictMode {
 
     // 4. Release gate
     const gateState = releaseGate.getState();
-    const gateLast = gateState.last_decision;
+    const gateLast = gateState.current;
     if (gateLast) {
       const gatePass = gateLast.release_status === "APPROVED";
       checks.push({
