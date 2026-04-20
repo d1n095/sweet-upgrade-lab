@@ -5,7 +5,7 @@ import { safeInvoke } from "@/lib/safeInvoke";
 import { useWorkQueueStore } from "@/stores/workQueueStore";
 import { fileSystemMap, type FileEntry, getFileContent, getCodeIndex, getDuplicatedLines, getCodeIssues, getRawSources, scanFileContent, scanInputSummary } from "@/lib/fileSystemMap";
 import { runTruthEngine } from "@/architecture/truthEngine";
-import { runScannerV2 } from "@/architecture/scannerV2";
+import { runScannerV2, runScannerV2Verified } from "@/architecture/scannerV2";
 import { ROUTE_REGISTRY } from "@/architecture/routeRegistry";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useFounderRole } from "@/hooks/useFounderRole";
