@@ -117,7 +117,7 @@ export interface RuleEvaluation {
 // Default rule set — strict IF/THEN, static thresholds only.
 // To change behavior: edit these constants. Never inject runtime values.
 // ─────────────────────────────────────────────────────────────────────────────
-export const DEFAULT_RULES: Rule[] = [
+export const DEFAULT_RULES: Rule[] = ([
   // ── R1: stagnation → 10% discount, 14-day window ─────────────────────────
   {
     id: "R1_no_sales_discount_10",
