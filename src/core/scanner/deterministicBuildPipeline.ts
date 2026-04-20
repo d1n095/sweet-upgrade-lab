@@ -27,6 +27,7 @@ import {
   type ArchitectureReport,
 } from "@/core/architecture/architectureEnforcementCore";
 import { finalSnapshotEngine, type ImmutableSnapshot } from "@/core/scanner/finalSnapshotEngine";
+import { versionedArchitectureStore } from "@/core/scanner/versionedArchitectureStore";
 
 export type PipelineStageName =
   | "TRUTH_SCAN"
@@ -244,6 +245,24 @@ class DeterministicBuildPipeline {
     }
 
     run.status = "SUCCESS";
+    // ── Versioned Architecture State — commit version on success ──
+    try {
+      const result = versionedArchitectureStore.commitFromPipeline(run);
+      if (result) {
+        this.log(
+          run,
+          `✓ versioned ${result.version.version_id} (score=${result.version.architecture_score}) — ${
+            result.diff.is_first_version
+              ? "initial version"
+              : `${Object.keys(result.diff.changes).length} field changes vs ${result.diff.from_version_id}`
+          }`
+        );
+      } else {
+        this.log(run, `… version not committed (see Versioned Architecture panel)`);
+      }
+    } catch (e: any) {
+      this.log(run, `… version commit threw: ${e?.message ?? e}`);
+    }
     return this.finish(run);
   }
 

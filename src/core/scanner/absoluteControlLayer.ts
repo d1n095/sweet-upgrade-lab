@@ -104,6 +104,12 @@ export const SYSTEM_ROLE_REGISTRY: ReadonlyArray<SystemRoleEntry> = Object.freez
     can_block_execution: false,
     description: "Composes the 6-stage release-grade pipeline. Stops itself on failure but does not block other systems.",
   },
+  {
+    module: "versionedArchitectureStore",
+    role: "READ_ONLY_REPORTER",
+    can_block_execution: false,
+    description: "Append-only store of verified architecture versions. Writes only after pipeline success.",
+  },
   // ── 3. DATA PRODUCERS ────────────────────────────────────────────────────
   {
     module: "fileSystemMap",

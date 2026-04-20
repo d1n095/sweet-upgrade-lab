@@ -33,6 +33,7 @@ import { HardStateLockPanel } from "@/components/admin/HardStateLockPanel";
 import { MinimalModePanel } from "@/components/admin/MinimalModePanel";
 import { FinalSnapshotPanel } from "@/components/admin/FinalSnapshotPanel";
 import { DeterministicBuildPipelinePanel } from "@/components/admin/DeterministicBuildPipelinePanel";
+import { VersionedArchitecturePanel } from "@/components/admin/VersionedArchitecturePanel";
 
 type WorkItem = {
   id: string;
@@ -1774,6 +1775,8 @@ const SystemExplorer = () => {
             <FinalSnapshotPanel />
             {/* DETERMINISTIC BUILD PIPELINE — 6-stage release-grade orchestrator */}
             <DeterministicBuildPipelinePanel />
+            {/* VERSIONED ARCHITECTURE STATE — append-only versions of verified system state */}
+            <VersionedArchitecturePanel />
             {/* UNIFIED SYSTEM TRUTH — single source of truth, orchestrated by ExecutionController */}
             <SystemTruthPanel />
 
