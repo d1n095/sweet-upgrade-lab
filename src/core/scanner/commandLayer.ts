@@ -51,6 +51,19 @@ import {
   type ProjectSnapshot,
   type ConsciousnessReport,
 } from "@/core/evolution/multiProjectConsciousness";
+import {
+  getProductCatalog,
+  getPricingModel,
+  getPackagingStrategy,
+  resolveOffering,
+  MARKET_TIERS,
+  MARKET_PACKAGING,
+  MARKET_DEPLOYMENT,
+  type Tier as MarketTier,
+  type Packaging as MarketPackaging,
+  type Deployment as MarketDeployment,
+  type ResolvedOffering,
+} from "@/core/market/marketLayer";
 
 export type CommandStatus = "pending" | "ok" | "error";
 
@@ -243,6 +256,15 @@ declare global {
       securityReport: () => Promise<CommandEntry>;
       tamperLog: () => Promise<CommandEntry>;
       lastSecurityReport: () => SecurityReport | null;
+      marketCatalog: () => Promise<CommandEntry>;
+      marketPricing: () => Promise<CommandEntry>;
+      marketPackaging: () => Promise<CommandEntry>;
+      marketOffering: (
+        tier: MarketTier | string,
+        packaging: MarketPackaging | string,
+        deployment: MarketDeployment | string
+      ) => Promise<CommandEntry>;
+      lastMarketOffering: () => ResolvedOffering | null;
     };
   }
 }
@@ -255,6 +277,7 @@ let lastPreFailureReport: PreFailureReport | null = null;
 let lastSyntheticUniverseReport: SyntheticUniverseReport | null = null;
 let lastProtocolReport: ComplianceReport | null = null;
 let lastSecurityReport: SecurityReport | null = null;
+let lastMarketOffering: ResolvedOffering | null = null;
 
 if (typeof window !== "undefined") {
   ensureRegistrySubscription();
@@ -338,5 +361,31 @@ if (typeof window !== "undefined") {
     }),
     tamperLog: () => dispatchCommand("blackbox.tamperLog", () => getTamperLog()),
     lastSecurityReport: () => lastSecurityReport,
+    marketCatalog: () => dispatchCommand("market.catalog", () => getProductCatalog()),
+    marketPricing: () => dispatchCommand("market.pricing", () => getPricingModel()),
+    marketPackaging: () => dispatchCommand("market.packaging", () => getPackagingStrategy()),
+    marketOffering: (tier, packaging, deployment) =>
+      dispatchCommand(
+        "market.offering",
+        () => {
+          const t = String(tier).toUpperCase() as MarketTier;
+          const p = String(packaging).toUpperCase() as MarketPackaging;
+          const d = String(deployment).toUpperCase() as MarketDeployment;
+          if (!MARKET_TIERS.includes(t)) {
+            throw new Error(`unknown tier "${tier}" — must be one of ${MARKET_TIERS.join(", ")}`);
+          }
+          if (!MARKET_PACKAGING.includes(p)) {
+            throw new Error(`unknown packaging "${packaging}" — must be one of ${MARKET_PACKAGING.join(", ")}`);
+          }
+          if (!MARKET_DEPLOYMENT.includes(d)) {
+            throw new Error(`unknown deployment "${deployment}" — must be one of ${MARKET_DEPLOYMENT.join(", ")}`);
+          }
+          const offering = resolveOffering(t, p, d);
+          lastMarketOffering = offering;
+          return offering;
+        },
+        [tier, packaging, deployment]
+      ),
+    lastMarketOffering: () => lastMarketOffering,
   };
 }
