@@ -233,6 +233,7 @@ let lastConsciousnessReport: ConsciousnessReport | null = null;
 let lastFailureSimReport: FailureSimulationReport | null = null;
 let lastCrossEvolutionReport: CrossSystemEvolutionReport | null = null;
 let lastPreFailureReport: PreFailureReport | null = null;
+let lastSyntheticUniverseReport: SyntheticUniverseReport | null = null;
 
 if (typeof window !== "undefined") {
   ensureRegistrySubscription();
