@@ -42,6 +42,11 @@ import {
   type ProtocolSpec,
 } from "@/core/evolution/protocolLayer";
 import {
+  getSecurityReport,
+  getTamperLog,
+  type SecurityReport,
+} from "@/core/scanner/blackboxHardening";
+import {
   buildConsciousness,
   type ProjectSnapshot,
   type ConsciousnessReport,
@@ -235,6 +240,9 @@ declare global {
       protocolEvaluate: (submissions: ReadonlyArray<ProjectProtocolSubmission>) => Promise<CommandEntry>;
       lastProtocolReport: () => ComplianceReport | null;
       lastProtocolSpec: () => ProtocolSpec;
+      securityReport: () => Promise<CommandEntry>;
+      tamperLog: () => Promise<CommandEntry>;
+      lastSecurityReport: () => SecurityReport | null;
     };
   }
 }
@@ -246,6 +254,7 @@ let lastCrossEvolutionReport: CrossSystemEvolutionReport | null = null;
 let lastPreFailureReport: PreFailureReport | null = null;
 let lastSyntheticUniverseReport: SyntheticUniverseReport | null = null;
 let lastProtocolReport: ComplianceReport | null = null;
+let lastSecurityReport: SecurityReport | null = null;
 
 if (typeof window !== "undefined") {
   ensureRegistrySubscription();
@@ -322,5 +331,12 @@ if (typeof window !== "undefined") {
     }, [`${submissions.length} projects`]),
     lastProtocolReport: () => lastProtocolReport,
     lastProtocolSpec: () => getProtocolSpec(),
+    securityReport: () => dispatchCommand("blackbox.report", () => {
+      const report = getSecurityReport();
+      lastSecurityReport = report;
+      return report;
+    }),
+    tamperLog: () => dispatchCommand("blackbox.tamperLog", () => getTamperLog()),
+    lastSecurityReport: () => lastSecurityReport,
   };
 }
