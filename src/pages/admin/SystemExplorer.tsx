@@ -35,6 +35,7 @@ import { FinalSnapshotPanel } from "@/components/admin/FinalSnapshotPanel";
 import { DeterministicBuildPipelinePanel } from "@/components/admin/DeterministicBuildPipelinePanel";
 import { VersionedArchitecturePanel } from "@/components/admin/VersionedArchitecturePanel";
 import { RollbackEnginePanel } from "@/components/admin/RollbackEnginePanel";
+import { RegressionGuardPanel } from "@/components/admin/RegressionGuardPanel";
 
 type WorkItem = {
   id: string;
@@ -1778,6 +1779,8 @@ const SystemExplorer = () => {
             <DeterministicBuildPipelinePanel />
             {/* VERSIONED ARCHITECTURE STATE — append-only versions of verified system state */}
             <VersionedArchitecturePanel />
+            {/* REGRESSION GUARD — blocks release when candidate is worse than previous version */}
+            <RegressionGuardPanel />
             {/* ROLLBACK ENGINE — restores last stable version on instability triggers */}
             <RollbackEnginePanel />
             {/* UNIFIED SYSTEM TRUTH — single source of truth, orchestrated by ExecutionController */}
