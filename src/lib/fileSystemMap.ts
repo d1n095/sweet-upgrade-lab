@@ -147,19 +147,49 @@ const componentsList = fileSystemMap.filter((f) => {
   return hasJsx || isReactComp;
 });
 
-const routesList = fileSystemMap.filter((f) => {
-  if (f.path.startsWith("src/pages/")) return true;
-  const src = typeof rawSources["/" + f.path] === "string" ? rawSources["/" + f.path] : "";
-  return /react-router-dom|<Route\s|createBrowserRouter/.test(src);
-});
+// Page entry files (one file = one page module)
+const pageFilesList = fileSystemMap.filter((f) => f.path.startsWith("src/pages/"));
+
+// Real route declarations: count <Route path="..."> across the whole codebase
+const routeDeclRegex = /<Route\s+[^>]*path\s*=\s*["'][^"']*["']/g;
+let routeDeclarationsCount = 0;
+const routeDeclarationFiles: string[] = [];
+for (const [rawPath, content] of Object.entries(rawSources)) {
+  if (typeof content !== "string") continue;
+  const matches = content.match(routeDeclRegex);
+  if (matches && matches.length > 0) {
+    routeDeclarationsCount += matches.length;
+    routeDeclarationFiles.push((rawPath.startsWith("/") ? rawPath.slice(1) : rawPath) + ` (${matches.length})`);
+  }
+}
+
+// Utilities (lib + utils + stores + hooks)
+const utilityList = fileSystemMap.filter((f) =>
+  f.type === "lib" || f.type === "util" || f.type === "store" || f.type === "hook"
+);
+
+// Orphan candidates: files that nothing else imports (used_in is empty) — exclude entry/page files
+const orphanList = fileSystemMap.filter((f) =>
+  f.used_in.length === 0 &&
+  !f.path.startsWith("src/pages/") &&
+  f.path !== "src/main.tsx" &&
+  f.path !== "src/App.tsx" &&
+  !f.path.startsWith("src/components/ui/") // shadcn primitives often imported indirectly
+);
 
 export const scanInputSummary = {
   total_files: fileSystemMap.length,
   components_count: componentsList.length,
-  routes_count: routesList.length,
+  page_files_count: pageFilesList.length,
+  routes_count: routeDeclarationsCount,
+  utility_count: utilityList.length,
+  orphan_files_count: orphanList.length,
   excluded_count: excluded.length,
   sample_components: componentsList.slice(0, 10).map((c) => c.path),
-  sample_routes: routesList.slice(0, 10).map((r) => r.path),
+  sample_pages: pageFilesList.slice(0, 10).map((p) => p.path),
+  sample_routes: routeDeclarationFiles.slice(0, 10),
+  sample_utilities: utilityList.slice(0, 10).map((u) => u.path),
+  sample_orphans: orphanList.slice(0, 10).map((o) => o.path),
 };
 
 console.log("[FILE MAP] components_count:", scanInputSummary.components_count);
