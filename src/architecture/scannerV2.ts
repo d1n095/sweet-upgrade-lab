@@ -191,3 +191,21 @@ export function runScannerV2(): ScannerV2Report {
     truth,
   };
 }
+
+/**
+ * Verified entrypoint — wraps runScannerV2() in the zero-fake-state guard.
+ * Returns an envelope that downstream UI MUST check before rendering.
+ */
+export function runScannerV2Verified(): VerifiedEnvelope<ScannerV2Report> {
+  const computedAt = Date.now();
+  const report = runScannerV2();
+  return verifyState(report, {
+    computedAt,
+    requiredCounts: {
+      received_files: report.inputs.received_files,
+      components: report.processed.components,
+      routes: report.processed.routes,
+    },
+  });
+}
+
