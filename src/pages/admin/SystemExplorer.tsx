@@ -1750,15 +1750,30 @@ const SystemExplorer = () => {
               <CardContent className="text-[11px] font-mono space-y-0.5">
                 <div>total_files: <span className="font-bold">{scanInputSummary.total_files}</span></div>
                 <div>components_count: <span className={`font-bold ${scanInputSummary.components_count === 0 ? "text-destructive" : "text-primary"}`}>{scanInputSummary.components_count}</span></div>
-                <div>routes_count: <span className={`font-bold ${scanInputSummary.routes_count === 0 ? "text-destructive" : "text-primary"}`}>{scanInputSummary.routes_count}</span></div>
+                <div>page_files_count: <span className="font-bold text-primary">{(scanInputSummary as any).page_files_count ?? "—"}</span></div>
+                <div>routes_count (declarations): <span className={`font-bold ${scanInputSummary.routes_count === 0 ? "text-destructive" : "text-primary"}`}>{scanInputSummary.routes_count}</span></div>
+                <div>utility_count: <span className="font-bold text-primary">{(scanInputSummary as any).utility_count ?? "—"}</span></div>
+                <div>orphan_files_count: <span className="font-bold text-primary">{(scanInputSummary as any).orphan_files_count ?? "—"}</span></div>
                 <div>excluded: <span className="text-muted-foreground">{scanInputSummary.excluded_count}</span></div>
                 <details className="mt-1">
                   <summary className="cursor-pointer text-muted-foreground">Sample components ({scanInputSummary.sample_components.length})</summary>
                   <ul className="ml-3 mt-1 space-y-0.5">{scanInputSummary.sample_components.map(p => <li key={p}>{p}</li>)}</ul>
                 </details>
                 <details>
-                  <summary className="cursor-pointer text-muted-foreground">Sample routes ({scanInputSummary.sample_routes.length})</summary>
+                  <summary className="cursor-pointer text-muted-foreground">Sample pages ({((scanInputSummary as any).sample_pages ?? []).length})</summary>
+                  <ul className="ml-3 mt-1 space-y-0.5">{((scanInputSummary as any).sample_pages ?? []).map((p: string) => <li key={p}>{p}</li>)}</ul>
+                </details>
+                <details>
+                  <summary className="cursor-pointer text-muted-foreground">Sample route declarations ({scanInputSummary.sample_routes.length})</summary>
                   <ul className="ml-3 mt-1 space-y-0.5">{scanInputSummary.sample_routes.map(p => <li key={p}>{p}</li>)}</ul>
+                </details>
+                <details>
+                  <summary className="cursor-pointer text-muted-foreground">Sample utilities ({((scanInputSummary as any).sample_utilities ?? []).length})</summary>
+                  <ul className="ml-3 mt-1 space-y-0.5">{((scanInputSummary as any).sample_utilities ?? []).map((p: string) => <li key={p}>{p}</li>)}</ul>
+                </details>
+                <details>
+                  <summary className="cursor-pointer text-muted-foreground">Orphan candidates ({((scanInputSummary as any).sample_orphans ?? []).length})</summary>
+                  <ul className="ml-3 mt-1 space-y-0.5">{((scanInputSummary as any).sample_orphans ?? []).map((p: string) => <li key={p}>{p}</li>)}</ul>
                 </details>
               </CardContent>
             </Card>
