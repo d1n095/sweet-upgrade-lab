@@ -68,6 +68,11 @@ import {
   type CompanyStackInput,
   type CompanyStackReport,
 } from "@/core/business/autonomousCompanyStack";
+import {
+  runCampaignCalendar,
+  type CampaignCalendarInput,
+  type CampaignCalendarReport,
+} from "@/core/business/campaignCalendar";
 
 export type CommandStatus = "pending" | "ok" | "error";
 
@@ -267,6 +272,8 @@ declare global {
       lastCompanyStack: () => CompanyStackReport | null;
       runDiscountEngine: (input: DiscountEngineInput) => Promise<CommandEntry>;
       lastDiscountReport: () => DiscountEngineReport | null;
+      runCampaignCalendar: (input: CampaignCalendarInput) => Promise<CommandEntry>;
+      lastCampaignCalendar: () => CampaignCalendarReport | null;
     };
   }
 }
@@ -282,6 +289,7 @@ let lastSecurityReport: SecurityReport | null = null;
 let lastMetaReport: MetaSystemReport | null = null;
 let lastDiscountReport: DiscountEngineReport | null = null;
 let lastCompanyStackReport: CompanyStackReport | null = null;
+let lastCampaignCalendarReport: CampaignCalendarReport | null = null;
 
 if (typeof window !== "undefined") {
   ensureRegistrySubscription();
@@ -392,5 +400,11 @@ if (typeof window !== "undefined") {
       return report;
     }, [`${input.products.length}p / ${input.events.length}ev`]),
     lastDiscountReport: () => lastDiscountReport,
+    runCampaignCalendar: (input) => dispatchCommand("campaign.calendar", () => {
+      const report = runCampaignCalendar(input);
+      lastCampaignCalendarReport = report;
+      return report;
+    }, [`${input.events.length} events`]),
+    lastCampaignCalendar: () => lastCampaignCalendarReport,
   };
 }
