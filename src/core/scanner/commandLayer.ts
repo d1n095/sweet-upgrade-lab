@@ -272,6 +272,8 @@ declare global {
       lastCompanyStack: () => CompanyStackReport | null;
       runDiscountEngine: (input: DiscountEngineInput) => Promise<CommandEntry>;
       lastDiscountReport: () => DiscountEngineReport | null;
+      runCampaignCalendar: (input: CampaignCalendarInput) => Promise<CommandEntry>;
+      lastCampaignCalendar: () => CampaignCalendarReport | null;
     };
   }
 }
