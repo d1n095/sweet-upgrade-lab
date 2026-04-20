@@ -36,6 +36,7 @@ import { ImmutableSnapshotV2Panel } from "@/components/admin/ImmutableSnapshotV2
 import { DriftDetectorPanel } from "@/components/admin/DriftDetectorPanel";
 import { StrictModePanel } from "@/components/admin/StrictModePanel";
 import { PatternMemoryPanel } from "@/components/admin/PatternMemoryPanel";
+import { ArchitectureScoringPanel } from "@/components/admin/ArchitectureScoringPanel";
 import { DeterministicBuildPipelinePanel } from "@/components/admin/DeterministicBuildPipelinePanel";
 import { VersionedArchitecturePanel } from "@/components/admin/VersionedArchitecturePanel";
 import { RollbackEnginePanel } from "@/components/admin/RollbackEnginePanel";
@@ -1788,6 +1789,8 @@ const SystemExplorer = () => {
             <StrictModePanel />
             {/* PATTERN MEMORY — historical pattern store across architecture versions */}
             <PatternMemoryPanel />
+            {/* ARCHITECTURE SCORING — deterministic 0–100 score with breakdown */}
+            <ArchitectureScoringPanel />
             {/* DETERMINISTIC BUILD PIPELINE — 6-stage release-grade orchestrator */}
             <DeterministicBuildPipelinePanel />
             {/* VERSIONED ARCHITECTURE STATE — append-only versions of verified system state */}
