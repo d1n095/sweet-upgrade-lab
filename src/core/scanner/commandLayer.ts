@@ -35,6 +35,13 @@ import {
   type SyntheticUniverseReport,
 } from "@/core/evolution/syntheticUniverse";
 import {
+  evaluateProtocolCompliance,
+  getProtocolSpec,
+  type ProjectProtocolSubmission,
+  type ComplianceReport,
+  type ProtocolSpec,
+} from "@/core/evolution/protocolLayer";
+import {
   buildConsciousness,
   type ProjectSnapshot,
   type ConsciousnessReport,
@@ -224,6 +231,10 @@ declare global {
       lastPreFailure: () => PreFailureReport | null;
       generateSyntheticUniverse: (input: SyntheticUniverseInput) => Promise<CommandEntry>;
       lastSyntheticUniverse: () => SyntheticUniverseReport | null;
+      protocolSpec: () => Promise<CommandEntry>;
+      protocolEvaluate: (submissions: ReadonlyArray<ProjectProtocolSubmission>) => Promise<CommandEntry>;
+      lastProtocolReport: () => ComplianceReport | null;
+      lastProtocolSpec: () => ProtocolSpec;
     };
   }
 }
@@ -234,6 +245,7 @@ let lastFailureSimReport: FailureSimulationReport | null = null;
 let lastCrossEvolutionReport: CrossSystemEvolutionReport | null = null;
 let lastPreFailureReport: PreFailureReport | null = null;
 let lastSyntheticUniverseReport: SyntheticUniverseReport | null = null;
+let lastProtocolReport: ComplianceReport | null = null;
 
 if (typeof window !== "undefined") {
   ensureRegistrySubscription();
@@ -302,5 +314,13 @@ if (typeof window !== "undefined") {
       return report;
     }, [`${(input.known_patterns ?? []).length} patterns`]),
     lastSyntheticUniverse: () => lastSyntheticUniverseReport,
+    protocolSpec: () => dispatchCommand("protocol.spec", () => getProtocolSpec()),
+    protocolEvaluate: (submissions) => dispatchCommand("protocol.evaluate", () => {
+      const report = evaluateProtocolCompliance(submissions);
+      lastProtocolReport = report;
+      return report;
+    }, [`${submissions.length} projects`]),
+    lastProtocolReport: () => lastProtocolReport,
+    lastProtocolSpec: () => getProtocolSpec(),
   };
 }
