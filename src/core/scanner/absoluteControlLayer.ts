@@ -98,6 +98,12 @@ export const SYSTEM_ROLE_REGISTRY: ReadonlyArray<SystemRoleEntry> = Object.freez
     can_block_execution: false,
     description: "Captures one immutable snapshot per controller run with a verification hash.",
   },
+  {
+    module: "deterministicBuildPipeline",
+    role: "READ_ONLY_REPORTER",
+    can_block_execution: false,
+    description: "Composes the 6-stage release-grade pipeline. Stops itself on failure but does not block other systems.",
+  },
   // ── 3. DATA PRODUCERS ────────────────────────────────────────────────────
   {
     module: "fileSystemMap",
