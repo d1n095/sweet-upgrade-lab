@@ -4,6 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { safeInvoke } from "@/lib/safeInvoke";
 import { useWorkQueueStore } from "@/stores/workQueueStore";
 import { fileSystemMap, type FileEntry, getFileContent, getCodeIndex, getDuplicatedLines, getCodeIssues, getRawSources, scanFileContent, scanInputSummary } from "@/lib/fileSystemMap";
+import { runTruthEngine } from "@/architecture/truthEngine";
+import { ROUTE_REGISTRY } from "@/architecture/routeRegistry";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useFounderRole } from "@/hooks/useFounderRole";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1742,6 +1744,68 @@ const SystemExplorer = () => {
         {/* FILES TAB */}
         {mainTab === "files" && (
           <div className="space-y-3">
+            {/* TRUTH ENGINE v2 — single source of truth */}
+            {(() => {
+              const truth = runTruthEngine();
+              const statusColor =
+                truth.system_status === "VERIFIED" ? "text-primary" :
+                truth.system_status === "INCOMPLETE" ? "text-yellow-500" : "text-destructive";
+              return (
+                <Card className="border-primary/40 bg-primary/5">
+                  <CardHeader className="py-2 flex flex-row items-center justify-between">
+                    <CardTitle className="text-xs font-mono">🛡️ Truth Engine v2 — Single Source of Truth</CardTitle>
+                    <Badge variant="outline" className="text-[10px]">confidence {truth.scan_confidence}%</Badge>
+                  </CardHeader>
+                  <CardContent className="text-[11px] font-mono space-y-1">
+                    <div className="flex flex-wrap gap-3">
+                      <div>system_status: <span className={`font-bold ${statusColor}`}>{truth.system_status}</span></div>
+                      <div>file_truth_layer: <span className="font-bold text-primary">{truth.file_truth_layer}</span></div>
+                      <div>generated: <span className="text-muted-foreground">{truth.generated_at}</span></div>
+                    </div>
+                    <div className="flex flex-wrap gap-3 pt-1 border-t border-border/40">
+                      <div>files: <span className="font-bold">{truth.files.total}</span></div>
+                      <div>components: <span className="font-bold">{truth.components.count}</span></div>
+                      <div>routes_declared: <span className="font-bold">{truth.routing.declared_in_registry}</span></div>
+                      <div>routes_backed: <span className="font-bold text-primary">{truth.routing.real_file_backed}</span></div>
+                      <div>redirects: <span className="font-bold">{truth.routing.redirects}</span></div>
+                      <div>orphans: <span className="font-bold">{truth.components.orphan_count}</span></div>
+                    </div>
+                    {truth.errors.length > 0 && (
+                      <div className="text-destructive">
+                        ❌ errors: {truth.errors.join("; ")}
+                      </div>
+                    )}
+                    {truth.routing.phantom_routes.length > 0 && (
+                      <details>
+                        <summary className="cursor-pointer text-destructive">phantom routes ({truth.routing.phantom_routes.length})</summary>
+                        <ul className="ml-3 mt-1 space-y-0.5">{truth.routing.phantom_routes.map(p => <li key={p.path}>{p.path} → {p.expected_file}</li>)}</ul>
+                      </details>
+                    )}
+                    {truth.routing.unmounted_page_files.length > 0 && (
+                      <details>
+                        <summary className="cursor-pointer text-yellow-500">unmounted page files ({truth.routing.unmounted_page_files.length})</summary>
+                        <ul className="ml-3 mt-1 space-y-0.5">{truth.routing.unmounted_page_files.map(p => <li key={p}>{p}</li>)}</ul>
+                      </details>
+                    )}
+                    {Object.keys(truth.components.duplicate_basenames).length > 0 && (
+                      <details>
+                        <summary className="cursor-pointer text-muted-foreground">duplicate basenames ({Object.keys(truth.components.duplicate_basenames).length})</summary>
+                        <ul className="ml-3 mt-1 space-y-0.5">{Object.entries(truth.components.duplicate_basenames).map(([n,c]) => <li key={n}>{n} ×{c}</li>)}</ul>
+                      </details>
+                    )}
+                    <details>
+                      <summary className="cursor-pointer text-muted-foreground">route registry ({ROUTE_REGISTRY.length})</summary>
+                      <ul className="ml-3 mt-1 space-y-0.5">{ROUTE_REGISTRY.map(r => <li key={r.path}>{r.path} → {r.element} <span className="text-muted-foreground">[{r.area}]</span></li>)}</ul>
+                    </details>
+                    <details>
+                      <summary className="cursor-pointer text-muted-foreground">decision log ({truth.decision_log.length})</summary>
+                      <ul className="ml-3 mt-1 space-y-0.5">{truth.decision_log.map((l,i) => <li key={i}>{l}</li>)}</ul>
+                    </details>
+                  </CardContent>
+                </Card>
+              );
+            })()}
+
             {/* Scan Input Summary (debug) */}
             <Card className="border-primary/30 bg-primary/5">
               <CardHeader className="py-2">
