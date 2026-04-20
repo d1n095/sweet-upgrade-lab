@@ -117,9 +117,14 @@ export interface RuleEvaluation {
 // Default rule set — strict IF/THEN, static thresholds only.
 // To change behavior: edit these constants. Never inject runtime values.
 // ─────────────────────────────────────────────────────────────────────────────
-export const DEFAULT_RULES: Rule[] = ([
+/** Helper: preserve per-rule generic typing inside the array. */
+function defineRule<T extends EcommerceEventType>(rule: Rule<T>): Rule {
+  return rule as unknown as Rule;
+}
+
+export const DEFAULT_RULES: Rule[] = [
   // ── R1: stagnation → 10% discount, 14-day window ─────────────────────────
-  {
+  defineRule<"product_no_sales">({
     id: "R1_no_sales_discount_10",
     description: "IF product_no_sales > 30 days → apply 10% discount for 14 days",
     event_type: "product_no_sales",
@@ -132,10 +137,10 @@ export const DEFAULT_RULES: Rule[] = ([
       duration_days: 14,
     }),
     enabled: true,
-  },
+  }),
 
   // ── R2: high stock + low velocity → clearance 20% ────────────────────────
-  {
+  defineRule<"high_stock">({
     id: "R2_high_stock_clearance_20",
     description: "IF stock_units > 100 AND days_of_inventory ≥ 90 → 20% clearance for 21 days",
     event_type: "high_stock",
@@ -148,10 +153,10 @@ export const DEFAULT_RULES: Rule[] = ([
       duration_days: 21,
     }),
     enabled: true,
-  },
+  }),
 
   // ── R3: high stock + low velocity → clearance campaign ───────────────────
-  {
+  defineRule<"high_stock">({
     id: "R3_high_stock_clearance_campaign",
     description: "IF stock_units > 100 AND days_of_inventory ≥ 90 → clearance campaign 21d",
     event_type: "high_stock",
@@ -164,10 +169,10 @@ export const DEFAULT_RULES: Rule[] = ([
       reason: "high_stock+slow_velocity",
     }),
     enabled: true,
-  },
+  }),
 
   // ── R4: low stock (>0) → flag warning ────────────────────────────────────
-  {
+  defineRule<"low_stock">({
     id: "R4_low_stock_flag_warning",
     description: "IF stock ≤ 5 AND stock > 0 → flag warning",
     event_type: "low_stock",
@@ -179,10 +184,10 @@ export const DEFAULT_RULES: Rule[] = ([
       severity: "warning",
     }),
     enabled: true,
-  },
+  }),
 
   // ── R5: out of stock → flag critical (SAFETY tier) ───────────────────────
-  {
+  defineRule<"low_stock">({
     id: "R5_oos_flag_critical",
     description: "IF stock - reserved = 0 → flag critical (block sales)",
     event_type: "low_stock",
@@ -194,10 +199,10 @@ export const DEFAULT_RULES: Rule[] = ([
       severity: "critical",
     }),
     enabled: true,
-  },
+  }),
 
   // ── R6: price_drop_needed → 10–20% discount based on reason ─────────────
-  {
+  defineRule<"price_drop_needed">({
     id: "R6_price_drop_discount",
     description: "IF price_drop_needed AND margin allows → 10–20% discount",
     event_type: "price_drop_needed",
@@ -213,10 +218,10 @@ export const DEFAULT_RULES: Rule[] = ([
       duration_days: 14,
     }),
     enabled: true,
-  },
+  }),
 
   // ── R7: campaign_trigger event → trigger campaign ───────────────────────
-  {
+  defineRule<"campaign_trigger">({
     id: "R7_campaign_trigger_dispatch",
     description: "IF campaign_trigger event → start matching campaign 14d",
     event_type: "campaign_trigger",
@@ -229,7 +234,7 @@ export const DEFAULT_RULES: Rule[] = ([
       reason: p.trigger_reason,
     }),
     enabled: true,
-  },
+  }),
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
