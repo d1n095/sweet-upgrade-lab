@@ -1059,6 +1059,59 @@ export type Database = {
           },
         ]
       }
+      ecommerce_events: {
+        Row: {
+          created_at: string
+          emitted_at: string
+          emitted_by: string | null
+          event_type: Database["public"]["Enums"]["ecommerce_event_type"]
+          id: string
+          payload: Json
+          processed_at: string | null
+          processed_by_rule: string | null
+          product_id: string | null
+          severity: Database["public"]["Enums"]["ecommerce_event_severity"]
+          source: string
+          variant_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          emitted_at?: string
+          emitted_by?: string | null
+          event_type: Database["public"]["Enums"]["ecommerce_event_type"]
+          id?: string
+          payload?: Json
+          processed_at?: string | null
+          processed_by_rule?: string | null
+          product_id?: string | null
+          severity?: Database["public"]["Enums"]["ecommerce_event_severity"]
+          source?: string
+          variant_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          emitted_at?: string
+          emitted_by?: string | null
+          event_type?: Database["public"]["Enums"]["ecommerce_event_type"]
+          id?: string
+          payload?: Json
+          processed_at?: string | null
+          processed_by_rule?: string | null
+          product_id?: string | null
+          severity?: Database["public"]["Enums"]["ecommerce_event_severity"]
+          source?: string
+          variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ecommerce_events_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_send_log: {
         Row: {
           created_at: string
@@ -1797,6 +1850,53 @@ export type Database = {
         }
         Relationships: []
       }
+      price_history: {
+        Row: {
+          change_reason: string | null
+          changed_at: string
+          changed_by: string | null
+          id: string
+          new_cost: number | null
+          new_price: number | null
+          old_cost: number | null
+          old_price: number | null
+          product_id: string
+          source: string
+        }
+        Insert: {
+          change_reason?: string | null
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          new_cost?: number | null
+          new_price?: number | null
+          old_cost?: number | null
+          old_price?: number | null
+          product_id: string
+          source?: string
+        }
+        Update: {
+          change_reason?: string | null
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          new_cost?: number | null
+          new_price?: number | null
+          old_cost?: number | null
+          old_price?: number | null
+          product_id?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_history_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_categories: {
         Row: {
           category_id: string
@@ -1901,6 +2001,56 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      product_stats: {
+        Row: {
+          cart_adds: number
+          cart_removes: number
+          created_at: string
+          last_purchased_at: string | null
+          last_viewed_at: string | null
+          product_id: string
+          purchases: number
+          revenue: number
+          units_sold: number
+          updated_at: string
+          views: number
+        }
+        Insert: {
+          cart_adds?: number
+          cart_removes?: number
+          created_at?: string
+          last_purchased_at?: string | null
+          last_viewed_at?: string | null
+          product_id: string
+          purchases?: number
+          revenue?: number
+          units_sold?: number
+          updated_at?: string
+          views?: number
+        }
+        Update: {
+          cart_adds?: number
+          cart_removes?: number
+          created_at?: string
+          last_purchased_at?: string | null
+          last_viewed_at?: string | null
+          product_id?: string
+          purchases?: number
+          revenue?: number
+          units_sold?: number
+          updated_at?: string
+          views?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_stats_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       product_tag_relations: {
         Row: {
@@ -2092,6 +2242,7 @@ export type Database = {
           badge: string | null
           category: string | null
           certifications: string[] | null
+          cost_price: number | null
           created_at: string
           currency: string
           description_en: string | null
@@ -2152,6 +2303,7 @@ export type Database = {
           badge?: string | null
           category?: string | null
           certifications?: string[] | null
+          cost_price?: number | null
           created_at?: string
           currency?: string
           description_en?: string | null
@@ -2212,6 +2364,7 @@ export type Database = {
           badge?: string | null
           category?: string | null
           certifications?: string[] | null
+          cost_price?: number | null
           created_at?: string
           currency?: string
           description_en?: string | null
@@ -4253,6 +4406,17 @@ export type Database = {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
       }
+      emit_ecommerce_event: {
+        Args: {
+          p_event_type: Database["public"]["Enums"]["ecommerce_event_type"]
+          p_payload?: Json
+          p_product_id?: string
+          p_severity?: Database["public"]["Enums"]["ecommerce_event_severity"]
+          p_source?: string
+          p_variant_id?: string
+        }
+        Returns: string
+      }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
@@ -4386,6 +4550,14 @@ export type Database = {
         | "marketing"
         | "finance"
         | "warehouse"
+      ecommerce_event_severity: "info" | "warning" | "critical"
+      ecommerce_event_type:
+        | "product_view"
+        | "product_no_sales"
+        | "low_stock"
+        | "high_stock"
+        | "price_drop_needed"
+        | "campaign_trigger"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -4526,6 +4698,15 @@ export const Constants = {
         "marketing",
         "finance",
         "warehouse",
+      ],
+      ecommerce_event_severity: ["info", "warning", "critical"],
+      ecommerce_event_type: [
+        "product_view",
+        "product_no_sales",
+        "low_stock",
+        "high_stock",
+        "price_drop_needed",
+        "campaign_trigger",
       ],
     },
   },
