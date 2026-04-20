@@ -265,6 +265,8 @@ declare global {
       lastMetaReport: () => MetaSystemReport | null;
       companyStack: (input: CompanyStackInput) => Promise<CommandEntry>;
       lastCompanyStack: () => CompanyStackReport | null;
+      runDiscountEngine: (input: DiscountEngineInput) => Promise<CommandEntry>;
+      lastDiscountReport: () => DiscountEngineReport | null;
     };
   }
 }
@@ -384,5 +386,11 @@ if (typeof window !== "undefined") {
       return report;
     }, [`${input.features.length} features · ${input.base_tiers.length} tiers`]),
     lastCompanyStack: () => lastCompanyStackReport,
+    runDiscountEngine: (input) => dispatchCommand("discount.run", () => {
+      const report = runDiscountEngine(input);
+      lastDiscountReport = report;
+      return report;
+    }, [`${input.products.length}p / ${input.events.length}ev`]),
+    lastDiscountReport: () => lastDiscountReport,
   };
 }
