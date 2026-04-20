@@ -210,27 +210,6 @@ StealthScheduler.register({
   },
 });
 
-// ── Console / debug command layer ────────────────────────────────────
-declare global {
-  interface Window {
-    __godmode?: {
-      enableStealth: () => void;
-      disableStealth: () => void;
-      status: () => StealthStatus;
-      logs: () => HiddenLog[];
-      registry: () => ReturnType<typeof systemStateRegistry.snapshot>;
-      slots: () => ReturnType<typeof useSystemStateStore.getState>["slots"];
-    };
-  }
-}
+// NOTE: window.__godmode is owned by commandLayer.ts so every devtools call
+// flows through the audited dispatcher. Do not redefine here.
 
-if (typeof window !== "undefined") {
-  window.__godmode = {
-    enableStealth: () => useStealthStore.getState().enable(),
-    disableStealth: () => useStealthStore.getState().disable("manual"),
-    status: () => useStealthStore.getState().status,
-    logs: () => useStealthStore.getState().hidden_logs,
-    registry: () => systemStateRegistry.snapshot(),
-    slots: () => useSystemStateStore.getState().slots,
-  };
-}

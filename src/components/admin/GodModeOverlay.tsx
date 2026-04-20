@@ -11,9 +11,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useSystemStateStore, type ModuleKey } from "@/stores/systemStateStore";
 import { systemStateRegistry, type RegistrySnapshot } from "@/core/scanner/systemStateRegistry";
 import { useStealthStore } from "@/core/scanner/stealthMode";
+import { useCommandLayerStore } from "@/core/scanner/commandLayer";
+import { useSuperControlStore } from "@/core/scanner/superControl";
 import { useAdminRole } from "@/hooks/useAdminRole";
 
-type PanelId = "system" | "heatmap" | "clusters" | "execution" | "reality";
+type PanelId = "system" | "heatmap" | "clusters" | "execution" | "reality" | "command";
 
 interface PanelPos {
   x: number;
@@ -26,6 +28,7 @@ const DEFAULT_POS: Record<PanelId, PanelPos> = {
   clusters: { x: 704, y: 16 },
   execution: { x: 16, y: 280 },
   reality: { x: 360, y: 280 },
+  command: { x: 704, y: 280 },
 };
 
 const PANEL_LABELS: Record<PanelId, string> = {
@@ -34,6 +37,7 @@ const PANEL_LABELS: Record<PanelId, string> = {
   clusters: "CLUSTER VIEW",
   execution: "EXECUTION FLOW",
   reality: "REALITY CHECK",
+  command: "COMMAND / MODE",
 };
 
 function useRegistrySnapshot(): RegistrySnapshot {
@@ -182,12 +186,19 @@ export default function GodModeOverlay() {
     [slots],
   );
 
-  const visibleModules: PanelId[] = open ? ["system", "heatmap", "clusters", "execution", "reality"] : [];
+  const visibleModules: PanelId[] = open
+    ? ["system", "heatmap", "clusters", "execution", "reality", "command"]
+    : [];
 
+  const lastCommand = useCommandLayerStore((s) => s.last_command);
+  const commandLog = useCommandLayerStore((s) => s.log);
+  const syncStatus = useCommandLayerStore((s) => s.sync_status);
+  const activeMode = useSuperControlStore((s) => s.active_mode);
   const stealthActive = useStealthStore((s) => s.status === "ACTIVE");
+
   if (!isAdmin) return null;
-  // Stealth mode hides all visible diagnostics (overlay only via window.__godmode)
-  if (stealthActive) return null;
+  // Stealth hides overlay UNLESS GOD mode forces it visible
+  if (stealthActive && activeMode !== "GOD") return null;
 
   // ── Render ───────────────────────────────────────────────────────────
   return (
@@ -210,9 +221,9 @@ export default function GodModeOverlay() {
         >
           {/* Header bar */}
           <div className="absolute top-0 left-0 right-0 h-7 bg-black/85 text-emerald-400 border-b border-emerald-700/40 flex items-center justify-between px-3 pointer-events-auto">
-            <span className="font-bold tracking-widest">⚡ GOD MODE</span>
+            <span className="font-bold tracking-widest">⚡ GOD MODE · {activeMode}</span>
             <span className="text-zinc-400">
-              registry v{registry.last_validated_state?.version ?? "—"} · slots {Object.keys(slots).length} ·{" "}
+              registry v{registry.last_validated_state?.version ?? "—"} · slots {Object.keys(slots).length} · sync {syncStatus} ·{" "}
               {recoveryMode ? <span className="text-red-400">RECOVERY</span> : "live"}
             </span>
             <button
@@ -345,7 +356,49 @@ export default function GodModeOverlay() {
             </Section>
           </Panel>
 
-          {/* Hover detail */}
+          {/* 6. COMMAND / MODE — registry-driven */}
+          <Panel id="command" pos={positions.command} onDragStart={beginDrag("command")}>
+            <Row k="active_mode" v={activeMode} tone={activeMode === "STRICT" ? "warn" : "ok"} />
+            <Row k="sync_status" v={syncStatus.toUpperCase()} tone={syncStatus === "in_sync" ? "ok" : "warn"} />
+            <Row k="last_command" v={lastCommand?.name ?? "UNKNOWN"} />
+            <Row
+              k="result"
+              v={lastCommand ? lastCommand.status.toUpperCase() : "UNKNOWN"}
+              tone={lastCommand?.status === "ok" ? "ok" : lastCommand?.status === "error" ? "err" : "warn"}
+            />
+            <Row
+              k="affected"
+              v={lastCommand?.affected_modules.length ? lastCommand.affected_modules.join(", ") : "none"}
+            />
+            <Section label="HISTORY">
+              <div className="max-h-24 overflow-auto space-y-0.5">
+                {commandLog.slice(0, 6).map((c) => (
+                  <div key={c.id} className="flex justify-between gap-2 truncate" title={c.error ?? c.result_preview}>
+                    <span
+                      className={
+                        c.status === "ok"
+                          ? "text-emerald-400"
+                          : c.status === "error"
+                            ? "text-red-400"
+                            : "text-amber-400"
+                      }
+                    >
+                      ●
+                    </span>
+                    <span className="truncate flex-1 text-zinc-200">{c.name}</span>
+                    <span className="text-zinc-500 shrink-0">{c.started_at.slice(11, 19)}</span>
+                  </div>
+                ))}
+                {commandLog.length === 0 && <div className="text-zinc-500">no commands dispatched</div>}
+              </div>
+            </Section>
+            <Section label="MODES">
+              <div className="text-zinc-400 text-[10px]">
+                __godmode.mode("normal" | "god" | "stealth" | "strict" | "minimal")
+              </div>
+            </Section>
+          </Panel>
+
           {hoverFile && (
             <div className="absolute bottom-8 left-2 bg-black/90 border border-emerald-700/40 text-emerald-300 px-2 py-1 rounded pointer-events-none">
               {hoverFile}
