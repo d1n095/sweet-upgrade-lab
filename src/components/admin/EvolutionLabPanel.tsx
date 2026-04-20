@@ -44,7 +44,7 @@ import { runEvolutionTracker, type EvolutionReport as EvoTrackerReport } from "@
 import { runArchitectureClusterer, type ClustererReport } from "@/core/evolution/architectureClusterer";
 import { fileSystemMap, getRawSources } from "@/lib/fileSystemMap";
 import { supabase } from "@/integrations/supabase/client";
-import { useSystemStateStore } from "@/stores/systemStateStore";
+import { useSystemStateStore, runAndStore } from "@/stores/systemStateStore";
 
 interface Props {
   isFounder: boolean;
