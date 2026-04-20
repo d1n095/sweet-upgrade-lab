@@ -44,7 +44,7 @@ import { runEvolutionTracker, type EvolutionReport as EvoTrackerReport } from "@
 import { runArchitectureClusterer, type ClustererReport } from "@/core/evolution/architectureClusterer";
 import { fileSystemMap, getRawSources } from "@/lib/fileSystemMap";
 import { supabase } from "@/integrations/supabase/client";
-import { useSystemStateStore } from "@/stores/systemStateStore";
+import { useSystemStateStore, runAndStore } from "@/stores/systemStateStore";
 
 interface Props {
   isFounder: boolean;
@@ -911,11 +911,15 @@ export function EvolutionLabPanel({ isFounder }: Props) {
       icon: <Flame className="w-4 h-4" />,
       run: async () => {
         await loadHistorySignals();
-        setRisk(buildRiskHeatmap({
-          edges: inputs.depGraph.edges,
-          change_frequency: changeCounts,
-          bug_density: bugCounts,
-        }));
+        await runAndStore("risk_heatmap", () => {
+          const r = buildRiskHeatmap({
+            edges: inputs.depGraph.edges,
+            change_frequency: changeCounts,
+            bug_density: bugCounts,
+          });
+          setRisk(r);
+          return r;
+        });
       },
       body: risk ? (
         <div className="text-xs space-y-2">
@@ -949,22 +953,26 @@ export function EvolutionLabPanel({ isFounder }: Props) {
     {
       key: "in_frontend_ci",
       icon: <CheckCircle2 className="w-4 h-4" />,
-      run: () => {
-        const struct = analyzeProjectStructure({ edges: inputs.depGraph.edges });
-        const dep = buildDepGraph(inputs.depGraph.edges);
-        const naming = struct.findings.filter(f => f.kind === "inconsistent_pattern");
-        const broken = struct.findings.filter(f => f.kind === "broken_import");
-        const cycles = struct.findings.filter(f => f.kind === "circular_dependency");
-        setCi(runInFrontendCi({
-          naming_violations: naming.length,
-          naming_examples: naming.flatMap(f => f.files),
-          broken_imports: broken.length,
-          broken_examples: broken.map(f => f.detail),
-          arch_violations: dep.violations.length,
-          arch_examples: dep.violations.map(v => `${v.from} → ${v.to}`),
-          cycles: cycles.length,
-          cycle_examples: cycles.map(c => c.detail),
-        }));
+      run: async () => {
+        await runAndStore("in_frontend_ci", () => {
+          const struct = analyzeProjectStructure({ edges: inputs.depGraph.edges });
+          const dep = buildDepGraph(inputs.depGraph.edges);
+          const naming = struct.findings.filter(f => f.kind === "inconsistent_pattern");
+          const broken = struct.findings.filter(f => f.kind === "broken_import");
+          const cycles = struct.findings.filter(f => f.kind === "circular_dependency");
+          const r = runInFrontendCi({
+            naming_violations: naming.length,
+            naming_examples: naming.flatMap(f => f.files),
+            broken_imports: broken.length,
+            broken_examples: broken.map(f => f.detail),
+            arch_violations: dep.violations.length,
+            arch_examples: dep.violations.map(v => `${v.from} → ${v.to}`),
+            cycles: cycles.length,
+            cycle_examples: cycles.map(c => c.detail),
+          });
+          setCi(r);
+          return r;
+        });
       },
       body: ci ? (
         <div className="text-xs space-y-2">
@@ -1003,17 +1011,21 @@ export function EvolutionLabPanel({ isFounder }: Props) {
     {
       key: "integrity_monitor",
       icon: <ShieldAlert className="w-4 h-4" />,
-      run: () => {
-        const struct = analyzeProjectStructure({ edges: inputs.depGraph.edges });
-        const orphans = struct.findings.filter(f => f.kind === "orphan_module").flatMap(f => f.files);
-        const cycles = struct.findings.filter(f => f.kind === "circular_dependency").map(f => [...f.files]);
-        setIntegrity(runIntegrityMonitor({
-          edges: inputs.depGraph.edges,
-          known_files: fileSystemMap.map(f => f.path),
-          sources: normalizedSources,
-          orphans,
-          cycles,
-        }));
+      run: async () => {
+        await runAndStore("integrity_monitor", () => {
+          const struct = analyzeProjectStructure({ edges: inputs.depGraph.edges });
+          const orphans = struct.findings.filter(f => f.kind === "orphan_module").flatMap(f => f.files);
+          const cycles = struct.findings.filter(f => f.kind === "circular_dependency").map(f => [...f.files]);
+          const r = runIntegrityMonitor({
+            edges: inputs.depGraph.edges,
+            known_files: fileSystemMap.map(f => f.path),
+            sources: normalizedSources,
+            orphans,
+            cycles,
+          });
+          setIntegrity(r);
+          return r;
+        });
       },
       body: integrity ? (
         <div className="text-xs space-y-2">
@@ -1051,8 +1063,12 @@ export function EvolutionLabPanel({ isFounder }: Props) {
     {
       key: "production_readiness",
       icon: <Rocket className="w-4 h-4" />,
-      run: () => {
-        setReadiness(runProductionReadiness({ sources: normalizedSources }));
+      run: async () => {
+        await runAndStore("production_readiness", () => {
+          const r = runProductionReadiness({ sources: normalizedSources });
+          setReadiness(r);
+          return r;
+        });
       },
       body: readiness ? (
         <div className="text-xs space-y-2">
@@ -1109,14 +1125,18 @@ export function EvolutionLabPanel({ isFounder }: Props) {
       icon: <History className="w-4 h-4" />,
       run: async () => {
         await loadHistorySignals();
-        const coupling: Record<string, number> = {};
-        const dep = buildDepGraph(inputs.depGraph.edges);
-        for (const n of dep.nodes) coupling[n.id] = n.in_degree + n.out_degree;
-        setEvoTrack(runEvolutionTracker({
-          change_counts: changeCounts,
-          coupling,
-          failures: bugCounts,
-        }));
+        await runAndStore("evolution_tracker", () => {
+          const coupling: Record<string, number> = {};
+          const dep = buildDepGraph(inputs.depGraph.edges);
+          for (const n of dep.nodes) coupling[n.id] = n.in_degree + n.out_degree;
+          const r = runEvolutionTracker({
+            change_counts: changeCounts,
+            coupling,
+            failures: bugCounts,
+          });
+          setEvoTrack(r);
+          return r;
+        });
       },
       body: evoTrack ? (
         <div className="text-xs space-y-2">
@@ -1163,10 +1183,14 @@ export function EvolutionLabPanel({ isFounder }: Props) {
       icon: <Boxes className="w-4 h-4" />,
       run: async () => {
         await loadHistorySignals();
-        setClusterer(runArchitectureClusterer({
-          edges: inputs.depGraph.edges,
-          change_counts: changeCounts,
-        }));
+        await runAndStore("architecture_clusterer", () => {
+          const r = runArchitectureClusterer({
+            edges: inputs.depGraph.edges,
+            change_counts: changeCounts,
+          });
+          setClusterer(r);
+          return r;
+        });
       },
       body: clusterer ? (
         <div className="text-xs space-y-2">
