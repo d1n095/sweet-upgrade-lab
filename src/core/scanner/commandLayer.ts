@@ -273,6 +273,7 @@ let lastSyntheticUniverseReport: SyntheticUniverseReport | null = null;
 let lastProtocolReport: ComplianceReport | null = null;
 let lastSecurityReport: SecurityReport | null = null;
 let lastMetaReport: MetaSystemReport | null = null;
+let lastCompanyStackReport: CompanyStackReport | null = null;
 
 if (typeof window !== "undefined") {
   ensureRegistrySubscription();
