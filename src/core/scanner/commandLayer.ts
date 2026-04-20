@@ -20,6 +20,11 @@ import {
   type FailureSimulationReport,
 } from "@/core/evolution/failureSimulation";
 import {
+  runCrossSystemEvolution,
+  type CrossSystemEvolutionInput,
+  type CrossSystemEvolutionReport,
+} from "@/core/evolution/crossSystemEvolution";
+import {
   buildConsciousness,
   type ProjectSnapshot,
   type ConsciousnessReport,
@@ -203,6 +208,8 @@ declare global {
       lastConsciousness: () => ConsciousnessReport | null;
       simulateFailures: (input: FailureSimulationInput) => Promise<CommandEntry>;
       lastFailureSim: () => FailureSimulationReport | null;
+      evolveAcrossSystems: (input: CrossSystemEvolutionInput) => Promise<CommandEntry>;
+      lastCrossEvolution: () => CrossSystemEvolutionReport | null;
     };
   }
 }
@@ -210,6 +217,7 @@ declare global {
 let lastRefactorReport: RefactorCycleReport | null = null;
 let lastConsciousnessReport: ConsciousnessReport | null = null;
 let lastFailureSimReport: FailureSimulationReport | null = null;
+let lastCrossEvolutionReport: CrossSystemEvolutionReport | null = null;
 
 if (typeof window !== "undefined") {
   ensureRegistrySubscription();
@@ -260,5 +268,11 @@ if (typeof window !== "undefined") {
       return report;
     }, [`${input.scenarios.length} scenarios`]),
     lastFailureSim: () => lastFailureSimReport,
+    evolveAcrossSystems: (input) => dispatchCommand("crossSystem.evolve", () => {
+      const report = runCrossSystemEvolution(input);
+      lastCrossEvolutionReport = report;
+      return report;
+    }, [`${input.reports.length} projects`]),
+    lastCrossEvolution: () => lastCrossEvolutionReport,
   };
 }
