@@ -6,6 +6,7 @@ import { useWorkQueueStore } from "@/stores/workQueueStore";
 import { fileSystemMap, type FileEntry, getFileContent, getCodeIndex, getDuplicatedLines, getCodeIssues, getRawSources, scanFileContent, scanInputSummary } from "@/lib/fileSystemMap";
 import { runTruthEngine } from "@/architecture/truthEngine";
 import { runScannerV2, runScannerV2Verified } from "@/architecture/scannerV2";
+import { runOrchestrator } from "@/core/scanner/orchestrator";
 import { ROUTE_REGISTRY } from "@/architecture/routeRegistry";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useFounderRole } from "@/hooks/useFounderRole";
