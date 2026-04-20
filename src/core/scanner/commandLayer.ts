@@ -250,6 +250,9 @@ declare global {
       securityReport: () => Promise<CommandEntry>;
       tamperLog: () => Promise<CommandEntry>;
       lastSecurityReport: () => SecurityReport | null;
+      metaMode: (mode: MetaMode | string) => Promise<CommandEntry>;
+      metaReport: () => Promise<CommandEntry>;
+      lastMetaReport: () => MetaSystemReport | null;
     };
   }
 }
