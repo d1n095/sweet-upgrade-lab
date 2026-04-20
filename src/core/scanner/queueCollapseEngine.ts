@@ -24,9 +24,7 @@ export interface CollapseEntry {
   task_id: string;
   task_title: string;
   reason: CollapseReason;
-  /** When reason = duplicate_goal, the surviving task this one was merged into. */
   merged_into?: string;
-  /** When reason = outdated_scan, the scan id referenced. */
   stale_scan_ref?: string;
   detail: string;
 }
@@ -38,7 +36,6 @@ export interface CollapseReport {
   cleaned_queue_ids: string[];
   removed_tasks: CollapseEntry[];
   by_reason: Record<CollapseReason, number>;
-  /** Latest scan id observed, used as the freshness baseline. */
   latest_scan_ref: string | null;
 }
 
@@ -48,17 +45,9 @@ const PRIORITY_RANK: Record<QueueTaskPriority, number> = {
   normal: 1,
 };
 
-/**
- * Build a stable goal-key from a task. Two tasks with the same goal-key
- * are considered the SAME GOAL (R1).
- *
- * Strategy: normalize the title (strip prefixes, collapse whitespace, lower-case)
- * and combine with the lockArea. This avoids false merges across unrelated
- * subsystems (e.g. "Refresh data" in `orders` vs in `products`).
- */
 export function goalKey(task: Pick<QueueTask, "title" | "lockArea">): string {
   const normalized = task.title
-    .replace(/^\[.*?\]\s*/g, "") // [PREFIX] tags
+    .replace(/^\[.*?\]\s*/g, "")
     .replace(/\(?\+\d+\s*liknande\)?/gi, "")
     .replace(/\s+/g, " ")
     .trim()
@@ -67,19 +56,13 @@ export function goalKey(task: Pick<QueueTask, "title" | "lockArea">): string {
   return `${area}::${normalized}`;
 }
 
-/** Extract a scan reference from a task description, if present. */
 function extractScanRef(task: QueueTask): string | null {
   const src = `${task.description ?? ""} ${task.error ?? ""}`;
   const m = src.match(/scan[_-]?(?:run[_-]?)?id[:=\s]+([a-z0-9-]{6,})/i);
   return m ? m[1] : null;
 }
 
-/**
- * Find the latest scan reference present in the queue. Used as the freshness
- * baseline for R3.
- */
 function findLatestScanRef(tasks: QueueTask[]): string | null {
-  // Newest createdAt wins among queued/running tasks that carry a scan ref.
   let latest: { ref: string; ts: number } | null = null;
   for (const t of tasks) {
     const ref = extractScanRef(t);
@@ -90,24 +73,17 @@ function findLatestScanRef(tasks: QueueTask[]): string | null {
   return latest?.ref ?? null;
 }
 
-/**
- * Pure analysis. Does not mutate the queue. Safe to call from UI render paths.
- */
 export function runQueueCollapse(tasks: QueueTask[]): CollapseReport {
   const queued = tasks.filter((t) => t.status === "queued");
   const completedKeys = new Set(
-    tasks
-      .filter((t) => t.status === "completed")
-      .map((t) => goalKey(t))
+    tasks.filter((t) => t.status === "completed").map((t) => goalKey(t))
   );
   const latestScanRef = findLatestScanRef(tasks);
 
   const removed: CollapseEntry[] = [];
   const removedIds = new Set<string>();
 
-  // ── R1. SAME GOAL → MERGE ─────────────────────────────────────────────────
-  // Group queued tasks by goal-key; keep the highest-priority one (tie-breaker:
-  // earliest createdAt). Mark the rest as duplicate_goal.
+  // R1. SAME GOAL → MERGE
   const groups = new Map<string, QueueTask[]>();
   for (const t of queued) {
     const key = goalKey(t);
@@ -115,7 +91,6 @@ export function runQueueCollapse(tasks: QueueTask[]): CollapseReport {
     arr.push(t);
     groups.set(key, arr);
   }
-
   for (const [, group] of groups) {
     if (group.length < 2) continue;
     const survivor = [...group].sort((a, b) => {
@@ -123,7 +98,6 @@ export function runQueueCollapse(tasks: QueueTask[]): CollapseReport {
       if (pr !== 0) return pr;
       return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
     })[0];
-
     for (const t of group) {
       if (t.id === survivor.id) continue;
       removedIds.add(t.id);
@@ -137,7 +111,7 @@ export function runQueueCollapse(tasks: QueueTask[]): CollapseReport {
     }
   }
 
-  // ── R2. ALREADY EXECUTED → REMOVE ─────────────────────────────────────────
+  // R2. ALREADY EXECUTED → REMOVE
   for (const t of queued) {
     if (removedIds.has(t.id)) continue;
     if (completedKeys.has(goalKey(t))) {
@@ -151,7 +125,7 @@ export function runQueueCollapse(tasks: QueueTask[]): CollapseReport {
     }
   }
 
-  // ── R3. OUTDATED SCAN → REMOVE ────────────────────────────────────────────
+  // R3. OUTDATED SCAN → REMOVE
   if (latestScanRef) {
     for (const t of queued) {
       if (removedIds.has(t.id)) continue;
@@ -170,7 +144,6 @@ export function runQueueCollapse(tasks: QueueTask[]): CollapseReport {
   }
 
   const cleanedQueueIds = queued.filter((t) => !removedIds.has(t.id)).map((t) => t.id);
-
   const byReason: Record<CollapseReason, number> = {
     duplicate_goal: 0,
     already_executed: 0,
@@ -189,17 +162,10 @@ export function runQueueCollapse(tasks: QueueTask[]): CollapseReport {
   };
 }
 
-/**
- * Convenience: run the engine against the live store.
- */
 export function runQueueCollapseLive(): CollapseReport {
   return runQueueCollapse(useWorkQueueStore.getState().tasks);
 }
 
-/**
- * Apply the collapse report by removing redundant tasks from the live store.
- * Idempotent and safe — only removes ids that still exist and are still queued.
- */
 export function applyCollapse(report: CollapseReport): { removed: number } {
   const store = useWorkQueueStore.getState();
   const queuedIds = new Set(store.tasks.filter((t) => t.status === "queued").map((t) => t.id));

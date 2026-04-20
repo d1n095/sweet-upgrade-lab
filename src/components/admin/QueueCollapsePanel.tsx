@@ -1,8 +1,5 @@
 /**
  * QUEUE COLLAPSE PANEL — read-only reporter UI.
- *
- * Surfaces duplicates, already-executed, and outdated-scan tasks in the queue.
- * Operator can choose to apply the collapse (remove redundant tasks).
  */
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,7 +15,10 @@ import {
 import { Layers, Trash2, GitMerge, Clock, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
-const REASON_META: Record<CollapseReason, { label: string; icon: typeof GitMerge; variant: "default" | "secondary" | "destructive" }> = {
+const REASON_META: Record<
+  CollapseReason,
+  { label: string; icon: typeof GitMerge; variant: "default" | "secondary" | "destructive" }
+> = {
   duplicate_goal: { label: "Duplicate goal", icon: GitMerge, variant: "secondary" },
   already_executed: { label: "Already executed", icon: CheckCircle2, variant: "default" },
   outdated_scan: { label: "Outdated scan", icon: Clock, variant: "destructive" },
@@ -27,7 +27,6 @@ const REASON_META: Record<CollapseReason, { label: string; icon: typeof GitMerge
 export function QueueCollapsePanel() {
   const tasks = useWorkQueueStore((s) => s.tasks);
   const [applying, setApplying] = useState(false);
-
   const report = useMemo(() => runQueueCollapse(tasks), [tasks]);
 
   const handleApply = () => {
@@ -72,7 +71,11 @@ export function QueueCollapsePanel() {
           <Stat label="Queued" value={report.total_queued} />
           <Stat label="Cleaned" value={report.cleaned_queue_ids.length} />
           <Stat label="Removed" value={report.removed_tasks.length} accent />
-          <Stat label="Latest scan" value={report.latest_scan_ref ? report.latest_scan_ref.slice(0, 8) : "—"} mono />
+          <Stat
+            label="Latest scan"
+            value={report.latest_scan_ref ? report.latest_scan_ref.slice(0, 8) : "—"}
+            mono
+          />
         </div>
 
         <div className="grid grid-cols-3 gap-2">
@@ -140,11 +143,23 @@ export function QueueCollapsePanel() {
   );
 }
 
-function Stat({ label, value, accent, mono }: { label: string; value: number | string; accent?: boolean; mono?: boolean }) {
+function Stat({
+  label,
+  value,
+  accent,
+  mono,
+}: {
+  label: string;
+  value: number | string;
+  accent?: boolean;
+  mono?: boolean;
+}) {
   return (
     <div className="rounded-md border bg-card p-2">
       <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className={`${mono ? "font-mono" : ""} ${accent ? "text-primary" : ""} mt-0.5 text-base font-semibold`}>
+      <div
+        className={`${mono ? "font-mono" : ""} ${accent ? "text-primary" : ""} mt-0.5 text-base font-semibold`}
+      >
         {value}
       </div>
     </div>

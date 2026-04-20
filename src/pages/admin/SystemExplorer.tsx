@@ -28,6 +28,8 @@ import { ExecutionControllerPanel } from "@/components/admin/ExecutionController
 import { SystemTruthPanel } from "@/components/admin/SystemTruthPanel";
 import { AbsoluteControlPanel } from "@/components/admin/AbsoluteControlPanel";
 import { QueueCollapsePanel } from "@/components/admin/QueueCollapsePanel";
+import { SignalDeduplicatorPanel } from "@/components/admin/SignalDeduplicatorPanel";
+import { HardStateLockPanel } from "@/components/admin/HardStateLockPanel";
 
 type WorkItem = {
   id: string;
@@ -1759,6 +1761,10 @@ const SystemExplorer = () => {
             <AbsoluteControlPanel />
             {/* QUEUE COLLAPSE — read-only deduplicator for the work queue */}
             <QueueCollapsePanel />
+            {/* SIGNAL DEDUPLICATOR — merges duplicate reports across all reporters */}
+            <SignalDeduplicatorPanel />
+            {/* HARD STATE LOCK — only AUTHORITY may write system state */}
+            <HardStateLockPanel />
             {/* UNIFIED SYSTEM TRUTH — single source of truth, orchestrated by ExecutionController */}
             <SystemTruthPanel />
 
