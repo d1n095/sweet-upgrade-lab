@@ -116,6 +116,12 @@ export const SYSTEM_ROLE_REGISTRY: ReadonlyArray<SystemRoleEntry> = Object.freez
     can_block_execution: false,
     description: "Restores active stable version on pipeline failure, score drop, or violation surge. Never mutates versions.",
   },
+  {
+    module: "regressionGuard",
+    role: "READ_ONLY_REPORTER",
+    can_block_execution: false,
+    description: "Compares candidate build to previous version; returns BLOCK on file drop, route mismatch, new orphans, or coupling rise. Pipeline enforces the block.",
+  },
   // ── 3. DATA PRODUCERS ────────────────────────────────────────────────────
   {
     module: "fileSystemMap",

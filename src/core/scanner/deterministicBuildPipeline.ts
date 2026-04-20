@@ -29,6 +29,7 @@ import {
 import { finalSnapshotEngine, type ImmutableSnapshot } from "@/core/scanner/finalSnapshotEngine";
 import { versionedArchitectureStore } from "@/core/scanner/versionedArchitectureStore";
 import { rollbackEngine } from "@/core/scanner/rollbackEngine";
+import { regressionGuard } from "@/core/scanner/regressionGuard";
 
 export type PipelineStageName =
   | "TRUTH_SCAN"
@@ -226,8 +227,27 @@ class DeterministicBuildPipeline {
           if (a.architecture_status === "STOP BUILD")
             errors.push("architecture build_status=STOP BUILD");
           if ((a.file_count ?? 0) <= 0) errors.push("file_count <= 0");
+          // ── Regression Guard — compare candidate to previous version ──
+          let regressionNote = "";
+          if (a.file_count != null && a.dependency_summary) {
+            const evalRes = regressionGuard.evaluate({
+              source_pipeline_id: run.pipeline_id,
+              file_count: a.file_count,
+              component_count: a.component_count ?? 0,
+              route_count: a.route_count ?? 0,
+              dependency_graph: a.dependency_summary,
+            });
+            if (evalRes.regression_detected) {
+              const summary = evalRes.differences.map((d) => d.check).join(", ");
+              errors.push(`regression detected vs ${evalRes.previous_version_id}: ${summary}`);
+            } else {
+              regressionNote = evalRes.is_first_version
+                ? " · regression guard skipped (first version)"
+                : " · regression guard PASS";
+            }
+          }
           if (errors.length > 0) throw new Error(errors.join("; "));
-          rec.detail = "all release invariants hold";
+          rec.detail = `all release invariants hold${regressionNote}`;
         }
         rec.status = "ok";
         rec.finished_at = Date.now();
