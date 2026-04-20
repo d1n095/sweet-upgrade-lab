@@ -156,7 +156,7 @@ export const ExecutionControllerPanel = () => {
           <div className="rounded-md border border-border">
             <div className="px-2 py-1.5 border-b border-border bg-muted/30 text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
               {display.output.validation_passed ? (
-                <CheckCircle2 className="h-3 w-3 text-green-600" />
+                <CheckCircle2 className="h-3 w-3 text-primary" />
               ) : (
                 <OctagonAlert className="h-3 w-3 text-destructive" />
               )}
