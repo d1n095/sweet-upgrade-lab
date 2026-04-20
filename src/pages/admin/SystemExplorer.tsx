@@ -1747,6 +1747,9 @@ const SystemExplorer = () => {
         {/* FILES TAB */}
         {mainTab === "files" && (
           <div className="space-y-3">
+            {/* OBSERVABILITY v2 — live system truth (no synthetic values) */}
+            <ObservabilityDashboardV2 />
+
             {/* SYSTEM ORCHESTRATOR — strict step ordering */}
             {(() => {
               const orch = runOrchestrator();
