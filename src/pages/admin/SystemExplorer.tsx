@@ -44,6 +44,9 @@ import { RegressionGuardPanel } from "@/components/admin/RegressionGuardPanel";
 import { ReleaseGatePanel } from "@/components/admin/ReleaseGatePanel";
 import { PanelErrorBoundary } from "@/components/admin/PanelErrorBoundary";
 import { useSystemStateStore } from "@/stores/systemStateStore";
+import { useSafeModeStore } from "@/stores/safeModeStore";
+import { SafeModeShell } from "@/components/admin/SafeModeShell";
+import { evaluateSafeMode } from "@/lib/safeModeEvaluator";
 
 type WorkItem = {
   id: string;
@@ -1005,6 +1008,32 @@ const SystemExplorer = () => {
     scanWorking: latestRun != null && ((latestRun.work_items_created ?? 0) > 0 || (latestRun.total_new_issues ?? 0) > 0),
     workItemsCreated: (latestRun?.work_items_created ?? 0) > 0,
   };
+
+  // SAFE MODE gate — evaluated every render from decoupled stores. If the
+  // system state is invalid (recoveryMode, ≥2 engine errors, or manual
+  // activation), render only the minimal static shell. This guarantees the
+  // dashboard never goes fully blank when the backend is unstable.
+  const safeModeActive = useSafeModeStore((s) => s.active);
+  const recoveryMode = useSystemStateStore((s) => s.recoveryMode);
+  const slotHealthSignature = useSystemStateStore((s) =>
+    Object.values(s.slots).map((slot) => slot.health).join("|"),
+  );
+  const safeEval = useMemo(
+    () => evaluateSafeMode(),
+    // re-evaluate when any of these inputs change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [safeModeActive, recoveryMode, slotHealthSignature],
+  );
+
+  if (safeEval.active) {
+    return (
+      <div className="flex h-full min-h-0">
+        <div className="flex-1 overflow-y-auto p-4">
+          <SafeModeShell reason={safeEval.reason} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full min-h-0">
