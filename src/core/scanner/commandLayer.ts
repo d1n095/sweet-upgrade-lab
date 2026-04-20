@@ -361,5 +361,31 @@ if (typeof window !== "undefined") {
     }),
     tamperLog: () => dispatchCommand("blackbox.tamperLog", () => getTamperLog()),
     lastSecurityReport: () => lastSecurityReport,
+    marketCatalog: () => dispatchCommand("market.catalog", () => getProductCatalog()),
+    marketPricing: () => dispatchCommand("market.pricing", () => getPricingModel()),
+    marketPackaging: () => dispatchCommand("market.packaging", () => getPackagingStrategy()),
+    marketOffering: (tier, packaging, deployment) =>
+      dispatchCommand(
+        "market.offering",
+        () => {
+          const t = String(tier).toUpperCase() as MarketTier;
+          const p = String(packaging).toUpperCase() as MarketPackaging;
+          const d = String(deployment).toUpperCase() as MarketDeployment;
+          if (!MARKET_TIERS.includes(t)) {
+            throw new Error(`unknown tier "${tier}" — must be one of ${MARKET_TIERS.join(", ")}`);
+          }
+          if (!MARKET_PACKAGING.includes(p)) {
+            throw new Error(`unknown packaging "${packaging}" — must be one of ${MARKET_PACKAGING.join(", ")}`);
+          }
+          if (!MARKET_DEPLOYMENT.includes(d)) {
+            throw new Error(`unknown deployment "${deployment}" — must be one of ${MARKET_DEPLOYMENT.join(", ")}`);
+          }
+          const offering = resolveOffering(t, p, d);
+          lastMarketOffering = offering;
+          return offering;
+        },
+        [tier, packaging, deployment]
+      ),
+    lastMarketOffering: () => lastMarketOffering,
   };
 }
