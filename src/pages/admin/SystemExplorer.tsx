@@ -1766,6 +1766,8 @@ const SystemExplorer = () => {
             <SignalDeduplicatorPanel />
             {/* HARD STATE LOCK — only AUTHORITY may write system state */}
             <HardStateLockPanel />
+            {/* MINIMAL MODE — kill-switch for non-essential subsystems on instability */}
+            <MinimalModePanel />
             {/* UNIFIED SYSTEM TRUTH — single source of truth, orchestrated by ExecutionController */}
             <SystemTruthPanel />
 
