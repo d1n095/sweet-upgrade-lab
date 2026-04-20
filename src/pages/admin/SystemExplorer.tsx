@@ -1754,6 +1754,8 @@ const SystemExplorer = () => {
         {/* FILES TAB */}
         {mainTab === "files" && (
           <div className="space-y-3">
+            {/* ABSOLUTE CONTROL — single decision authority (STOP/CONTINUE) */}
+            <AbsoluteControlPanel />
             {/* UNIFIED SYSTEM TRUTH — single source of truth, orchestrated by ExecutionController */}
             <SystemTruthPanel />
 
