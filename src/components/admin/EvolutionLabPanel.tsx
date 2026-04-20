@@ -1183,10 +1183,14 @@ export function EvolutionLabPanel({ isFounder }: Props) {
       icon: <Boxes className="w-4 h-4" />,
       run: async () => {
         await loadHistorySignals();
-        setClusterer(runArchitectureClusterer({
-          edges: inputs.depGraph.edges,
-          change_counts: changeCounts,
-        }));
+        await runAndStore("architecture_clusterer", () => {
+          const r = runArchitectureClusterer({
+            edges: inputs.depGraph.edges,
+            change_counts: changeCounts,
+          });
+          setClusterer(r);
+          return r;
+        });
       },
       body: clusterer ? (
         <div className="text-xs space-y-2">
