@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Beaker, FlaskConical, Network, ShieldCheck, Workflow, Sparkles, Activity, Shuffle, HeartPulse, Radar, Brain, Lock, Gauge, Eye, FileSearch, GitBranch, Database, Flame, CheckCircle2, ShieldAlert, Rocket, History, Boxes } from "lucide-react";
+import { Beaker, FlaskConical, Network, ShieldCheck, Workflow, Sparkles, Activity, Shuffle, HeartPulse, Radar, Brain, Lock, Gauge, Eye, FileSearch, GitBranch, Database, Flame, CheckCircle2, ShieldAlert, Rocket, History, Boxes, Map, AlertTriangle, Compass, Scissors, Biohazard, GitCompare } from "lucide-react";
 import {
   useFeatureFlagsStore,
   FLAG_LABELS,
@@ -42,6 +42,12 @@ import { runIntegrityMonitor, type IntegrityReport } from "@/core/evolution/inte
 import { runProductionReadiness, type ReadinessReport } from "@/core/evolution/productionReadiness";
 import { runEvolutionTracker, type EvolutionReport as EvoTrackerReport } from "@/core/evolution/evolutionTracker";
 import { runArchitectureClusterer, type ClustererReport } from "@/core/evolution/architectureClusterer";
+import { buildLiveSystemModel, type LiveModelReport } from "@/core/evolution/liveSystemModel";
+import { predictFailures, type FailurePredictorReport } from "@/core/evolution/failurePredictor";
+import { evaluateIntentAlignment, type IntentAlignmentReport } from "@/core/evolution/intentAlignment";
+import { runComplexityReducer, type ComplexityReport } from "@/core/evolution/complexityReducer";
+import { runCodeQuarantine, type QuarantineReport } from "@/core/evolution/codeQuarantine";
+import { simulateChange, type ChangeSimReport } from "@/core/evolution/changeSimulator";
 import { fileSystemMap, getRawSources } from "@/lib/fileSystemMap";
 import { supabase } from "@/integrations/supabase/client";
 import { useSystemStateStore, runAndStore } from "@/stores/systemStateStore";
@@ -84,6 +90,13 @@ export function EvolutionLabPanel({ isFounder }: Props) {
   const [readiness, setReadiness] = useState<ReadinessReport | null>(null);
   const [evoTrack, setEvoTrack] = useState<EvoTrackerReport | null>(null);
   const [clusterer, setClusterer] = useState<ClustererReport | null>(null);
+  const [liveModel, setLiveModel] = useState<LiveModelReport | null>(null);
+  const [predictor, setPredictor] = useState<FailurePredictorReport | null>(null);
+  const [intent, setIntent] = useState<IntentAlignmentReport | null>(null);
+  const [complexity, setComplexity] = useState<ComplexityReport | null>(null);
+  const [quarantine, setQuarantine] = useState<QuarantineReport | null>(null);
+  const [changeSim, setChangeSim] = useState<ChangeSimReport | null>(null);
+  const [changeSimFile, setChangeSimFile] = useState("");
   const [changeCounts, setChangeCounts] = useState<Record<string, number>>({});
   const [bugCounts, setBugCounts] = useState<Record<string, number>>({});
 
