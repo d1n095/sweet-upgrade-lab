@@ -59,6 +59,11 @@ import {
   type MetaSystemReport,
 } from "@/core/scanner/metaControl";
 import {
+  runDiscountEngine,
+  type DiscountEngineInput,
+  type DiscountEngineReport,
+} from "@/core/business/discountEngine";
+import {
   buildCompanyStackReport,
   type CompanyStackInput,
   type CompanyStackReport,
@@ -273,6 +278,7 @@ let lastSyntheticUniverseReport: SyntheticUniverseReport | null = null;
 let lastProtocolReport: ComplianceReport | null = null;
 let lastSecurityReport: SecurityReport | null = null;
 let lastMetaReport: MetaSystemReport | null = null;
+let lastDiscountReport: DiscountEngineReport | null = null;
 let lastCompanyStackReport: CompanyStackReport | null = null;
 
 if (typeof window !== "undefined") {
