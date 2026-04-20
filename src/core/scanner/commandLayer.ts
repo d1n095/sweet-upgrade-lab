@@ -59,6 +59,11 @@ import {
   type MetaSystemReport,
 } from "@/core/scanner/metaControl";
 import {
+  runDiscountEngine,
+  type DiscountEngineInput,
+  type DiscountEngineReport,
+} from "@/core/business/discountEngine";
+import {
   buildCompanyStackReport,
   type CompanyStackInput,
   type CompanyStackReport,
@@ -260,6 +265,8 @@ declare global {
       lastMetaReport: () => MetaSystemReport | null;
       companyStack: (input: CompanyStackInput) => Promise<CommandEntry>;
       lastCompanyStack: () => CompanyStackReport | null;
+      runDiscountEngine: (input: DiscountEngineInput) => Promise<CommandEntry>;
+      lastDiscountReport: () => DiscountEngineReport | null;
     };
   }
 }
@@ -273,6 +280,7 @@ let lastSyntheticUniverseReport: SyntheticUniverseReport | null = null;
 let lastProtocolReport: ComplianceReport | null = null;
 let lastSecurityReport: SecurityReport | null = null;
 let lastMetaReport: MetaSystemReport | null = null;
+let lastDiscountReport: DiscountEngineReport | null = null;
 let lastCompanyStackReport: CompanyStackReport | null = null;
 
 if (typeof window !== "undefined") {
@@ -378,5 +386,11 @@ if (typeof window !== "undefined") {
       return report;
     }, [`${input.features.length} features · ${input.base_tiers.length} tiers`]),
     lastCompanyStack: () => lastCompanyStackReport,
+    runDiscountEngine: (input) => dispatchCommand("discount.run", () => {
+      const report = runDiscountEngine(input);
+      lastDiscountReport = report;
+      return report;
+    }, [`${input.products.length}p / ${input.events.length}ev`]),
+    lastDiscountReport: () => lastDiscountReport,
   };
 }
