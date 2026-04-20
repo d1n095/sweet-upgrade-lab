@@ -53,16 +53,7 @@ export interface ModuleSlot<T = unknown> {
   error: string | null;
 }
 
-export interface SystemStateSlots {
-  architecture_scoring: ModuleSlot;
-  rule_evolution: ModuleSlot;
-  pattern_memory: ModuleSlot;
-  dependency_heatmap: ModuleSlot;
-  reality_check: ModuleSlot;
-  drift_detector: ModuleSlot;
-  strict_mode: ModuleSlot;
-  minimal_mode: ModuleSlot;
-}
+export type SystemStateSlots = Record<ModuleKey, ModuleSlot>;
 
 interface SystemStateStore {
   slots: SystemStateSlots;
@@ -82,16 +73,33 @@ const EMPTY_SLOT: ModuleSlot = {
   error: null,
 };
 
-const INITIAL_SLOTS: SystemStateSlots = {
-  architecture_scoring: { ...EMPTY_SLOT },
-  rule_evolution: { ...EMPTY_SLOT },
-  pattern_memory: { ...EMPTY_SLOT },
-  dependency_heatmap: { ...EMPTY_SLOT },
-  reality_check: { ...EMPTY_SLOT },
-  drift_detector: { ...EMPTY_SLOT },
-  strict_mode: { ...EMPTY_SLOT },
-  minimal_mode: { ...EMPTY_SLOT },
-};
+const MODULE_KEYS: ReadonlyArray<ModuleKey> = [
+  "architecture_scoring",
+  "rule_evolution",
+  "pattern_memory",
+  "dependency_heatmap",
+  "reality_check",
+  "drift_detector",
+  "strict_mode",
+  "minimal_mode",
+  "risk_heatmap",
+  "in_frontend_ci",
+  "integrity_monitor",
+  "production_readiness",
+  "evolution_tracker",
+  "architecture_clusterer",
+  "live_system_model",
+  "failure_predictor",
+  "intent_alignment",
+  "complexity_reducer",
+  "code_quarantine",
+  "change_simulator",
+];
+
+const INITIAL_SLOTS: SystemStateSlots = MODULE_KEYS.reduce((acc, k) => {
+  acc[k] = { ...EMPTY_SLOT };
+  return acc;
+}, {} as SystemStateSlots);
 
 export const useSystemStateStore = create<SystemStateStore>((set, get) => ({
   slots: INITIAL_SLOTS,
