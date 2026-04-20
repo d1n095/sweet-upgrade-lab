@@ -25,7 +25,20 @@ export type ModuleKey =
   | "reality_check"
   | "drift_detector"
   | "strict_mode"
-  | "minimal_mode";
+  | "minimal_mode"
+  // Evolution Lab engines (suggest-only, internal_only by default)
+  | "risk_heatmap"
+  | "in_frontend_ci"
+  | "integrity_monitor"
+  | "production_readiness"
+  | "evolution_tracker"
+  | "architecture_clusterer"
+  | "live_system_model"
+  | "failure_predictor"
+  | "intent_alignment"
+  | "complexity_reducer"
+  | "code_quarantine"
+  | "change_simulator";
 
 export type ModuleHealth = "ok" | "degraded" | "empty" | "error";
 
