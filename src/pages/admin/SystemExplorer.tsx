@@ -1745,10 +1745,16 @@ const SystemExplorer = () => {
         {/* FILES TAB */}
         {mainTab === "files" && (
           <div className="space-y-3">
-            {/* SCANNER v2 — official entrypoint, fail-loud */}
+            {/* SCANNER v2 — verified through zero-fake-state guard */}
             {(() => {
-              const v2 = runScannerV2();
-              const statusColor = v2.scanner_status === "VERIFIED" ? "text-primary" : "text-destructive";
+              const env = runScannerV2Verified();
+              const blocked = env.verification_status !== "TRUE";
+              const v2 = blocked ? null : (env.payload as Exclude<typeof env.payload, string>);
+              const statusColor = blocked
+                ? "text-destructive"
+                : v2!.scanner_status === "VERIFIED"
+                ? "text-primary"
+                : "text-destructive";
               return (
                 <Card className="border-primary/40 bg-primary/5">
                   <CardHeader className="py-2 flex flex-row items-center justify-between">
