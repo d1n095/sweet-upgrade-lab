@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Beaker, FlaskConical, Network, ShieldCheck, Workflow, Sparkles, Activity, Shuffle, HeartPulse, Radar, Brain, Lock, Gauge, Eye, FileSearch, GitBranch } from "lucide-react";
+import { Beaker, FlaskConical, Network, ShieldCheck, Workflow, Sparkles, Activity, Shuffle, HeartPulse, Radar, Brain, Lock, Gauge, Eye, FileSearch, GitBranch, Database } from "lucide-react";
 import {
   useFeatureFlagsStore,
   FLAG_LABELS,
@@ -35,6 +35,8 @@ import { evaluateClusterRenderOptimizer, type RenderOptimizerReport } from "@/co
 import { evaluateClusterMetaObserver, type MetaObserverReport } from "@/core/evolution/clusterMetaObserver";
 import { analyzeProjectStructure, type StructureReport } from "@/core/evolution/projectStructureAnalyzer";
 import { buildDepGraph, traceChain, type DepGraphReport } from "@/core/evolution/liveDependencyGraph";
+import { scanStateUsage, type StateScanReport } from "@/core/evolution/stateUsageScanner";
+import { getRawSources } from "@/lib/fileSystemMap";
 import { useSystemStateStore } from "@/stores/systemStateStore";
 
 interface Props {
@@ -68,6 +70,7 @@ export function EvolutionLabPanel({ isFounder }: Props) {
   const [depGraph, setDepGraph] = useState<DepGraphReport | null>(null);
   const [chainFile, setChainFile] = useState("");
   const [chain, setChain] = useState<{ upstream: ReadonlyArray<string>; downstream: ReadonlyArray<string> } | null>(null);
+  const [stateScan, setStateScan] = useState<StateScanReport | null>(null);
 
   // Best-effort inputs derived from systemStateStore — all degrade safely.
   const inputs = useMemo(() => {
@@ -794,6 +797,61 @@ export function EvolutionLabPanel({ isFounder }: Props) {
             <p className="text-muted-foreground">Run to build the live graph.</p>
           )}
         </div>
+      ),
+    },
+    {
+      key: "state_usage_scanner",
+      icon: <Database className="w-4 h-4" />,
+      run: () => {
+        const sources = getRawSources();
+        // Strip the leading "/" the glob keys carry, to match what the engine expects.
+        const normalized: Record<string, string> = {};
+        for (const [k, v] of Object.entries(sources)) {
+          if (typeof v === "string") normalized[k.replace(/^\//, "")] = v;
+        }
+        setStateScan(scanStateUsage({ sources: normalized }));
+      },
+      body: stateScan ? (
+        <div className="text-xs space-y-2">
+          <div className="flex flex-wrap gap-2">
+            <Badge variant={stateScan.would_block_build ? "destructive" : "outline"}>
+              {stateScan.would_block_build ? "WOULD BLOCK BUILD" : "ok"}
+            </Badge>
+            <Badge variant="outline">{stateScan.files_with_state} files w/ state</Badge>
+            <Badge variant={stateScan.summary.unused_state ? "destructive" : "outline"}>
+              unused {stateScan.summary.unused_state}
+            </Badge>
+            <Badge variant={stateScan.summary.props_mirror_state ? "destructive" : "outline"}>
+              mirrors {stateScan.summary.props_mirror_state}
+            </Badge>
+            <Badge variant={stateScan.summary.conflicting_source_of_truth ? "destructive" : "outline"}>
+              conflicts {stateScan.summary.conflicting_source_of_truth}
+            </Badge>
+            <Badge variant="secondary">stale-derived {stateScan.summary.stale_derived_state}</Badge>
+          </div>
+          <p className="text-muted-foreground">{stateScan.notes}</p>
+          {stateScan.issues.length > 0 && (
+            <ul className="space-y-1">
+              {stateScan.issues.slice(0, 8).map((i, idx) => (
+                <li key={`${i.file}-${i.identifier}-${idx}`} className="border rounded p-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant={i.fake_state ? "destructive" : "secondary"}>
+                      {i.kind}
+                    </Badge>
+                    <span className="font-mono break-all">{i.file}:{i.line_hint}</span>
+                  </div>
+                  <p className="mt-1 font-mono text-[10px] break-all">{i.evidence}</p>
+                  <p className="text-muted-foreground mt-1">{i.suggestion}</p>
+                  <pre className="mt-1 font-mono text-[10px] bg-muted/40 rounded p-2 whitespace-pre-wrap break-all">
+                    {i.diff}
+                  </pre>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">No state scan yet.</p>
       ),
     },
   ];
