@@ -58,6 +58,11 @@ import {
   type MetaMode,
   type MetaSystemReport,
 } from "@/core/scanner/metaControl";
+import {
+  buildCompanyStackReport,
+  type CompanyStackInput,
+  type CompanyStackReport,
+} from "@/core/business/autonomousCompanyStack";
 
 export type CommandStatus = "pending" | "ok" | "error";
 
@@ -253,6 +258,8 @@ declare global {
       metaMode: (mode: MetaMode | string) => Promise<CommandEntry>;
       metaReport: () => Promise<CommandEntry>;
       lastMetaReport: () => MetaSystemReport | null;
+      companyStack: (input: CompanyStackInput) => Promise<CommandEntry>;
+      lastCompanyStack: () => CompanyStackReport | null;
     };
   }
 }
@@ -266,6 +273,7 @@ let lastSyntheticUniverseReport: SyntheticUniverseReport | null = null;
 let lastProtocolReport: ComplianceReport | null = null;
 let lastSecurityReport: SecurityReport | null = null;
 let lastMetaReport: MetaSystemReport | null = null;
+let lastCompanyStackReport: CompanyStackReport | null = null;
 
 if (typeof window !== "undefined") {
   ensureRegistrySubscription();
@@ -364,5 +372,11 @@ if (typeof window !== "undefined") {
       return report;
     }),
     lastMetaReport: () => lastMetaReport,
+    companyStack: (input) => dispatchCommand("company.stack", () => {
+      const report = buildCompanyStackReport(input);
+      lastCompanyStackReport = report;
+      return report;
+    }, [`${input.features.length} features · ${input.base_tiers.length} tiers`]),
+    lastCompanyStack: () => lastCompanyStackReport,
   };
 }
