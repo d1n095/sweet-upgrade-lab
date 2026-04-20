@@ -32,7 +32,13 @@ export type EvolutionFlagKey =
   | "cluster_meta_observer"
   | "project_structure_analyzer"
   | "live_dependency_graph"
-  | "state_usage_scanner";
+  | "state_usage_scanner"
+  | "risk_heatmap"
+  | "in_frontend_ci"
+  | "integrity_monitor"
+  | "production_readiness"
+  | "evolution_tracker"
+  | "architecture_clusterer";
 
 interface FeatureFlagsState {
   flags: Record<EvolutionFlagKey, FlagState>;
@@ -59,6 +65,12 @@ const DEFAULTS: Record<EvolutionFlagKey, FlagState> = {
   project_structure_analyzer: "internal_only",
   live_dependency_graph: "internal_only",
   state_usage_scanner: "internal_only",
+  risk_heatmap: "internal_only",
+  in_frontend_ci: "internal_only",
+  integrity_monitor: "internal_only",
+  production_readiness: "internal_only",
+  evolution_tracker: "internal_only",
+  architecture_clusterer: "internal_only",
 };
 
 export const useFeatureFlagsStore = create<FeatureFlagsState>()(
@@ -97,4 +109,10 @@ export const FLAG_LABELS: Record<EvolutionFlagKey, string> = {
   project_structure_analyzer: "Project Structure Analyzer",
   live_dependency_graph: "Live Dependency Graph",
   state_usage_scanner: "State Usage Scanner",
+  risk_heatmap: "Risk Heatmap",
+  in_frontend_ci: "In-Frontend CI",
+  integrity_monitor: "Integrity Monitor",
+  production_readiness: "Production Readiness",
+  evolution_tracker: "Evolution Tracker",
+  architecture_clusterer: "Architecture Clusterer",
 };
