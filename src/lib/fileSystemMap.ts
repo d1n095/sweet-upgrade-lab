@@ -26,21 +26,33 @@ function extractFolder(path: string): string {
   return parts[0] || "/";
 }
 
-// Gather all relevant source file paths at build time without executing modules.
+// ── Step 1: Debug file discovery ──
 console.log("[FILE MAP BUILD START]");
 
-const files = import.meta.glob("/src/**/*.{ts,tsx,js,jsx}");
+const files = import.meta.glob("/src/**/*.{ts,tsx,js,jsx}", { eager: false });
+const allDiscovered = Object.keys(files);
+console.log("[FILE MAP] Total files discovered from glob:", allDiscovered.length);
+console.log("[FILE MAP] First 20 file paths:", allDiscovered.slice(0, 20));
 
+// ── Step 3: Exclude ONLY test/spec files and /src/test/** ──
+const excluded: { path: string; reason: string }[] = [];
 for (const key of Object.keys(files)) {
-  if (/\.(test|spec)\.[tj]sx?$/.test(key) || key.startsWith("/src/test/")) {
+  if (/\.test\.[tj]sx?$/.test(key)) {
+    excluded.push({ path: key, reason: "matches **/*.test.*" });
+    delete files[key];
+  } else if (/\.spec\.[tj]sx?$/.test(key)) {
+    excluded.push({ path: key, reason: "matches **/*.spec.*" });
+    delete files[key];
+  } else if (key.startsWith("/src/test/")) {
+    excluded.push({ path: key, reason: "inside /src/test/**" });
     delete files[key];
   }
 }
-
-console.log("[FILE MAP COUNT]:", Object.keys(files).length);
+console.log("[FILE MAP] Excluded files:", excluded.length, excluded);
+console.log("[FILE MAP] Files after exclusion:", Object.keys(files).length);
 
 if (Object.keys(files).length === 0) {
-  throw new Error("No files detected in project");
+  throw new Error("NO FILES DETECTED — glob returned empty after exclusion");
 }
 
 const componentFiles = import.meta.glob("/src/components/**/*.{ts,tsx}", { eager: false });
