@@ -52,7 +52,8 @@ console.log("[FILE MAP] Excluded files:", excluded.length, excluded);
 console.log("[FILE MAP] Files after exclusion:", Object.keys(files).length);
 
 if (Object.keys(files).length === 0) {
-  throw new Error("NO FILES DETECTED — glob returned empty after exclusion");
+  // SYSTEM RECOVERY MODE: degrade gracefully instead of blocking the UI
+  console.warn("[FILE MAP] NO FILES DETECTED — continuing with empty map");
 }
 
 const componentFiles = import.meta.glob("/src/components/**/*.{ts,tsx}", { eager: false });
@@ -197,11 +198,12 @@ console.log("[FILE MAP] routes_count:", scanInputSummary.routes_count);
 console.log("[FILE MAP] Full scan input summary:", scanInputSummary);
 
 // ── Step 5: Fail loudly ──
+// SYSTEM RECOVERY MODE: never throw at module load — admin must render even with degraded data
 if (scanInputSummary.components_count === 0) {
-  throw new Error("NO COMPONENTS DETECTED");
+  console.warn("[FILE MAP] NO COMPONENTS DETECTED — panels will show empty state");
 }
 if (scanInputSummary.routes_count === 0) {
-  throw new Error("NO ROUTES DETECTED");
+  console.warn("[FILE MAP] NO ROUTES DETECTED — panels will show empty state");
 }
 
 export type { FileEntry };

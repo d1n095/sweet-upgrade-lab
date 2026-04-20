@@ -42,6 +42,8 @@ import { VersionedArchitecturePanel } from "@/components/admin/VersionedArchitec
 import { RollbackEnginePanel } from "@/components/admin/RollbackEnginePanel";
 import { RegressionGuardPanel } from "@/components/admin/RegressionGuardPanel";
 import { ReleaseGatePanel } from "@/components/admin/ReleaseGatePanel";
+import { PanelErrorBoundary } from "@/components/admin/PanelErrorBoundary";
+import { useSystemStateStore } from "@/stores/systemStateStore";
 
 type WorkItem = {
   id: string;
@@ -1008,19 +1010,21 @@ const SystemExplorer = () => {
     <div className="flex h-full min-h-0">
       {/* Main tree panel */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {/* COMMAND CENTER */}
-        <SystemCommandCenter
-          latestRun={latestRun as any}
-          workItems={workItems as any}
-          onSelectItem={(item) => setSelectedItem(item as any)}
-          onMarkInProgress={async (itemId) => {
-            await supabase
-              .from("work_items")
-              .update({ status: "in_progress" })
-              .eq("id", itemId);
-            queryClient.invalidateQueries({ queryKey: ["system-explorer-work-items"] });
-          }}
-        />
+        {/* COMMAND CENTER — wrapped so failures in downstream engines never block UI */}
+        <PanelErrorBoundary label="System Command Center">
+          <SystemCommandCenter
+            latestRun={latestRun as any}
+            workItems={workItems as any}
+            onSelectItem={(item) => setSelectedItem(item as any)}
+            onMarkInProgress={async (itemId) => {
+              await supabase
+                .from("work_items")
+                .update({ status: "in_progress" })
+                .eq("id", itemId);
+              queryClient.invalidateQueries({ queryKey: ["system-explorer-work-items"] });
+            }}
+          />
+        </PanelErrorBoundary>
 
         {!systemTruth.scanWorking && <p className="text-[10px] text-red-500 font-mono">❌ SCAN NOT PRODUCING DATA</p>}
         {!systemTruth.workItemsCreated && <p className="text-[10px] text-red-500 font-mono">❌ PIPELINE BLOCKED</p>}
@@ -1788,11 +1792,11 @@ const SystemExplorer = () => {
             {/* STRICT MODE — zero-tolerance binary PASS/FAIL across all gates */}
             <StrictModePanel />
             {/* PATTERN MEMORY — historical pattern store across architecture versions */}
-            <PatternMemoryPanel />
+            <PanelErrorBoundary label="Pattern Memory"><PatternMemoryPanel /></PanelErrorBoundary>
             {/* RULE EVOLUTION — upgrade/downgrade rules based on pattern history */}
-            <RuleEvolutionPanel />
+            <PanelErrorBoundary label="Rule Evolution"><RuleEvolutionPanel /></PanelErrorBoundary>
             {/* DETERMINISTIC BUILD PIPELINE — 6-stage release-grade orchestrator */}
-            <DeterministicBuildPipelinePanel />
+            <PanelErrorBoundary label="Deterministic Build Pipeline"><DeterministicBuildPipelinePanel /></PanelErrorBoundary>
             {/* VERSIONED ARCHITECTURE STATE — append-only versions of verified system state */}
             <VersionedArchitecturePanel />
             {/* REGRESSION GUARD — blocks release when candidate is worse than previous version */}
