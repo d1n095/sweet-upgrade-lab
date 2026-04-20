@@ -258,6 +258,8 @@ declare global {
       metaMode: (mode: MetaMode | string) => Promise<CommandEntry>;
       metaReport: () => Promise<CommandEntry>;
       lastMetaReport: () => MetaSystemReport | null;
+      companyStack: (input: CompanyStackInput) => Promise<CommandEntry>;
+      lastCompanyStack: () => CompanyStackReport | null;
     };
   }
 }
