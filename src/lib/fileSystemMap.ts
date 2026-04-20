@@ -26,21 +26,33 @@ function extractFolder(path: string): string {
   return parts[0] || "/";
 }
 
-// Gather all relevant source file paths at build time without executing modules.
+// ── Step 1: Debug file discovery ──
 console.log("[FILE MAP BUILD START]");
 
-const files = import.meta.glob("/src/**/*.{ts,tsx,js,jsx}");
+const files = import.meta.glob("/src/**/*.{ts,tsx,js,jsx}", { eager: false });
+const allDiscovered = Object.keys(files);
+console.log("[FILE MAP] Total files discovered from glob:", allDiscovered.length);
+console.log("[FILE MAP] First 20 file paths:", allDiscovered.slice(0, 20));
 
+// ── Step 3: Exclude ONLY test/spec files and /src/test/** ──
+const excluded: { path: string; reason: string }[] = [];
 for (const key of Object.keys(files)) {
-  if (/\.(test|spec)\.[tj]sx?$/.test(key) || key.startsWith("/src/test/")) {
+  if (/\.test\.[tj]sx?$/.test(key)) {
+    excluded.push({ path: key, reason: "matches **/*.test.*" });
+    delete files[key];
+  } else if (/\.spec\.[tj]sx?$/.test(key)) {
+    excluded.push({ path: key, reason: "matches **/*.spec.*" });
+    delete files[key];
+  } else if (key.startsWith("/src/test/")) {
+    excluded.push({ path: key, reason: "inside /src/test/**" });
     delete files[key];
   }
 }
-
-console.log("[FILE MAP COUNT]:", Object.keys(files).length);
+console.log("[FILE MAP] Excluded files:", excluded.length, excluded);
+console.log("[FILE MAP] Files after exclusion:", Object.keys(files).length);
 
 if (Object.keys(files).length === 0) {
-  throw new Error("No files detected in project");
+  throw new Error("NO FILES DETECTED — glob returned empty after exclusion");
 }
 
 const componentFiles = import.meta.glob("/src/components/**/*.{ts,tsx}", { eager: false });
@@ -126,6 +138,41 @@ function buildMap(): FileEntry[] {
 }
 
 export const fileSystemMap: FileEntry[] = buildMap();
+
+// ── Step 4: Count components and routes ──
+const componentsList = fileSystemMap.filter((f) => {
+  const src = typeof rawSources["/" + f.path] === "string" ? rawSources["/" + f.path] : "";
+  const hasJsx = /<[A-Z][A-Za-z0-9]*[\s/>]|return\s*\(\s*</.test(src);
+  const isReactComp = /export\s+(default\s+)?(function|const)\s+[A-Z]/.test(src);
+  return hasJsx || isReactComp;
+});
+
+const routesList = fileSystemMap.filter((f) => {
+  if (f.path.startsWith("src/pages/")) return true;
+  const src = typeof rawSources["/" + f.path] === "string" ? rawSources["/" + f.path] : "";
+  return /react-router-dom|<Route\s|createBrowserRouter/.test(src);
+});
+
+export const scanInputSummary = {
+  total_files: fileSystemMap.length,
+  components_count: componentsList.length,
+  routes_count: routesList.length,
+  excluded_count: excluded.length,
+  sample_components: componentsList.slice(0, 10).map((c) => c.path),
+  sample_routes: routesList.slice(0, 10).map((r) => r.path),
+};
+
+console.log("[FILE MAP] components_count:", scanInputSummary.components_count);
+console.log("[FILE MAP] routes_count:", scanInputSummary.routes_count);
+console.log("[FILE MAP] Full scan input summary:", scanInputSummary);
+
+// ── Step 5: Fail loudly ──
+if (scanInputSummary.components_count === 0) {
+  throw new Error("NO COMPONENTS DETECTED");
+}
+if (scanInputSummary.routes_count === 0) {
+  throw new Error("NO ROUTES DETECTED");
+}
 
 export type { FileEntry };
 

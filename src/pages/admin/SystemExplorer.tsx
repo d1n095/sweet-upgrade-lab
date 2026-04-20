@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { safeInvoke } from "@/lib/safeInvoke";
 import { useWorkQueueStore } from "@/stores/workQueueStore";
-import { fileSystemMap, type FileEntry, getFileContent, getCodeIndex, getDuplicatedLines, getCodeIssues, getRawSources, scanFileContent } from "@/lib/fileSystemMap";
+import { fileSystemMap, type FileEntry, getFileContent, getCodeIndex, getDuplicatedLines, getCodeIssues, getRawSources, scanFileContent, scanInputSummary } from "@/lib/fileSystemMap";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useFounderRole } from "@/hooks/useFounderRole";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1742,6 +1742,26 @@ const SystemExplorer = () => {
         {/* FILES TAB */}
         {mainTab === "files" && (
           <div className="space-y-3">
+            {/* Scan Input Summary (debug) */}
+            <Card className="border-primary/30 bg-primary/5">
+              <CardHeader className="py-2">
+                <CardTitle className="text-xs font-mono">📡 Scanner Input Summary</CardTitle>
+              </CardHeader>
+              <CardContent className="text-[11px] font-mono space-y-0.5">
+                <div>total_files: <span className="font-bold">{scanInputSummary.total_files}</span></div>
+                <div>components_count: <span className={`font-bold ${scanInputSummary.components_count === 0 ? "text-destructive" : "text-primary"}`}>{scanInputSummary.components_count}</span></div>
+                <div>routes_count: <span className={`font-bold ${scanInputSummary.routes_count === 0 ? "text-destructive" : "text-primary"}`}>{scanInputSummary.routes_count}</span></div>
+                <div>excluded: <span className="text-muted-foreground">{scanInputSummary.excluded_count}</span></div>
+                <details className="mt-1">
+                  <summary className="cursor-pointer text-muted-foreground">Sample components ({scanInputSummary.sample_components.length})</summary>
+                  <ul className="ml-3 mt-1 space-y-0.5">{scanInputSummary.sample_components.map(p => <li key={p}>{p}</li>)}</ul>
+                </details>
+                <details>
+                  <summary className="cursor-pointer text-muted-foreground">Sample routes ({scanInputSummary.sample_routes.length})</summary>
+                  <ul className="ml-3 mt-1 space-y-0.5">{scanInputSummary.sample_routes.map(p => <li key={p}>{p}</li>)}</ul>
+                </details>
+              </CardContent>
+            </Card>
             {/* Filters */}
             <div className="flex gap-1 items-center">
               {(["all", "orphan", "has_issues"] as const).map((f) => (
