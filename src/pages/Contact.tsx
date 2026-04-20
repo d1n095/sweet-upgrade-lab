@@ -12,16 +12,21 @@ import { storeConfig } from '@/config/storeConfig';
 import { toast } from 'sonner';
 import SEOHead from '@/components/seo/SEOHead';
 import { usePageSections } from '@/hooks/usePageSections';
+import { supabase } from '@/integrations/supabase/client';
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const Contact = () => {
   const { t, language, contentLang } = useLanguage();
   const { getSection, isSectionVisible, loading } = usePageSections('contact');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     subject: '',
     message: '',
+    website: '', // honeypot — must stay empty
   });
 
   const lang = contentLang;
@@ -33,13 +38,59 @@ const Contact = () => {
   const infoSection = getSection('info');
   const faqSection = getSection('faq_link');
 
+  const validate = (): Record<string, string> => {
+    const errs: Record<string, string> = {};
+    if (!formData.name.trim()) errs.name = language === 'sv' ? 'Namn krävs' : 'Name is required';
+    if (!formData.email.trim()) errs.email = language === 'sv' ? 'E-post krävs' : 'Email is required';
+    else if (!EMAIL_RE.test(formData.email.trim())) errs.email = language === 'sv' ? 'Ogiltig e-post' : 'Invalid email';
+    if (formData.message.trim().length < 10) {
+      errs.message = language === 'sv'
+        ? 'Meddelandet måste vara minst 10 tecken'
+        : 'Message must be at least 10 characters';
+    }
+    return errs;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+
+    const errs = validate();
+    setFieldErrors(errs);
+    if (Object.keys(errs).length > 0) {
+      toast.error(language === 'sv' ? 'Kontrollera formuläret' : 'Please fix the form');
+      return;
+    }
+
     setIsSubmitting(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    toast.success(t('contact.thankyou'));
-    setFormData({ name: '', email: '', subject: '', message: '' });
-    setIsSubmitting(false);
+    try {
+      const { data, error } = await supabase.functions.invoke('submit-contact', {
+        body: {
+          name: formData.name.trim(),
+          email: formData.email.trim(),
+          subject: formData.subject.trim(),
+          message: formData.message.trim(),
+          website: formData.website,
+        },
+      });
+
+      if (error) throw error;
+      if (data && (data as any).error) {
+        if ((data as any).fields) setFieldErrors((data as any).fields);
+        throw new Error((data as any).error);
+      }
+
+      toast.success(t('contact.thankyou'));
+      setFormData({ name: '', email: '', subject: '', message: '', website: '' });
+      setFieldErrors({});
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(
+        language === 'sv' ? `Kunde inte skicka: ${msg}` : `Could not send: ${msg}`,
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const contactInfo = [
