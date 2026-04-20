@@ -51,6 +51,19 @@ import {
   type ProjectSnapshot,
   type ConsciousnessReport,
 } from "@/core/evolution/multiProjectConsciousness";
+import {
+  getProductCatalog,
+  getPricingModel,
+  getPackagingStrategy,
+  resolveOffering,
+  MARKET_TIERS,
+  MARKET_PACKAGING,
+  MARKET_DEPLOYMENT,
+  type Tier as MarketTier,
+  type Packaging as MarketPackaging,
+  type Deployment as MarketDeployment,
+  type ResolvedOffering,
+} from "@/core/market/marketLayer";
 
 export type CommandStatus = "pending" | "ok" | "error";
 
