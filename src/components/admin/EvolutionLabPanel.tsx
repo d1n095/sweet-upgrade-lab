@@ -953,22 +953,26 @@ export function EvolutionLabPanel({ isFounder }: Props) {
     {
       key: "in_frontend_ci",
       icon: <CheckCircle2 className="w-4 h-4" />,
-      run: () => {
-        const struct = analyzeProjectStructure({ edges: inputs.depGraph.edges });
-        const dep = buildDepGraph(inputs.depGraph.edges);
-        const naming = struct.findings.filter(f => f.kind === "inconsistent_pattern");
-        const broken = struct.findings.filter(f => f.kind === "broken_import");
-        const cycles = struct.findings.filter(f => f.kind === "circular_dependency");
-        setCi(runInFrontendCi({
-          naming_violations: naming.length,
-          naming_examples: naming.flatMap(f => f.files),
-          broken_imports: broken.length,
-          broken_examples: broken.map(f => f.detail),
-          arch_violations: dep.violations.length,
-          arch_examples: dep.violations.map(v => `${v.from} → ${v.to}`),
-          cycles: cycles.length,
-          cycle_examples: cycles.map(c => c.detail),
-        }));
+      run: async () => {
+        await runAndStore("in_frontend_ci", () => {
+          const struct = analyzeProjectStructure({ edges: inputs.depGraph.edges });
+          const dep = buildDepGraph(inputs.depGraph.edges);
+          const naming = struct.findings.filter(f => f.kind === "inconsistent_pattern");
+          const broken = struct.findings.filter(f => f.kind === "broken_import");
+          const cycles = struct.findings.filter(f => f.kind === "circular_dependency");
+          const r = runInFrontendCi({
+            naming_violations: naming.length,
+            naming_examples: naming.flatMap(f => f.files),
+            broken_imports: broken.length,
+            broken_examples: broken.map(f => f.detail),
+            arch_violations: dep.violations.length,
+            arch_examples: dep.violations.map(v => `${v.from} → ${v.to}`),
+            cycles: cycles.length,
+            cycle_examples: cycles.map(c => c.detail),
+          });
+          setCi(r);
+          return r;
+        });
       },
       body: ci ? (
         <div className="text-xs space-y-2">
