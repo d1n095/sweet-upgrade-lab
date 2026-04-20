@@ -14,6 +14,7 @@
 import { fileSystemMap, getRawSources, type FileEntry } from "@/lib/fileSystemMap";
 import { runTruthEngine, type TruthReport } from "@/architecture/truthEngine";
 import { ROUTE_REGISTRY } from "@/architecture/routeRegistry";
+import { verifyState, type VerifiedEnvelope } from "@/core/scanner/zeroFakeStateGuard";
 
 export type ScannerStatus = "VERIFIED" | "BROKEN";
 
