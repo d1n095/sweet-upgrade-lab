@@ -839,6 +839,128 @@ export type Database = {
         }
         Relationships: []
       }
+      campaign_activations: {
+        Row: {
+          action: string
+          campaign_id: string
+          created_at: string
+          id: string
+          reason: string
+          triggered_by_event_id: string | null
+          triggered_by_user: string | null
+        }
+        Insert: {
+          action: string
+          campaign_id: string
+          created_at?: string
+          id?: string
+          reason: string
+          triggered_by_event_id?: string | null
+          triggered_by_user?: string | null
+        }
+        Update: {
+          action?: string
+          campaign_id?: string
+          created_at?: string
+          id?: string
+          reason?: string
+          triggered_by_event_id?: string | null
+          triggered_by_user?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_activations_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_activations_triggered_by_event_id_fkey"
+            columns: ["triggered_by_event_id"]
+            isOneToOne: false
+            referencedRelation: "ecommerce_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaigns: {
+        Row: {
+          campaign_type: Database["public"]["Enums"]["campaign_type"]
+          created_at: string
+          created_by: string | null
+          description: string | null
+          discount_pct: number
+          end_at: string
+          id: string
+          name: string
+          override_pricing: boolean
+          priority: number
+          start_at: string
+          status: Database["public"]["Enums"]["campaign_status"]
+          target_category_ids: string[]
+          target_product_ids: string[]
+          target_variant_ids: string[]
+          trigger_event_id: string | null
+          trigger_event_type:
+            | Database["public"]["Enums"]["ecommerce_event_type"]
+            | null
+          updated_at: string
+        }
+        Insert: {
+          campaign_type: Database["public"]["Enums"]["campaign_type"]
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          discount_pct?: number
+          end_at: string
+          id?: string
+          name: string
+          override_pricing?: boolean
+          priority?: number
+          start_at: string
+          status?: Database["public"]["Enums"]["campaign_status"]
+          target_category_ids?: string[]
+          target_product_ids?: string[]
+          target_variant_ids?: string[]
+          trigger_event_id?: string | null
+          trigger_event_type?:
+            | Database["public"]["Enums"]["ecommerce_event_type"]
+            | null
+          updated_at?: string
+        }
+        Update: {
+          campaign_type?: Database["public"]["Enums"]["campaign_type"]
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          discount_pct?: number
+          end_at?: string
+          id?: string
+          name?: string
+          override_pricing?: boolean
+          priority?: number
+          start_at?: string
+          status?: Database["public"]["Enums"]["campaign_status"]
+          target_category_ids?: string[]
+          target_product_ids?: string[]
+          target_variant_ids?: string[]
+          trigger_event_id?: string | null
+          trigger_event_type?:
+            | Database["public"]["Enums"]["ecommerce_event_type"]
+            | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaigns_trigger_event_id_fkey"
+            columns: ["trigger_event_id"]
+            isOneToOne: false
+            referencedRelation: "ecommerce_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       categories: {
         Row: {
           created_at: string
@@ -4373,6 +4495,37 @@ export type Database = {
       }
     }
     Functions: {
+      activate_campaign: {
+        Args: { p_campaign_id: string; p_event_id?: string; p_reason?: string }
+        Returns: {
+          campaign_type: Database["public"]["Enums"]["campaign_type"]
+          created_at: string
+          created_by: string | null
+          description: string | null
+          discount_pct: number
+          end_at: string
+          id: string
+          name: string
+          override_pricing: boolean
+          priority: number
+          start_at: string
+          status: Database["public"]["Enums"]["campaign_status"]
+          target_category_ids: string[]
+          target_product_ids: string[]
+          target_variant_ids: string[]
+          trigger_event_id: string | null
+          trigger_event_type:
+            | Database["public"]["Enums"]["ecommerce_event_type"]
+            | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "campaigns"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       add_user_xp: {
         Args: { p_reason?: string; p_user_id: string; p_xp: number }
         Returns: undefined
@@ -4417,11 +4570,73 @@ export type Database = {
         }
         Returns: string
       }
+      end_campaign: {
+        Args: { p_campaign_id: string; p_reason?: string }
+        Returns: {
+          campaign_type: Database["public"]["Enums"]["campaign_type"]
+          created_at: string
+          created_by: string | null
+          description: string | null
+          discount_pct: number
+          end_at: string
+          id: string
+          name: string
+          override_pricing: boolean
+          priority: number
+          start_at: string
+          status: Database["public"]["Enums"]["campaign_status"]
+          target_category_ids: string[]
+          target_product_ids: string[]
+          target_variant_ids: string[]
+          trigger_event_id: string | null
+          trigger_event_type:
+            | Database["public"]["Enums"]["ecommerce_event_type"]
+            | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "campaigns"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
       generate_random_username: { Args: never; Returns: string }
+      get_active_campaigns: {
+        Args: { p_at?: string }
+        Returns: {
+          campaign_type: Database["public"]["Enums"]["campaign_type"]
+          created_at: string
+          created_by: string | null
+          description: string | null
+          discount_pct: number
+          end_at: string
+          id: string
+          name: string
+          override_pricing: boolean
+          priority: number
+          start_at: string
+          status: Database["public"]["Enums"]["campaign_status"]
+          target_category_ids: string[]
+          target_product_ids: string[]
+          target_variant_ids: string[]
+          trigger_event_id: string | null
+          trigger_event_type:
+            | Database["public"]["Enums"]["ecommerce_event_type"]
+            | null
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "campaigns"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       get_dashboard_stats:
         | { Args: { p_from: string; p_to: string }; Returns: Json }
         | { Args: { p_from: string; p_to: string }; Returns: Json }
@@ -4513,6 +4728,7 @@ export type Database = {
           read_ct: number
         }[]
       }
+      run_campaign_scheduler: { Args: never; Returns: Json }
       system_health_check: { Args: never; Returns: Json }
       validate_affiliate_code: {
         Args: { p_code: string }
@@ -4550,6 +4766,19 @@ export type Database = {
         | "marketing"
         | "finance"
         | "warehouse"
+      campaign_status:
+        | "draft"
+        | "scheduled"
+        | "active"
+        | "paused"
+        | "ended"
+        | "cancelled"
+      campaign_type:
+        | "seasonal"
+        | "clearance"
+        | "product_launch"
+        | "visibility_boost"
+        | "conversion_opt"
       ecommerce_event_severity: "info" | "warning" | "critical"
       ecommerce_event_type:
         | "product_view"
@@ -4698,6 +4927,21 @@ export const Constants = {
         "marketing",
         "finance",
         "warehouse",
+      ],
+      campaign_status: [
+        "draft",
+        "scheduled",
+        "active",
+        "paused",
+        "ended",
+        "cancelled",
+      ],
+      campaign_type: [
+        "seasonal",
+        "clearance",
+        "product_launch",
+        "visibility_boost",
+        "conversion_opt",
       ],
       ecommerce_event_severity: ["info", "warning", "critical"],
       ecommerce_event_type: [
