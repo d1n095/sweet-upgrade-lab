@@ -26,6 +26,7 @@ import { LoopPreventionPanel } from "@/components/admin/LoopPreventionPanel";
 import { ArchitectureEnforcementPanel } from "@/components/admin/ArchitectureEnforcementPanel";
 import { ExecutionControllerPanel } from "@/components/admin/ExecutionControllerPanel";
 import { SystemTruthPanel } from "@/components/admin/SystemTruthPanel";
+import { AbsoluteControlPanel } from "@/components/admin/AbsoluteControlPanel";
 
 type WorkItem = {
   id: string;
@@ -1753,6 +1754,8 @@ const SystemExplorer = () => {
         {/* FILES TAB */}
         {mainTab === "files" && (
           <div className="space-y-3">
+            {/* ABSOLUTE CONTROL — single decision authority (STOP/CONTINUE) */}
+            <AbsoluteControlPanel />
             {/* UNIFIED SYSTEM TRUTH — single source of truth, orchestrated by ExecutionController */}
             <SystemTruthPanel />
 
