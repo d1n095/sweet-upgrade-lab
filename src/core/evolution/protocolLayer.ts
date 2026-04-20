@@ -32,15 +32,15 @@ export interface ProtocolSpec {
 }
 
 export const PROTOCOL_SPEC: ProtocolSpec = Object.freeze({
-  version: "1.0.0",
-  required_folders: Object.freeze(["pages", "components", "core", "services", "routes"]),
-  allowed_flows: Object.freeze([
+  version: "1.0.0" as const,
+  required_folders: Object.freeze<ProtocolLayerName[]>(["pages", "components", "core", "services", "routes"]),
+  allowed_flows: Object.freeze<ProtocolFlow[]>([
     { from: "pages", to: "components" },
     { from: "components", to: "core" },
     { from: "core", to: "services" },
     { from: "routes", to: "pages" },
   ]),
-  forbidden_flows: Object.freeze([
+  forbidden_flows: Object.freeze<ProtocolFlow[]>([
     { from: "components", to: "pages" },
     { from: "core", to: "components" },
     { from: "core", to: "pages" },
@@ -48,7 +48,7 @@ export const PROTOCOL_SPEC: ProtocolSpec = Object.freeze({
     { from: "services", to: "components" },
     { from: "services", to: "pages" },
   ]),
-  required_pipeline: Object.freeze([
+  required_pipeline: Object.freeze<string[]>([
     "truth_scan",
     "structure_map",
     "dependency_graph",
@@ -56,12 +56,12 @@ export const PROTOCOL_SPEC: ProtocolSpec = Object.freeze({
     "snapshot",
     "release_gate",
   ]),
-  required_validation_outputs: Object.freeze([
+  required_validation_outputs: Object.freeze<string[]>([
     "dependency_graph",
     "architecture_score",
     "violation_report",
   ]),
-  version_protocol: Object.freeze({ immutable: true, diff_required: true }),
+  version_protocol: Object.freeze({ immutable: true as const, diff_required: true as const }),
 });
 
 /* -------------------------------------------------------------------------- */
