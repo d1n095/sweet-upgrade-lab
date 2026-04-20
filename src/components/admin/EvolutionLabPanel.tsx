@@ -1265,6 +1265,367 @@ export function EvolutionLabPanel({ isFounder }: Props) {
         <p className="text-xs text-muted-foreground">Run to derive cluster boundaries.</p>
       ),
     },
+    {
+      key: "live_system_model",
+      icon: <Map className="w-4 h-4" />,
+      run: async () => {
+        await loadHistorySignals();
+        await runAndStore("live_system_model", () => {
+          const r = buildLiveSystemModel({
+            edges: inputs.depGraph.edges,
+            change_counts: changeCounts,
+            bug_counts: bugCounts,
+          });
+          setLiveModel(r);
+          return r;
+        });
+      },
+      body: liveModel ? (
+        <div className="text-xs space-y-2">
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="outline">{liveModel.totals.nodes} nodes</Badge>
+            <Badge variant="outline">{liveModel.totals.edges} edges</Badge>
+            <Badge variant={liveModel.critical_paths.length ? "secondary" : "outline"}>
+              {liveModel.critical_paths.length} critical paths
+            </Badge>
+            <Badge variant={liveModel.fragile_zones.length ? "destructive" : "outline"}>
+              {liveModel.fragile_zones.length} fragile zones
+            </Badge>
+          </div>
+          <p className="text-muted-foreground">{liveModel.notes}</p>
+          {liveModel.critical_paths.length > 0 && (
+            <details className="rounded-md border p-2" open>
+              <summary className="text-[11px] font-medium cursor-pointer">Critical paths</summary>
+              <ul className="mt-1 space-y-1">
+                {liveModel.critical_paths.slice(0, 6).map((c) => (
+                  <li key={c.hub} className="border rounded p-2">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary">reach {c.reach_score}</Badge>
+                      <span className="font-mono break-all">{c.hub}</span>
+                    </div>
+                    <p className="text-muted-foreground mt-1">{c.reason}</p>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+          {liveModel.fragile_zones.length > 0 && (
+            <details className="rounded-md border p-2" open>
+              <summary className="text-[11px] font-medium cursor-pointer">Fragile zones</summary>
+              <ul className="mt-1 space-y-1">
+                {liveModel.fragile_zones.slice(0, 6).map((z) => (
+                  <li key={z.file} className="border rounded p-2">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="destructive">{z.fragility}</Badge>
+                      <span className="font-mono break-all">{z.file}</span>
+                    </div>
+                    <p className="text-muted-foreground mt-1">
+                      coupling {z.coupling} · churn {z.churn} · bugs {z.bugs}
+                    </p>
+                    <p className="italic mt-1">{z.reason}</p>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">Run to derive system model.</p>
+      ),
+    },
+    {
+      key: "failure_predictor",
+      icon: <AlertTriangle className="w-4 h-4" />,
+      run: async () => {
+        await loadHistorySignals();
+        await runAndStore("failure_predictor", () => {
+          const r = predictFailures({
+            edges: inputs.depGraph.edges,
+            change_counts: changeCounts,
+            failure_counts: bugCounts,
+          });
+          setPredictor(r);
+          return r;
+        });
+      },
+      body: predictor ? (
+        <div className="text-xs space-y-2">
+          <div className="flex flex-wrap gap-2">
+            <Badge variant={predictor.high_risk_edits.length ? "destructive" : "outline"}>
+              {predictor.high_risk_edits.length} risky edits
+            </Badge>
+            <Badge variant="secondary">{predictor.predictions.length} predictions</Badge>
+          </div>
+          <p className="text-muted-foreground">{predictor.notes}</p>
+          {predictor.predictions.length > 0 && (
+            <ul className="space-y-1">
+              {predictor.predictions.slice(0, 8).map((p, i) => (
+                <li key={i} className="border rounded p-2">
+                  <p className="font-mono text-[10px] break-all">
+                    if you change <span className="text-destructive">{p.if_change}</span>
+                  </p>
+                  <p className="font-mono text-[10px] break-all">
+                    → <span className="text-foreground">{p.then_break}</span> may break
+                  </p>
+                  <p className="text-muted-foreground mt-1">{p.why}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">Run to predict cascading failures.</p>
+      ),
+    },
+    {
+      key: "intent_alignment",
+      icon: <Compass className="w-4 h-4" />,
+      run: async () => {
+        await loadHistorySignals();
+        await runAndStore("intent_alignment", () => {
+          const dep = buildDepGraph(inputs.depGraph.edges);
+          const highCoupling = dep.nodes.filter(n => n.color === "red").map(n => n.id);
+          const r = evaluateIntentAlignment({
+            edges: inputs.depGraph.edges,
+            change_counts: changeCounts,
+            high_coupling_files: highCoupling,
+          });
+          setIntent(r);
+          return r;
+        });
+      },
+      body: intent ? (
+        <div className="text-xs space-y-2">
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="default">matches {intent.summary.matches}</Badge>
+            <Badge variant="secondary">partial {intent.summary.partial}</Badge>
+            <Badge variant={intent.summary.misaligned ? "destructive" : "outline"}>
+              misaligned {intent.summary.misaligned}
+            </Badge>
+          </div>
+          <p className="text-muted-foreground">{intent.notes}</p>
+          {intent.cluster_verdicts.length > 0 && (
+            <details className="rounded-md border p-2" open>
+              <summary className="text-[11px] font-medium cursor-pointer">Cluster verdicts</summary>
+              <ul className="mt-1 space-y-1">
+                {intent.cluster_verdicts.slice(0, 6).map((v) => (
+                  <li key={v.cluster_id} className="border rounded p-2">
+                    <div className="flex items-center gap-2">
+                      <Badge variant={v.verdict === "matches" ? "default" : v.verdict === "partial" ? "secondary" : "destructive"}>
+                        {v.verdict}
+                      </Badge>
+                      <span className="font-mono">{v.cluster_id}</span>
+                    </div>
+                    <p className="text-muted-foreground mt-1">{v.reason}</p>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+          {intent.deviations.length > 0 && (
+            <ul className="space-y-1">
+              {intent.deviations.slice(0, 6).map((d, i) => (
+                <li key={i} className="border rounded p-2">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary">{d.kind}</Badge>
+                    <span className="font-mono break-all">{d.file}</span>
+                  </div>
+                  <p className="text-muted-foreground mt-1">{d.detail}</p>
+                  <p className="italic mt-1">→ {d.fix}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">Run to ask: "does this match system intent?"</p>
+      ),
+    },
+    {
+      key: "complexity_reducer",
+      icon: <Scissors className="w-4 h-4" />,
+      run: async () => {
+        await runAndStore("complexity_reducer", () => {
+          const r = runComplexityReducer({ sources: normalizedSources });
+          setComplexity(r);
+          return r;
+        });
+      },
+      body: complexity ? (
+        <div className="text-xs space-y-2">
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="outline">{complexity.files_scanned} scanned</Badge>
+            <Badge variant={complexity.summary.deep_nesting ? "destructive" : "outline"}>
+              nesting {complexity.summary.deep_nesting}
+            </Badge>
+            <Badge variant={complexity.summary.repeated_pattern ? "secondary" : "outline"}>
+              repeats {complexity.summary.repeated_pattern}
+            </Badge>
+            <Badge variant={complexity.summary.single_use_wrapper ? "secondary" : "outline"}>
+              wrappers {complexity.summary.single_use_wrapper}
+            </Badge>
+          </div>
+          <p className="text-muted-foreground">{complexity.notes}</p>
+          {complexity.findings.length > 0 && (
+            <ul className="space-y-1">
+              {complexity.findings.slice(0, 8).map((f, i) => (
+                <li key={i} className="border rounded p-2">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary">{f.kind}</Badge>
+                    <span className="font-mono break-all">{f.file}:{f.line_hint}</span>
+                  </div>
+                  <p className="text-muted-foreground mt-1">{f.detail}</p>
+                  <p className="italic mt-1">→ {f.suggestion}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">Run to find simplification opportunities.</p>
+      ),
+    },
+    {
+      key: "code_quarantine",
+      icon: <Biohazard className="w-4 h-4" />,
+      run: async () => {
+        await loadHistorySignals();
+        await runAndStore("code_quarantine", () => {
+          const r = runCodeQuarantine({
+            edges: inputs.depGraph.edges,
+            change_counts: changeCounts,
+            bug_counts: bugCounts,
+          });
+          setQuarantine(r);
+          return r;
+        });
+      },
+      body: quarantine ? (
+        <div className="text-xs space-y-2">
+          <div className="flex flex-wrap gap-2">
+            <Badge variant={quarantine.totals.critical ? "destructive" : "outline"}>
+              critical {quarantine.totals.critical}
+            </Badge>
+            <Badge variant={quarantine.totals.isolate ? "secondary" : "outline"}>
+              isolate {quarantine.totals.isolate}
+            </Badge>
+            <Badge variant="outline">watch {quarantine.totals.watch}</Badge>
+          </div>
+          <p className="text-muted-foreground">{quarantine.notes}</p>
+          {quarantine.infected.length > 0 && (
+            <ul className="space-y-1">
+              {quarantine.infected.slice(0, 6).map((m) => (
+                <li key={m.file} className="border rounded p-2">
+                  <div className="flex items-center gap-2">
+                    <Badge variant={m.severity === "critical" ? "destructive" : m.severity === "isolate" ? "secondary" : "outline"}>
+                      {m.severity}
+                    </Badge>
+                    <Badge variant="outline">{m.infection_score}</Badge>
+                    <span className="font-mono break-all">{m.file}</span>
+                  </div>
+                  <p className="text-muted-foreground mt-1">{m.reasons.join(" · ")}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+          {quarantine.healing.length > 0 && (
+            <details className="rounded-md border p-2">
+              <summary className="text-[11px] font-medium cursor-pointer">Healing actions</summary>
+              <ul className="mt-1 space-y-1">
+                {quarantine.healing.map((h, i) => (
+                  <li key={i} className="border rounded p-2">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary">{h.action}</Badge>
+                      <span className="font-mono break-all">{h.file}</span>
+                    </div>
+                    <p className="text-muted-foreground mt-1">{h.rationale}</p>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">Run to flag infected modules.</p>
+      ),
+    },
+    {
+      key: "change_simulator",
+      icon: <GitCompare className="w-4 h-4" />,
+      run: async () => {
+        if (!changeSimFile.trim()) return;
+        await loadHistorySignals();
+        await runAndStore("change_simulator", () => {
+          const r = simulateChange({
+            target_file: changeSimFile.trim(),
+            edges: inputs.depGraph.edges,
+            change_counts: changeCounts,
+            failure_counts: bugCounts,
+          });
+          setChangeSim(r);
+          return r;
+        });
+      },
+      body: (
+        <div className="text-xs space-y-2">
+          <Input
+            placeholder="src/components/SomeFile.tsx"
+            value={changeSimFile}
+            onChange={(e) => setChangeSimFile(e.target.value)}
+            className="h-7 text-xs"
+          />
+          {changeSim && (
+            <div className="space-y-2">
+              <div className="flex flex-wrap gap-2">
+                <Badge variant={
+                  changeSim.risk_level === "critical" || changeSim.risk_level === "high" ? "destructive" :
+                  changeSim.risk_level === "medium" ? "secondary" : "outline"
+                }>
+                  {changeSim.risk_level} risk
+                </Badge>
+                <Badge variant="outline">{changeSim.what_breaks.length} breaks</Badge>
+                <Badge variant="outline">{changeSim.what_stays_stable.length} stable</Badge>
+              </div>
+              <p className="text-muted-foreground">{changeSim.notes}</p>
+              {changeSim.what_breaks.length > 0 && (
+                <details className="rounded-md border p-2" open>
+                  <summary className="text-[11px] font-medium cursor-pointer text-destructive">
+                    What breaks ({changeSim.what_breaks.length})
+                  </summary>
+                  <ul className="mt-1 space-y-1">
+                    {changeSim.what_breaks.slice(0, 8).map((b) => (
+                      <li key={b.file} className="border rounded p-2">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline">+{b.hops} hop</Badge>
+                          <span className="font-mono break-all">{b.file}</span>
+                        </div>
+                        <p className="text-muted-foreground mt-1">{b.reason}</p>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+              {changeSim.what_improves.length > 0 && (
+                <details className="rounded-md border p-2">
+                  <summary className="text-[11px] font-medium cursor-pointer">What improves</summary>
+                  <ul className="mt-1 list-disc pl-4 text-muted-foreground">
+                    {changeSim.what_improves.map((s, i) => <li key={i}>{s}</li>)}
+                  </ul>
+                </details>
+              )}
+              {changeSim.what_stays_stable.length > 0 && (
+                <details className="rounded-md border p-2">
+                  <summary className="text-[11px] font-medium cursor-pointer">Unaffected clusters</summary>
+                  <ul className="mt-1 font-mono text-[10px]">
+                    {changeSim.what_stays_stable.slice(0, 12).map((c) => <li key={c}>{c}</li>)}
+                  </ul>
+                </details>
+              )}
+            </div>
+          )}
+        </div>
+      ),
+    },
   ];
 
 
