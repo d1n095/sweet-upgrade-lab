@@ -43,6 +43,7 @@ import { RollbackEnginePanel } from "@/components/admin/RollbackEnginePanel";
 import { RegressionGuardPanel } from "@/components/admin/RegressionGuardPanel";
 import { ReleaseGatePanel } from "@/components/admin/ReleaseGatePanel";
 import { PanelErrorBoundary } from "@/components/admin/PanelErrorBoundary";
+import { EvolutionLabPanel } from "@/components/admin/EvolutionLabPanel";
 import { useSystemStateStore } from "@/stores/systemStateStore";
 import { useSafeModeStore } from "@/stores/safeModeStore";
 import { SafeModeShell } from "@/components/admin/SafeModeShell";
@@ -1834,6 +1835,10 @@ const SystemExplorer = () => {
             <ReleaseGatePanel />
             {/* ROLLBACK ENGINE — restores last stable version on instability triggers */}
             <RollbackEnginePanel />
+            {/* EVOLUTION LAB — 7 staged engines (flagged, internal-only by default) */}
+            <PanelErrorBoundary label="Evolution Lab">
+              <EvolutionLabPanel isFounder={isFounder} />
+            </PanelErrorBoundary>
             {/* UNIFIED SYSTEM TRUTH — single source of truth, orchestrated by ExecutionController */}
             <SystemTruthPanel />
 
