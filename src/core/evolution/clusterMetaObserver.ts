@@ -75,41 +75,53 @@ export function evaluateClusterMetaObserver(
   const inefficiencies: Inefficiency[] = [];
   const evolution_plan: EvolutionStep[] = [];
 
-  // ---- DRIFT (current vs latest historical snapshot via trends) ----
-  for (const t of memory.trends) {
-    if (t.size_delta > 0 && t.size_delta_ratio >= SIZE_SPIKE_RATIO) {
-      drift_signals.push({
-        kind: "size_spike",
-        cluster_id: t.cluster_id,
-        detail: `Cluster grew ${t.size_delta_ratio.toFixed(2)}× in size.`,
-        severity: t.size_delta_ratio > 2 ? "critical" : "warn",
-      });
-    }
-    if (t.risk_delta >= RISK_SPIKE_DELTA) {
-      drift_signals.push({
-        kind: "risk_spike",
-        cluster_id: t.cluster_id,
-        detail: `Failure risk increased by ${t.risk_delta}.`,
-        severity: t.risk_delta > 12 ? "critical" : "warn",
-      });
+  // ---- DRIFT (current vs latest historical snapshot) ----
+  const history = getHistory();
+  const latestSnap = history[0];
+  const prevSnap = history[1];
+
+  if (latestSnap && prevSnap) {
+    const allIds = new Set([
+      ...Object.keys(latestSnap.per_cluster),
+      ...Object.keys(prevSnap.per_cluster),
+    ]);
+    for (const id of allIds) {
+      const cur = latestSnap.per_cluster[id];
+      const prev = prevSnap.per_cluster[id];
+      if (cur && prev) {
+        const sizeRatio = prev.file_count > 0 ? cur.file_count / prev.file_count : 1;
+        if (sizeRatio >= SIZE_SPIKE_RATIO) {
+          drift_signals.push({
+            kind: "size_spike",
+            cluster_id: id,
+            detail: `Cluster grew ${sizeRatio.toFixed(2)}× in size (${prev.file_count} → ${cur.file_count}).`,
+            severity: sizeRatio > 2 ? "critical" : "warn",
+          });
+        }
+        const riskDelta = cur.failure_risk - prev.failure_risk;
+        if (riskDelta >= RISK_SPIKE_DELTA) {
+          drift_signals.push({
+            kind: "risk_spike",
+            cluster_id: id,
+            detail: `Failure risk increased by ${riskDelta} (${prev.failure_risk} → ${cur.failure_risk}).`,
+            severity: riskDelta > 12 ? "critical" : "warn",
+          });
+        }
+      }
     }
   }
 
-  // Cluster added / removed (compare current ids vs trends ids)
-  const trendIds = new Set(memory.trends.map((t) => t.cluster_id));
+  // Cluster added / removed (via memory.trends Record)
   const currentIds = new Set(input.registry.clusters.map((c) => c.id));
-  for (const cid of currentIds) {
-    if (memory.snapshot_count > 0 && !trendIds.has(cid)) {
+  for (const [cid, trend] of Object.entries(memory.trends)) {
+    if (trend === "new" && currentIds.has(cid)) {
       drift_signals.push({
         kind: "cluster_added",
         cluster_id: cid,
         detail: "New cluster appeared since last snapshot.",
         severity: "info",
       });
-    }
-  }
-  for (const cid of trendIds) {
-    if (!currentIds.has(cid)) {
+    } else if (trend === "removed") {
       drift_signals.push({
         kind: "cluster_removed",
         cluster_id: cid,
