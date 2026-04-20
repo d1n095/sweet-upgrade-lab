@@ -407,20 +407,40 @@ function FailureSimulationPanel() {
 
   const run = () => {
     const sample = fileSystemMap.slice(0, 20).map((f) => f.path);
+    const dependency_graph: Record<string, string[]> = {};
+    for (let i = 0; i < sample.length - 1; i++) {
+      dependency_graph[sample[i]] = [sample[i + 1]];
+    }
     const r = runFailureSimulation({
-      dependency_graph: {
-        nodes: sample,
-        edges: sample.slice(0, -1).map((from, i) => ({ from, to: sample[i + 1] })),
-      },
-      cluster_map: { clusters: [{ name: "core", members: sample }] },
-      architecture_rules: { critical_modules: sample.slice(0, 3) },
+      dependency_graph,
+      cluster_map: { core: sample },
+      route_map: {},
+      architecture_rules: [{ id: "layered_imports", enabled: true }],
       scenarios: [
-        { id: "node-fail-1", type: "NODE_FAILURE", target: sample[0] },
-        { id: "dep-break-1", type: "DEPENDENCY_BREAK", target: sample[1] },
+        { id: "node-fail-1", type: "NODE_FAILURE", target: sample[0], description: "Remove root module" },
+        {
+          id: "dep-break-1",
+          type: "DEPENDENCY_BREAK",
+          edge: { from: sample[1], to: sample[2] },
+          description: "Break first dependency",
+        },
       ],
     });
     setReport(r);
   };
+
+  const aggImpact = report
+    ? Math.round(
+        report.simulation_results.reduce((s, r) => s + r.failure_impact_score, 0) /
+          Math.max(1, report.simulation_results.length),
+      )
+    : 0;
+  const aggResilience = report
+    ? Math.round(
+        report.simulation_results.reduce((s, r) => s + r.resilience_score, 0) /
+          Math.max(1, report.simulation_results.length),
+      )
+    : 0;
 
   return (
     <section className="border-t border-border bg-card/30">
@@ -433,8 +453,8 @@ function FailureSimulationPanel() {
         </Button>
         {report && (
           <span className="text-[11px] text-muted-foreground">
-            impact <span className="font-mono text-foreground">{report.failure_impact_score}</span> · resilience{" "}
-            <span className="font-mono text-foreground">{report.resilience_score}</span>
+            impact <span className="font-mono text-foreground">{aggImpact}</span> · resilience{" "}
+            <span className="font-mono text-foreground">{aggResilience}</span>
           </span>
         )}
       </div>
@@ -445,8 +465,8 @@ function FailureSimulationPanel() {
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Weak points</p>
               <ul className="mt-1 space-y-0.5">
                 {report.weak_points.slice(0, 6).map((w) => (
-                  <li key={w.module} className="font-mono text-[11px]">
-                    {w.module} <span className="text-muted-foreground">· {w.reason}</span>
+                  <li key={w.node} className="font-mono text-[11px]">
+                    {w.node} <span className="text-muted-foreground">· {w.reason}</span>
                   </li>
                 ))}
               </ul>
@@ -455,7 +475,7 @@ function FailureSimulationPanel() {
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Mitigations</p>
               <ul className="mt-1 space-y-0.5 text-[11px]">
                 {report.mitigation_suggestions.slice(0, 6).map((m, i) => (
-                  <li key={i}>{m}</li>
+                  <li key={i}><span className="font-mono">{m.action}</span> — {m.rationale}</li>
                 ))}
               </ul>
             </div>
