@@ -34,6 +34,7 @@ import { MinimalModePanel } from "@/components/admin/MinimalModePanel";
 import { FinalSnapshotPanel } from "@/components/admin/FinalSnapshotPanel";
 import { ImmutableSnapshotV2Panel } from "@/components/admin/ImmutableSnapshotV2Panel";
 import { DriftDetectorPanel } from "@/components/admin/DriftDetectorPanel";
+import { StrictModePanel } from "@/components/admin/StrictModePanel";
 import { DeterministicBuildPipelinePanel } from "@/components/admin/DeterministicBuildPipelinePanel";
 import { VersionedArchitecturePanel } from "@/components/admin/VersionedArchitecturePanel";
 import { RollbackEnginePanel } from "@/components/admin/RollbackEnginePanel";
@@ -1782,6 +1783,8 @@ const SystemExplorer = () => {
             <ImmutableSnapshotV2Panel />
             {/* DRIFT DETECTOR — flags silent system changes vs last v2 snapshot baseline */}
             <DriftDetectorPanel />
+            {/* STRICT MODE — zero-tolerance binary PASS/FAIL across all gates */}
+            <StrictModePanel />
             {/* DETERMINISTIC BUILD PIPELINE — 6-stage release-grade orchestrator */}
             <DeterministicBuildPipelinePanel />
             {/* VERSIONED ARCHITECTURE STATE — append-only versions of verified system state */}
