@@ -147,7 +147,20 @@ const Contact = () => {
                     {formSection ? getLang(formSection.title_sv, formSection.title_en) : t('contact.sendmessage')}
                   </h2>
                   
-                  <form onSubmit={handleSubmit} className="space-y-5">
+                  <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+                    {/* Honeypot — hidden from humans, bots will fill it in */}
+                    <div aria-hidden="true" className="hidden">
+                      <Label htmlFor="website">Website</Label>
+                      <Input
+                        id="website"
+                        name="website"
+                        tabIndex={-1}
+                        autoComplete="off"
+                        value={formData.website}
+                        onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                      />
+                    </div>
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="name">{t('contact.name')}</Label>
@@ -155,8 +168,13 @@ const Contact = () => {
                           id="name"
                           value={formData.name}
                           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                          aria-invalid={!!fieldErrors.name}
+                          maxLength={100}
                           required
                         />
+                        {fieldErrors.name && (
+                          <p className="text-xs text-destructive">{fieldErrors.name}</p>
+                        )}
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="email">{t('contact.email')}</Label>
@@ -165,35 +183,55 @@ const Contact = () => {
                           type="email"
                           value={formData.email}
                           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                          aria-invalid={!!fieldErrors.email}
+                          maxLength={255}
                           required
                         />
+                        {fieldErrors.email && (
+                          <p className="text-xs text-destructive">{fieldErrors.email}</p>
+                        )}
                       </div>
                     </div>
-                    
+
                     <div className="space-y-2">
-                      <Label htmlFor="subject">{t('contact.subject')}</Label>
+                      <Label htmlFor="subject">
+                        {t('contact.subject')}{' '}
+                        <span className="text-muted-foreground text-xs font-normal">
+                          ({language === 'sv' ? 'valfritt' : 'optional'})
+                        </span>
+                      </Label>
                       <Input
                         id="subject"
                         value={formData.subject}
                         onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                        required
+                        maxLength={200}
                       />
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="message">{t('contact.message')}</Label>
                       <Textarea
                         id="message"
                         value={formData.message}
                         onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                        aria-invalid={!!fieldErrors.message}
                         required
                         rows={5}
+                        minLength={10}
+                        maxLength={5000}
                       />
+                      <div className="flex justify-between text-xs">
+                        <span className="text-destructive">{fieldErrors.message ?? ''}</span>
+                        <span className="text-muted-foreground">{formData.message.length}/5000</span>
+                      </div>
                     </div>
-                    
+
                     <Button type="submit" className="w-full" disabled={isSubmitting}>
                       {isSubmitting ? (
-                        t('contact.sending')
+                        <>
+                          <span className="inline-block w-4 h-4 mr-2 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                          {t('contact.sending')}
+                        </>
                       ) : (
                         <>
                           <Send className="w-4 h-4 mr-2" />
