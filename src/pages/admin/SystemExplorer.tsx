@@ -1789,6 +1789,8 @@ const SystemExplorer = () => {
             <StrictModePanel />
             {/* PATTERN MEMORY — historical pattern store across architecture versions */}
             <PatternMemoryPanel />
+            {/* ARCHITECTURE SCORING — deterministic 0–100 score with breakdown */}
+            <ArchitectureScoringPanel />
             {/* DETERMINISTIC BUILD PIPELINE — 6-stage release-grade orchestrator */}
             <DeterministicBuildPipelinePanel />
             {/* VERSIONED ARCHITECTURE STATE — append-only versions of verified system state */}
