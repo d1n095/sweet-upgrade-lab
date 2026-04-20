@@ -921,8 +921,8 @@ export function EvolutionLabPanel({ isFounder }: Props) {
         <div className="text-xs space-y-2">
           <div className="flex flex-wrap gap-2">
             <Badge variant="destructive">red {risk.totals.red}</Badge>
-            <Badge className="bg-orange-500 text-white">orange {risk.totals.orange}</Badge>
-            <Badge className="bg-emerald-500 text-white">green {risk.totals.green}</Badge>
+            <Badge variant="secondary">orange {risk.totals.orange}</Badge>
+            <Badge variant="default">green {risk.totals.green}</Badge>
             <Badge variant="outline">grey {risk.totals.grey}</Badge>
           </div>
           <p className="text-muted-foreground">{risk.notes}</p>
