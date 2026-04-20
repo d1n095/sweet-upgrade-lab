@@ -10,9 +10,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSystemStateStore, type ModuleKey } from "@/stores/systemStateStore";
 import { systemStateRegistry, type RegistrySnapshot } from "@/core/scanner/systemStateRegistry";
+import { useStealthStore } from "@/core/scanner/stealthMode";
+import { useCommandLayerStore } from "@/core/scanner/commandLayer";
 import { useAdminRole } from "@/hooks/useAdminRole";
 
-type PanelId = "system" | "heatmap" | "clusters" | "execution" | "reality";
+type PanelId = "system" | "heatmap" | "clusters" | "execution" | "reality" | "command";
 
 interface PanelPos {
   x: number;
@@ -25,6 +27,7 @@ const DEFAULT_POS: Record<PanelId, PanelPos> = {
   clusters: { x: 704, y: 16 },
   execution: { x: 16, y: 280 },
   reality: { x: 360, y: 280 },
+  command: { x: 704, y: 280 },
 };
 
 const PANEL_LABELS: Record<PanelId, string> = {
@@ -33,6 +36,7 @@ const PANEL_LABELS: Record<PanelId, string> = {
   clusters: "CLUSTER VIEW",
   execution: "EXECUTION FLOW",
   reality: "REALITY CHECK",
+  command: "COMMAND LAYER",
 };
 
 function useRegistrySnapshot(): RegistrySnapshot {
@@ -181,9 +185,19 @@ export default function GodModeOverlay() {
     [slots],
   );
 
-  const visibleModules: PanelId[] = open ? ["system", "heatmap", "clusters", "execution", "reality"] : [];
+  const visibleModules: PanelId[] = open
+    ? ["system", "heatmap", "clusters", "execution", "reality", "command"]
+    : [];
+
+  // Subscribe to command layer (always — even when overlay closed, so panel stays in sync)
+  const lastCommand = useCommandLayerStore((s) => s.last_command);
+  const commandLog = useCommandLayerStore((s) => s.log);
+  const syncStatus = useCommandLayerStore((s) => s.sync_status);
+  const uiUpdateLog = useCommandLayerStore((s) => s.ui_update_log);
+  const stealthActive = useStealthStore((s) => s.status === "ACTIVE");
 
   if (!isAdmin) return null;
+  if (stealthActive) return null;
 
   // ── Render ───────────────────────────────────────────────────────────
   return (
@@ -341,7 +355,65 @@ export default function GodModeOverlay() {
             </Section>
           </Panel>
 
-          {/* Hover detail */}
+          {/* 6. COMMAND LAYER — reads only from useCommandLayerStore (registry-driven) */}
+          <Panel id="command" pos={positions.command} onDragStart={beginDrag("command")}>
+            <Row
+              k="sync_status"
+              v={syncStatus.toUpperCase()}
+              tone={syncStatus === "in_sync" ? "ok" : syncStatus === "syncing" ? "warn" : "err"}
+            />
+            <Row k="last_command" v={lastCommand?.name ?? "UNKNOWN"} />
+            <Row
+              k="result"
+              v={lastCommand ? lastCommand.status.toUpperCase() : "UNKNOWN"}
+              tone={lastCommand?.status === "ok" ? "ok" : lastCommand?.status === "error" ? "err" : "warn"}
+            />
+            <Row
+              k="affected_modules"
+              v={lastCommand?.affected_modules.length ? lastCommand.affected_modules.join(", ") : "none"}
+            />
+            <Row
+              k="registry_delta"
+              v={
+                lastCommand
+                  ? `v${lastCommand.registry_version_before} → v${lastCommand.registry_version_after}`
+                  : "UNKNOWN"
+              }
+            />
+            <Section label="COMMAND HISTORY">
+              <div className="max-h-24 overflow-auto space-y-0.5">
+                {commandLog.slice(0, 6).map((c) => (
+                  <div key={c.id} className="flex justify-between gap-2 truncate" title={c.error ?? c.result_preview}>
+                    <span
+                      className={
+                        c.status === "ok"
+                          ? "text-emerald-400"
+                          : c.status === "error"
+                            ? "text-red-400"
+                            : "text-amber-400"
+                      }
+                    >
+                      ●
+                    </span>
+                    <span className="truncate flex-1 text-zinc-200">{c.name}</span>
+                    <span className="text-zinc-500 shrink-0">{c.started_at.slice(11, 19)}</span>
+                  </div>
+                ))}
+                {commandLog.length === 0 && <div className="text-zinc-500">no commands dispatched</div>}
+              </div>
+            </Section>
+            <Section label="UI UPDATE LOG">
+              <div className="max-h-16 overflow-auto text-[10px] text-zinc-400 space-y-0.5">
+                {uiUpdateLog.slice(0, 4).map((l, i) => (
+                  <div key={i} className="truncate">
+                    {l}
+                  </div>
+                ))}
+                {uiUpdateLog.length === 0 && <div className="text-zinc-500">—</div>}
+              </div>
+            </Section>
+          </Panel>
+
           {hoverFile && (
             <div className="absolute bottom-8 left-2 bg-black/90 border border-emerald-700/40 text-emerald-300 px-2 py-1 rounded pointer-events-none">
               {hoverFile}
