@@ -1797,6 +1797,53 @@ export type Database = {
         }
         Relationships: []
       }
+      price_history: {
+        Row: {
+          change_reason: string | null
+          changed_at: string
+          changed_by: string | null
+          id: string
+          new_cost: number | null
+          new_price: number | null
+          old_cost: number | null
+          old_price: number | null
+          product_id: string
+          source: string
+        }
+        Insert: {
+          change_reason?: string | null
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          new_cost?: number | null
+          new_price?: number | null
+          old_cost?: number | null
+          old_price?: number | null
+          product_id: string
+          source?: string
+        }
+        Update: {
+          change_reason?: string | null
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          new_cost?: number | null
+          new_price?: number | null
+          old_cost?: number | null
+          old_price?: number | null
+          product_id?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_history_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_categories: {
         Row: {
           category_id: string
@@ -1901,6 +1948,56 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      product_stats: {
+        Row: {
+          cart_adds: number
+          cart_removes: number
+          created_at: string
+          last_purchased_at: string | null
+          last_viewed_at: string | null
+          product_id: string
+          purchases: number
+          revenue: number
+          units_sold: number
+          updated_at: string
+          views: number
+        }
+        Insert: {
+          cart_adds?: number
+          cart_removes?: number
+          created_at?: string
+          last_purchased_at?: string | null
+          last_viewed_at?: string | null
+          product_id: string
+          purchases?: number
+          revenue?: number
+          units_sold?: number
+          updated_at?: string
+          views?: number
+        }
+        Update: {
+          cart_adds?: number
+          cart_removes?: number
+          created_at?: string
+          last_purchased_at?: string | null
+          last_viewed_at?: string | null
+          product_id?: string
+          purchases?: number
+          revenue?: number
+          units_sold?: number
+          updated_at?: string
+          views?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_stats_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       product_tag_relations: {
         Row: {
@@ -2092,6 +2189,7 @@ export type Database = {
           badge: string | null
           category: string | null
           certifications: string[] | null
+          cost_price: number | null
           created_at: string
           currency: string
           description_en: string | null
@@ -2152,6 +2250,7 @@ export type Database = {
           badge?: string | null
           category?: string | null
           certifications?: string[] | null
+          cost_price?: number | null
           created_at?: string
           currency?: string
           description_en?: string | null
@@ -2212,6 +2311,7 @@ export type Database = {
           badge?: string | null
           category?: string | null
           certifications?: string[] | null
+          cost_price?: number | null
           created_at?: string
           currency?: string
           description_en?: string | null
