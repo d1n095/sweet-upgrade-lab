@@ -528,6 +528,91 @@ export function EvolutionLabPanel({ isFounder }: Props) {
         <p className="text-xs text-muted-foreground">No render analysis yet.</p>
       ),
     },
+    {
+      key: "cluster_meta_observer",
+      icon: <Eye className="w-4 h-4" />,
+      run: () => {
+        const reg = clusters ?? buildClusterRegistry(inputs.depGraph);
+        if (!clusters) setClusters(reg);
+        const health = clusterHealth ?? evaluateClusterHealth(reg);
+        if (!clusterHealth) setClusterHealth(health);
+        setMeta(evaluateClusterMetaObserver({ registry: reg, health }));
+      },
+      body: meta ? (
+        <div className="text-xs space-y-2">
+          <div className="flex flex-wrap gap-2">
+            <Badge
+              variant={
+                meta.status === "STABLE"
+                  ? "outline"
+                  : meta.status === "DRIFTING"
+                    ? "secondary"
+                    : "destructive"
+              }
+            >
+              {meta.status}
+            </Badge>
+            <Badge variant="outline">{meta.drift_signals.length} drift</Badge>
+            <Badge variant="outline">{meta.inefficiencies.length} inefficiencies</Badge>
+            <Badge variant="outline">{meta.evolution_plan.length} steps</Badge>
+          </div>
+          <p className="text-muted-foreground">{meta.notes}</p>
+          {meta.drift_signals.length > 0 && (
+            <div>
+              <p className="font-medium">Drift signals</p>
+              <ul className="space-y-1">
+                {meta.drift_signals.slice(0, 5).map((d, i) => (
+                  <li key={i} className="border rounded p-2">
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant={
+                          d.severity === "critical"
+                            ? "destructive"
+                            : d.severity === "warn"
+                              ? "secondary"
+                              : "outline"
+                        }
+                      >
+                        {d.severity}
+                      </Badge>
+                      <span className="font-mono">{d.kind}</span>
+                      {d.cluster_id && (
+                        <span className="font-mono text-muted-foreground">{d.cluster_id}</span>
+                      )}
+                    </div>
+                    <p className="mt-1">{d.detail}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {meta.evolution_plan.length > 0 && (
+            <div>
+              <p className="font-medium">Evolution plan</p>
+              <ul className="space-y-1">
+                {meta.evolution_plan.slice(0, 5).map((s) => (
+                  <li key={s.id} className="border rounded p-2">
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant={s.priority === "high" ? "destructive" : "outline"}
+                      >
+                        {s.priority}
+                      </Badge>
+                      <Badge variant="secondary">{s.action}</Badge>
+                      <span className="font-mono">{s.target}</span>
+                    </div>
+                    <p className="mt-1">{s.rationale}</p>
+                    <p className="text-muted-foreground">→ {s.expected_gain}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">No meta observation yet.</p>
+      ),
+    },
   ];
 
 
