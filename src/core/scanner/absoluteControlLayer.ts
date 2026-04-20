@@ -152,6 +152,12 @@ export const SYSTEM_ROLE_REGISTRY: ReadonlyArray<SystemRoleEntry> = Object.freez
     can_block_execution: false,
     description: "Stores per-version observations: top 10 connected files, violations, file kinds. Derives stable files, repeated violations, and frequently moved files by raw counting only.",
   },
+  {
+    module: "architectureScoring",
+    role: "READ_ONLY_REPORTER",
+    can_block_execution: false,
+    description: "Deterministic 0–100 score. Formula: 100 − (orphans×1) − (duplicates×2) − (cycles×5) − (cross_layer×3) − (unmounted_routes×2) − (high_coupling×1). No subjective weighting.",
+  },
   // ── 3. DATA PRODUCERS ────────────────────────────────────────────────────
   {
     module: "fileSystemMap",
