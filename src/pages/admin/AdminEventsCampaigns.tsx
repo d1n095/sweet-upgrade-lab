@@ -294,10 +294,10 @@ export default function AdminEventsCampaigns() {
                         {state.discount.active_discounts.map((d, i) => (
                           <tr key={`${d.product_id}-${i}`} className="border-b border-border/50">
                             <td className="py-2 font-mono text-xs">{d.product_id}</td>
-                            <td className="py-2"><Badge variant="secondary" className="text-[10px]">{d.source_event}</Badge></td>
+                            <td className="py-2"><Badge variant="secondary" className="text-[10px]">{d.event_type}</Badge></td>
                             <td className="py-2 text-right font-mono">{fmtPct(d.discount_pct)}</td>
                             <td className="py-2 text-right font-mono">{fmtMoney(d.final_price)}</td>
-                            <td className="py-2 text-xs text-muted-foreground">{d.discount_reason}</td>
+                            <td className="py-2 text-xs text-muted-foreground">{d.reason}</td>
                           </tr>
                         ))}
                       </tbody>

@@ -60,6 +60,7 @@ import AdminStats from "./pages/admin/AdminStats";
 import AdminReviews from "./pages/admin/AdminReviews";
 import AdminLogs from "./pages/admin/AdminLogs";
 import AdminCampaigns from "./pages/admin/AdminCampaigns";
+import AdminEventsCampaigns from "./pages/admin/AdminEventsCampaigns";
 import AdminShipping from "./pages/admin/AdminShipping";
 import AdminFinance from "./pages/admin/AdminFinance";
 import AdminSEO from "./pages/admin/AdminSEO";
@@ -153,6 +154,7 @@ const App = () => {
                     <Route path="visibility" element={<Navigate to="/admin/settings" replace />} />
                     <Route path="content" element={<AdminContent />} />
                     <Route path="campaigns" element={<AdminCampaigns />} />
+                    <Route path="events-dashboard" element={<AdminEventsCampaigns />} />
                     <Route path="shipping" element={<AdminShipping />} />
                     <Route path="seo" element={<AdminSEO />} />
                     <Route path="legal" element={<AdminLegal />} />
