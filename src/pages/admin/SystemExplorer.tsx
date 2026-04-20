@@ -24,9 +24,7 @@ import { SystemStateRegistryPanel } from "@/components/admin/SystemStateRegistry
 import { RealityCheckPanel } from "@/components/admin/RealityCheckPanel";
 import { LoopPreventionPanel } from "@/components/admin/LoopPreventionPanel";
 import { ArchitectureEnforcementPanel } from "@/components/admin/ArchitectureEnforcementPanel";
-import { ControlledArchitecturePanel } from "@/components/admin/ControlledArchitecturePanel";
-import { ArchitectureRuleEnginePanel } from "@/components/admin/ArchitectureRuleEnginePanel";
-import { DependencyEnginePanel } from "@/components/admin/DependencyEnginePanel";
+import { ExecutionControllerPanel } from "@/components/admin/ExecutionControllerPanel";
 
 type WorkItem = {
   id: string;
@@ -1754,12 +1752,8 @@ const SystemExplorer = () => {
         {/* FILES TAB */}
         {mainTab === "files" && (
           <div className="space-y-3">
-            {/* DEPENDENCY ENGINE — import-only graph + counts */}
-            <DependencyEnginePanel />
-            {/* ARCHITECTURE RULE ENGINE — R1/R2/R3/R4 hard structural rules */}
-            <ArchitectureRuleEnginePanel />
-            {/* CONTROLLED ARCHITECTURE — Phase 1/2/3 file-truth derivation */}
-            <ControlledArchitecturePanel />
+            {/* EXECUTION CONTROLLER — strict 4-state pipeline (R1-R4) */}
+            <ExecutionControllerPanel />
             {/* ARCHITECTURE ENFORCEMENT — A1/A2/A3/A4 hard rules */}
             <ArchitectureEnforcementPanel />
             {/* LOOP PREVENTION — L1/L2/L3 deterministic anti-loop guard */}
