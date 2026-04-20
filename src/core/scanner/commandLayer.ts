@@ -256,6 +256,15 @@ declare global {
       securityReport: () => Promise<CommandEntry>;
       tamperLog: () => Promise<CommandEntry>;
       lastSecurityReport: () => SecurityReport | null;
+      marketCatalog: () => Promise<CommandEntry>;
+      marketPricing: () => Promise<CommandEntry>;
+      marketPackaging: () => Promise<CommandEntry>;
+      marketOffering: (
+        tier: MarketTier | string,
+        packaging: MarketPackaging | string,
+        deployment: MarketDeployment | string
+      ) => Promise<CommandEntry>;
+      lastMarketOffering: () => ResolvedOffering | null;
     };
   }
 }
