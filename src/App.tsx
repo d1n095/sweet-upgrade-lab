@@ -81,6 +81,7 @@ import AdminIssues from "./pages/admin/AdminIssues";
 import AdminScans from "./pages/admin/AdminScans";
 
 const SystemExplorer = lazy(() => import("./pages/admin/SystemExplorer"));
+const DevOS = lazy(() => import("./pages/admin/DevOS"));
 
 const queryClient = new QueryClient();
 
