@@ -25,6 +25,7 @@ import { RealityCheckPanel } from "@/components/admin/RealityCheckPanel";
 import { LoopPreventionPanel } from "@/components/admin/LoopPreventionPanel";
 import { ArchitectureEnforcementPanel } from "@/components/admin/ArchitectureEnforcementPanel";
 import { ExecutionControllerPanel } from "@/components/admin/ExecutionControllerPanel";
+import { SystemTruthPanel } from "@/components/admin/SystemTruthPanel";
 
 type WorkItem = {
   id: string;
@@ -1752,20 +1753,24 @@ const SystemExplorer = () => {
         {/* FILES TAB */}
         {mainTab === "files" && (
           <div className="space-y-3">
-            {/* EXECUTION CONTROLLER — strict 4-state pipeline (R1-R4) */}
-            <ExecutionControllerPanel />
-            {/* ARCHITECTURE ENFORCEMENT — A1/A2/A3/A4 hard rules */}
-            <ArchitectureEnforcementPanel />
-            {/* LOOP PREVENTION — L1/L2/L3 deterministic anti-loop guard */}
-            <LoopPreventionPanel />
-            {/* REALITY CHECK — RC1/RC2/RC3 against state registry */}
-            <RealityCheckPanel />
-            {/* SYSTEM STATE REGISTRY — single source of truth (append-only) */}
-            <SystemStateRegistryPanel />
-            {/* EXECUTION GOVERNOR — single-flight scheduler */}
-            <ExecutionGovernorPanel />
-            {/* NO-AI ARCHITECTURE LAYER — deterministic rule-based engines */}
-            <NoAiArchitectureDashboard />
+            {/* UNIFIED SYSTEM TRUTH — single source of truth, orchestrated by ExecutionController */}
+            <SystemTruthPanel />
+
+            {/* Legacy panels — collapsed by default. SystemTruthPanel above is canonical. */}
+            <details className="rounded-md border border-border">
+              <summary className="px-3 py-2 text-xs font-semibold text-muted-foreground cursor-pointer hover:bg-muted/40">
+                Legacy diagnostic panels (deprecated — kept for transparency)
+              </summary>
+              <div className="p-2 space-y-3 border-t border-border bg-muted/10">
+                <ExecutionControllerPanel />
+                <ArchitectureEnforcementPanel />
+                <LoopPreventionPanel />
+                <RealityCheckPanel />
+                <SystemStateRegistryPanel />
+                <ExecutionGovernorPanel />
+                <NoAiArchitectureDashboard />
+              </div>
+            </details>
             {/* SCANNER v2 — verified through zero-fake-state guard */}
             {(() => {
               const env = runScannerV2Verified();

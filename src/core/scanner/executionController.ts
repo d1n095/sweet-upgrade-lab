@@ -1,24 +1,46 @@
 /**
- * EXECUTION CONTROLLER — strict 4-state pipeline (FILE_SCAN → STRUCTURE_MAP → VALIDATION → OUTPUT).
+ * EXECUTION CONTROLLER — strict 7-state orchestrated pipeline.
  *
- * RULES (enforced deterministically, no AI):
- *  R1. ONE PROCESS AT A TIME    — global mutex, second start() is rejected.
- *  R2. NO PARALLEL SCANS         — no two phases active simultaneously.
- *  R3. SEQUENTIAL PHASES         — each phase MUST finish before the next starts.
- *  R4. INVALID STATE = SYSTEM HALT — any phase failure freezes the controller;
- *      no further phase may run until resetHalt() is called.
+ * Pipeline (linear, no skips, no rewind):
+ *   IDLE
+ *     → FILE_SCAN          (raw file truth from fileSystemMap)
+ *     → STRUCTURE_MAP      (classify components/pages/utilities)
+ *     → ARCHITECTURE       (run architectureEnforcementCore — A1..A4)
+ *     → DEPENDENCIES       (run dependencyHeatmap — graph + cycles)
+ *     → REGISTRY           (push derived metrics into systemStateRegistry)
+ *     → VALIDATION         (cross-check invariants across all sources)
+ *     → OUTPUT             (finalised report)
+ *   → IDLE
  *
- * State machine (linear, no skips, no rewind):
- *   IDLE → FILE_SCAN → STRUCTURE_MAP → VALIDATION → OUTPUT → IDLE
+ * This is the ONLY orchestrator. All other engines are read-only here:
+ *   - architectureEnforcementCore.runArchitectureEnforcement()
+ *   - dependencyHeatmap.runDependencyHeatmap()
+ *   - systemStateRegistry.recordBatch()
  *
- * Failure transitions ALL to: HALTED (terminal until manual reset).
+ * Rules enforced:
+ *   R1. ONE PROCESS AT A TIME    — global mutex.
+ *   R2. NO PARALLEL SCANS         — phase mutex.
+ *   R3. SEQUENTIAL PHASES         — strict order, every phase must finish OK.
+ *   R4. INVALID STATE = HALT      — any failure freezes the controller.
  */
 import { fileSystemMap, type FileEntry } from "@/lib/fileSystemMap";
+import {
+  runArchitectureEnforcement,
+  type ArchitectureReport,
+} from "@/core/architecture/architectureEnforcementCore";
+import {
+  runDependencyHeatmap,
+  type HeatmapReport,
+} from "@/core/architecture/dependencyHeatmap";
+import { systemStateRegistry } from "@/core/scanner/systemStateRegistry";
 
 export type ControllerState =
   | "IDLE"
   | "FILE_SCAN"
   | "STRUCTURE_MAP"
+  | "ARCHITECTURE"
+  | "DEPENDENCIES"
+  | "REGISTRY"
   | "VALIDATION"
   | "OUTPUT"
   | "HALTED";
@@ -49,6 +71,18 @@ export interface ControllerOutput {
   utilities_indexed: number;
   components_indexed: number;
   pages_indexed: number;
+  /** From architectureEnforcementCore */
+  architecture_status: "PASS" | "STOP BUILD" | "SKIPPED";
+  architecture_violations: number;
+  architecture_violations_by_rule: Record<string, number>;
+  /** From dependencyHeatmap */
+  dependency_edges: number;
+  dependency_cycles: number;
+  dependency_isolated: number;
+  dependency_top_coupling: { file: string; score: number }[];
+  /** Registry */
+  registry_records_pushed: number;
+  /** Validation invariants */
   validation_passed: boolean;
   validation_errors: string[];
   generated_at: string;
@@ -57,6 +91,9 @@ export interface ControllerOutput {
 const PHASE_ORDER: PhaseRecord["phase"][] = [
   "FILE_SCAN",
   "STRUCTURE_MAP",
+  "ARCHITECTURE",
+  "DEPENDENCIES",
+  "REGISTRY",
   "VALIDATION",
   "OUTPUT",
 ];
@@ -66,7 +103,7 @@ class ExecutionController {
   private currentRun: ControllerRunReport | null = null;
   private history: ControllerRunReport[] = [];
   private listeners = new Set<() => void>();
-  private locked = false; // R1 mutex
+  private locked = false;
 
   subscribe(fn: () => void): () => void {
     this.listeners.add(fn);
@@ -79,16 +116,13 @@ class ExecutionController {
   getState(): ControllerState {
     return this.state;
   }
-
   getCurrent(): ControllerRunReport | null {
     return this.currentRun ? { ...this.currentRun, phases: [...this.currentRun.phases] } : null;
   }
-
   getHistory(): ControllerRunReport[] {
     return [...this.history].slice(-20).reverse();
   }
 
-  /** Manual unlock after HALTED. */
   resetHalt(reason = "operator reset"): void {
     if (this.state !== "HALTED") return;
     if (this.currentRun) {
@@ -101,12 +135,6 @@ class ExecutionController {
     this.emit();
   }
 
-  /**
-   * Synchronous, deterministic 4-phase run.
-   * R1+R2: refuses to start if controller is not IDLE or already locked.
-   * R3: phases run strictly in PHASE_ORDER.
-   * R4: any phase throw transitions to HALTED.
-   */
   start(): ControllerRunReport {
     if (this.locked || this.state !== "IDLE") {
       throw new Error(
@@ -127,9 +155,11 @@ class ExecutionController {
 
     let scanResult: FileEntry[] = [];
     let structureResult: ControllerOutput | null = null;
+    let archReport: ArchitectureReport | null = null;
+    let depReport: HeatmapReport | null = null;
+    let registryPushed = 0;
 
     for (const phase of PHASE_ORDER) {
-      // R3 — refuse to advance if a previous phase did not complete cleanly
       if (run.phases.length > 0) {
         const last = run.phases[run.phases.length - 1];
         if (last.status !== "ok") {
@@ -158,14 +188,81 @@ class ExecutionController {
         } else if (phase === "STRUCTURE_MAP") {
           structureResult = this.phaseStructureMap(scanResult);
           rec.detail = `mapped ${structureResult.components_indexed} components, ${structureResult.pages_indexed} pages, ${structureResult.utilities_indexed} utilities`;
+        } else if (phase === "ARCHITECTURE") {
+          archReport = runArchitectureEnforcement();
+          if (!structureResult) throw new Error("structure missing");
+          structureResult.architecture_status = archReport.build_status;
+          structureResult.architecture_violations = archReport.violations.length;
+          structureResult.architecture_violations_by_rule = archReport.violations.reduce<Record<string, number>>(
+            (acc, v) => {
+              acc[v.rule] = (acc[v.rule] || 0) + 1;
+              return acc;
+            },
+            {}
+          );
+          rec.detail = `${archReport.build_status} — ${archReport.violations.length} violations across ${Object.keys(structureResult.architecture_violations_by_rule).length} rules`;
+        } else if (phase === "DEPENDENCIES") {
+          depReport = runDependencyHeatmap();
+          if (!structureResult) throw new Error("structure missing");
+          structureResult.dependency_edges = depReport.edges.length;
+          structureResult.dependency_cycles = depReport.circular_dependencies.length;
+          structureResult.dependency_isolated = depReport.isolated_nodes.length;
+          structureResult.dependency_top_coupling = depReport.high_coupling.slice(0, 5).map((n) => ({
+            file: n.id,
+            score: n.coupling_score,
+          }));
+          rec.detail = `${depReport.edges.length} edges, ${depReport.circular_dependencies.length} cycles, ${depReport.isolated_nodes.length} isolated`;
+        } else if (phase === "REGISTRY") {
+          if (!structureResult || !archReport || !depReport) throw new Error("missing inputs for registry");
+          systemStateRegistry.recordBatch([
+            {
+              state_key: "file_count",
+              value: structureResult.files_total,
+              source_module: "executionController",
+              file_evidence_ref: "src/lib/fileSystemMap.ts",
+            },
+            {
+              state_key: "component_count",
+              value: structureResult.components_indexed,
+              source_module: "executionController",
+              file_evidence_ref: "src/lib/fileSystemMap.ts (type=component)",
+            },
+            {
+              state_key: "route_count",
+              value: structureResult.pages_indexed,
+              source_module: "executionController",
+              file_evidence_ref: "src/lib/fileSystemMap.ts (type=page)",
+            },
+            {
+              state_key: "dependency_graph",
+              value: {
+                edges: depReport.edges.length,
+                cycles: depReport.circular_dependencies.length,
+                isolated: depReport.isolated_nodes.length,
+              },
+              source_module: "executionController",
+              file_evidence_ref: "src/core/architecture/dependencyHeatmap.ts",
+            },
+            {
+              state_key: "architecture_status",
+              value: {
+                build_status: archReport.build_status,
+                violations: archReport.violations.length,
+              },
+              source_module: "executionController",
+              file_evidence_ref: "src/core/architecture/architectureEnforcementCore.ts",
+            },
+          ]);
+          registryPushed = 5;
+          structureResult.registry_records_pushed = registryPushed;
+          rec.detail = `pushed ${registryPushed} state-keys to registry`;
         } else if (phase === "VALIDATION") {
-          if (!structureResult) throw new Error("structure result missing");
+          if (!structureResult) throw new Error("structure missing");
           this.phaseValidation(scanResult, structureResult);
           rec.detail = structureResult.validation_passed
             ? "all structural invariants hold"
             : `${structureResult.validation_errors.length} validation errors`;
           if (!structureResult.validation_passed) {
-            // Validation failure halts the controller (R4)
             rec.status = "failed";
             rec.finished_at = Date.now();
             rec.duration_ms = rec.finished_at - rec.started_at;
@@ -191,19 +288,14 @@ class ExecutionController {
       this.emit();
     }
 
-    // All four phases passed
     run.state = "OUTPUT";
-    return this.finalize(run, /*ok=*/ true);
+    return this.finalize(run, true);
   }
 
-  // ── PHASES ──────────────────────────────────────────────────────────────────
+  // ── PHASES ────────────────────────────────────────────────────────────────
   private phaseFileScan(): FileEntry[] {
-    if (!Array.isArray(fileSystemMap)) {
-      throw new Error("fileSystemMap is not iterable");
-    }
-    if (fileSystemMap.length === 0) {
-      throw new Error("fileSystemMap is empty — cannot proceed");
-    }
+    if (!Array.isArray(fileSystemMap)) throw new Error("fileSystemMap is not iterable");
+    if (fileSystemMap.length === 0) throw new Error("fileSystemMap is empty — cannot proceed");
     return fileSystemMap;
   }
 
@@ -226,7 +318,15 @@ class ExecutionController {
       utilities_indexed: by_type.util + by_type.lib,
       components_indexed: by_type.component,
       pages_indexed: by_type.page,
-      validation_passed: false, // set in VALIDATION phase
+      architecture_status: "SKIPPED",
+      architecture_violations: 0,
+      architecture_violations_by_rule: {},
+      dependency_edges: 0,
+      dependency_cycles: 0,
+      dependency_isolated: 0,
+      dependency_top_coupling: [],
+      registry_records_pushed: 0,
+      validation_passed: false,
       validation_errors: [],
       generated_at: new Date().toISOString(),
     };
@@ -234,24 +334,21 @@ class ExecutionController {
 
   private phaseValidation(files: FileEntry[], out: ControllerOutput): void {
     const errors: string[] = [];
-    // Invariant 1: counts must add up to files_total
     const sum = Object.values(out.by_type).reduce((a, b) => a + b, 0);
     if (sum !== out.files_total) {
       errors.push(`type-count mismatch: sum(${sum}) !== files_total(${out.files_total})`);
     }
-    // Invariant 2: every file must have a folder
     const noFolder = files.filter((f) => !f.folder);
     if (noFolder.length > 0) {
       errors.push(`${noFolder.length} files missing folder attribution`);
     }
-    // Invariant 3: must contain at least one page (route) and one component
     if (out.pages_indexed === 0) errors.push("no pages found — application has no routes");
     if (out.components_indexed === 0) errors.push("no components found — application has no UI");
+    // Architecture failure does NOT fail validation here — surfaced as separate metric.
     out.validation_errors = errors;
     out.validation_passed = errors.length === 0;
   }
 
-  // ── HELPERS ────────────────────────────────────────────────────────────────
   private haltRun(run: ControllerRunReport, reason: string): void {
     this.state = "HALTED";
     run.state = "HALTED";
