@@ -30,6 +30,7 @@ import { AbsoluteControlPanel } from "@/components/admin/AbsoluteControlPanel";
 import { QueueCollapsePanel } from "@/components/admin/QueueCollapsePanel";
 import { SignalDeduplicatorPanel } from "@/components/admin/SignalDeduplicatorPanel";
 import { HardStateLockPanel } from "@/components/admin/HardStateLockPanel";
+import { MinimalModePanel } from "@/components/admin/MinimalModePanel";
 
 type WorkItem = {
   id: string;
