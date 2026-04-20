@@ -1745,6 +1745,62 @@ const SystemExplorer = () => {
         {/* FILES TAB */}
         {mainTab === "files" && (
           <div className="space-y-3">
+            {/* SCANNER v2 — official entrypoint, fail-loud */}
+            {(() => {
+              const v2 = runScannerV2();
+              const statusColor = v2.scanner_status === "VERIFIED" ? "text-primary" : "text-destructive";
+              return (
+                <Card className="border-primary/40 bg-primary/5">
+                  <CardHeader className="py-2 flex flex-row items-center justify-between">
+                    <CardTitle className="text-xs font-mono">🔬 Scanner v2 — Truth Engine (official)</CardTitle>
+                    <Badge variant="outline" className="text-[10px]">confidence {v2.confidence_score}%</Badge>
+                  </CardHeader>
+                  <CardContent className="text-[11px] font-mono space-y-1">
+                    <div className="flex flex-wrap gap-3">
+                      <div>scanner_status: <span className={`font-bold ${statusColor}`}>{v2.scanner_status}</span></div>
+                      <div>source: <span className="text-muted-foreground">{v2.inputs.source}</span></div>
+                      <div>generated: <span className="text-muted-foreground">{v2.generated_at}</span></div>
+                    </div>
+                    <div className="flex flex-wrap gap-3 pt-1 border-t border-border/40">
+                      <div>received_files: <span className="font-bold">{v2.inputs.received_files}</span></div>
+                      <div>components: <span className="font-bold">{v2.processed.components}</span></div>
+                      <div>routes: <span className="font-bold">{v2.processed.routes}</span></div>
+                      <div>utilities: <span className="font-bold">{v2.processed.utilities}</span></div>
+                      <div>other: <span className="font-bold">{v2.processed.other}</span></div>
+                    </div>
+                    {v2.errors.length > 0 && (
+                      <div className="text-destructive">❌ {v2.errors.join("; ")}</div>
+                    )}
+                    <details>
+                      <summary className="cursor-pointer text-muted-foreground">classification rules used</summary>
+                      <ul className="ml-3 mt-1 space-y-0.5">
+                        <li>R1: file under src/pages/ → route</li>
+                        <li>R2: contains &lt;Route path=...&gt; → route</li>
+                        <li>R3: contains JSX (&lt;PascalCase ...&gt;) → component</li>
+                        <li>R3b: imports react + exports PascalCase symbol → component</li>
+                        <li>R4: file under lib/utils/stores/hooks → utility</li>
+                        <li>R5: no rule matched → other</li>
+                      </ul>
+                    </details>
+                    <details>
+                      <summary className="cursor-pointer text-muted-foreground">excluded files (rules)</summary>
+                      <ul className="ml-3 mt-1 space-y-0.5">{v2.excluded.map((e, i) => <li key={i}>{e.path} — {e.reason}</li>)}</ul>
+                    </details>
+                    <details>
+                      <summary className="cursor-pointer text-muted-foreground">classification log (first {v2.classification_log.length})</summary>
+                      <ul className="ml-3 mt-1 space-y-0.5">
+                        {v2.classification_log.map((c) => (
+                          <li key={c.path}>
+                            <span className="text-primary">[{c.classification}]</span> {c.path} <span className="text-muted-foreground">— {c.rule}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  </CardContent>
+                </Card>
+              );
+            })()}
+
             {/* TRUTH ENGINE v2 — single source of truth */}
             {(() => {
               const truth = runTruthEngine();
