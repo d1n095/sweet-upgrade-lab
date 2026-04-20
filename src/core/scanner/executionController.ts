@@ -35,6 +35,7 @@ import {
 import { systemStateRegistry } from "@/core/scanner/systemStateRegistry";
 import { hardStateLock } from "@/core/scanner/hardStateLock";
 import { minimalMode, type InstabilitySignal } from "@/core/scanner/minimalMode";
+import { finalSnapshotEngine } from "@/core/scanner/finalSnapshotEngine";
 
 export type ControllerState =
   | "IDLE"
@@ -295,7 +296,21 @@ class ExecutionController {
         } else if (phase === "OUTPUT") {
           if (!structureResult) throw new Error("output requires structure result");
           run.output = structureResult;
-          rec.detail = "report finalized";
+          // ── FINAL SNAPSHOT — runs once per run_id at the very end ─────
+          const snap = finalSnapshotEngine.commitIfRunComplete({
+            run_id: run.run_id,
+            file_count: structureResult.files_total,
+            component_count: structureResult.components_indexed,
+            route_count: structureResult.pages_indexed,
+            dependency_graph: {
+              edges: structureResult.dependency_edges,
+              cycles: structureResult.dependency_cycles,
+              isolated: structureResult.dependency_isolated,
+            },
+          });
+          rec.detail = snap
+            ? `report finalized · snapshot ${snap.snapshot_id} (hash ${snap.verification_hash.slice(0, 12)}…)`
+            : "report finalized · snapshot rejected (see Final Snapshot panel)";
         }
         rec.status = "ok";
       } catch (err: any) {

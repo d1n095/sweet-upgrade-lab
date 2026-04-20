@@ -92,6 +92,12 @@ export const SYSTEM_ROLE_REGISTRY: ReadonlyArray<SystemRoleEntry> = Object.freez
     can_block_execution: false,
     description: "Enforces write-access policy on systemStateRegistry. Logs unauthorized attempts.",
   },
+  {
+    module: "finalSnapshotEngine",
+    role: "READ_ONLY_REPORTER",
+    can_block_execution: false,
+    description: "Captures one immutable snapshot per controller run with a verification hash.",
+  },
   // ── 3. DATA PRODUCERS ────────────────────────────────────────────────────
   {
     module: "fileSystemMap",
