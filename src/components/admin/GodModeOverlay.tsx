@@ -10,6 +10,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSystemStateStore, type ModuleKey } from "@/stores/systemStateStore";
 import { systemStateRegistry, type RegistrySnapshot } from "@/core/scanner/systemStateRegistry";
+import { useStealthStore } from "@/core/scanner/stealthMode";
 import { useAdminRole } from "@/hooks/useAdminRole";
 
 type PanelId = "system" | "heatmap" | "clusters" | "execution" | "reality";
@@ -183,7 +184,10 @@ export default function GodModeOverlay() {
 
   const visibleModules: PanelId[] = open ? ["system", "heatmap", "clusters", "execution", "reality"] : [];
 
+  const stealthActive = useStealthStore((s) => s.status === "ACTIVE");
   if (!isAdmin) return null;
+  // Stealth mode hides all visible diagnostics (overlay only via window.__godmode)
+  if (stealthActive) return null;
 
   // ── Render ───────────────────────────────────────────────────────────
   return (
