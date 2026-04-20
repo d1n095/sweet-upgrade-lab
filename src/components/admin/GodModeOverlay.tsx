@@ -186,12 +186,19 @@ export default function GodModeOverlay() {
     [slots],
   );
 
-  const visibleModules: PanelId[] = open ? ["system", "heatmap", "clusters", "execution", "reality"] : [];
+  const visibleModules: PanelId[] = open
+    ? ["system", "heatmap", "clusters", "execution", "reality", "command"]
+    : [];
 
+  const lastCommand = useCommandLayerStore((s) => s.last_command);
+  const commandLog = useCommandLayerStore((s) => s.log);
+  const syncStatus = useCommandLayerStore((s) => s.sync_status);
+  const activeMode = useSuperControlStore((s) => s.active_mode);
   const stealthActive = useStealthStore((s) => s.status === "ACTIVE");
+
   if (!isAdmin) return null;
-  // Stealth mode hides all visible diagnostics (overlay only via window.__godmode)
-  if (stealthActive) return null;
+  // Stealth hides overlay UNLESS GOD mode forces it visible
+  if (stealthActive && activeMode !== "GOD") return null;
 
   // ── Render ───────────────────────────────────────────────────────────
   return (
