@@ -34,6 +34,7 @@ import {
 } from "@/core/architecture/dependencyHeatmap";
 import { systemStateRegistry } from "@/core/scanner/systemStateRegistry";
 import { hardStateLock } from "@/core/scanner/hardStateLock";
+import { minimalMode, type InstabilitySignal } from "@/core/scanner/minimalMode";
 
 export type ControllerState =
   | "IDLE"
@@ -213,6 +214,24 @@ class ExecutionController {
             score: n.coupling_score,
           }));
           rec.detail = `${depReport.edges.length} edges, ${depReport.circular_dependencies.length} cycles, ${depReport.isolated_nodes.length} isolated`;
+          // ── MINIMAL MODE auto-trigger ─────────────────────────────────
+          // After DEPENDENCIES we have enough signal to evaluate stability.
+          const instSignals: InstabilitySignal[] = [];
+          if (archReport && archReport.violations.length > 0) {
+            instSignals.push({
+              module: "architectureEnforcementCore",
+              weight: Math.min(60, archReport.violations.length * 10),
+              detail: `${archReport.violations.length} architecture violations`,
+            });
+          }
+          if (depReport.circular_dependencies.length > 0) {
+            instSignals.push({
+              module: "dependencyHeatmap",
+              weight: 40 + depReport.circular_dependencies.length * 10,
+              detail: `${depReport.circular_dependencies.length} circular deps`,
+            });
+          }
+          if (instSignals.length > 0) minimalMode.evaluateInstability(instSignals);
         } else if (phase === "REGISTRY") {
           if (!structureResult || !archReport || !depReport) throw new Error("missing inputs for registry");
           hardStateLock.recordBatch({

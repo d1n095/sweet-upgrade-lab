@@ -30,6 +30,7 @@ import { AbsoluteControlPanel } from "@/components/admin/AbsoluteControlPanel";
 import { QueueCollapsePanel } from "@/components/admin/QueueCollapsePanel";
 import { SignalDeduplicatorPanel } from "@/components/admin/SignalDeduplicatorPanel";
 import { HardStateLockPanel } from "@/components/admin/HardStateLockPanel";
+import { MinimalModePanel } from "@/components/admin/MinimalModePanel";
 
 type WorkItem = {
   id: string;
@@ -1765,6 +1766,8 @@ const SystemExplorer = () => {
             <SignalDeduplicatorPanel />
             {/* HARD STATE LOCK — only AUTHORITY may write system state */}
             <HardStateLockPanel />
+            {/* MINIMAL MODE — kill-switch for non-essential subsystems on instability */}
+            <MinimalModePanel />
             {/* UNIFIED SYSTEM TRUTH — single source of truth, orchestrated by ExecutionController */}
             <SystemTruthPanel />
 

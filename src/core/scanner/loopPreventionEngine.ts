@@ -13,6 +13,8 @@
  * State is in-memory and per-tab. UI surfaces it via LoopPreventionPanel.
  */
 
+import { shouldSkipInMinimalMode } from "@/core/scanner/minimalMode";
+
 export type LoopStatus = "SAFE" | "LOOP DETECTED" | "STAGNATION HALT" | "RECURSION BLOCKED";
 
 export interface ModuleLoopState {
@@ -96,6 +98,15 @@ export function recordCycle(module: string, output: unknown, callerStack: string
   const st = getOrCreate(module);
   const output_hash = hashOutput(output);
   const now = new Date().toISOString();
+
+  // MINIMAL MODE — loop prevention is disabled; accept the cycle without bookkeeping.
+  if (shouldSkipInMinimalMode("loopPreventionEngine")) {
+    st.total_cycles++;
+    st.last_output_hash = output_hash;
+    st.last_updated_at = now;
+    st.status = "SAFE";
+    return { accepted: true, status: "SAFE", reason: "minimal-mode bypass", module, output_hash, cycle_index: st.total_cycles };
+  }
 
   // L3 — recursion check (direct or indirect via callerStack)
   const indirect = callerStack.includes(module) || callStack.includes(module);

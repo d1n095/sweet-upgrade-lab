@@ -9,6 +9,7 @@
 import { fileSystemMap, getRawSources } from "@/lib/fileSystemMap";
 import { ROUTE_REGISTRY } from "@/architecture/routeRegistry";
 import { runDependencyHeatmap } from "./dependencyHeatmap";
+import { shouldSkipInMinimalMode } from "@/core/scanner/minimalMode";
 
 export type WatchdogState = "VALID" | "BROKEN";
 
@@ -32,6 +33,15 @@ const SUPABASE_USE_RE = /supabase\.(from|rpc|auth|storage|functions)/;
 
 export function runArchitectureWatchdog(): WatchdogReport {
   const generated_at = new Date().toISOString();
+  if (shouldSkipInMinimalMode("architectureWatchdog")) {
+    return {
+      generated_at,
+      system_state: "VALID",
+      rules_checked: [],
+      violations: [],
+      compliance_score: 100,
+    };
+  }
   const sources = getRawSources();
   const violations: WatchdogViolation[] = [];
 

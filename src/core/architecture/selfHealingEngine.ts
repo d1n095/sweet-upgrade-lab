@@ -8,6 +8,7 @@
 
 import { fileSystemMap, getRawSources } from "@/lib/fileSystemMap";
 import { runDependencyHeatmap } from "./dependencyHeatmap";
+import { shouldSkipInMinimalMode } from "@/core/scanner/minimalMode";
 
 export type HealAction =
   | "MOVE"
@@ -100,6 +101,17 @@ function proposeMove(path: string, targetFolder: string): string {
 
 export function runSelfHealing(): HealReport {
   const generated_at = new Date().toISOString();
+  if (shouldSkipInMinimalMode("selfHealingEngine")) {
+    const passthrough = fileSystemMap.map((f) => ({ path: f.path, folder: f.folder }));
+    return {
+      generated_at,
+      before: passthrough,
+      after: passthrough,
+      applied_rules: [],
+      steps: [],
+      summary: { moves: 0, deprecations: 0, extractions: 0, renames: 0, untouched: passthrough.length },
+    };
+  }
   const sources = getRawSources();
   const steps: HealStep[] = [];
   const ruleSet = new Set<string>();
