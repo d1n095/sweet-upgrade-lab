@@ -28,7 +28,8 @@ export type EvolutionFlagKey =
   | "cluster_impact_simulator"
   | "cluster_memory"
   | "cluster_boundary_enforcer"
-  | "cluster_render_optimizer";
+  | "cluster_render_optimizer"
+  | "cluster_meta_observer";
 
 interface FeatureFlagsState {
   flags: Record<EvolutionFlagKey, FlagState>;
@@ -51,6 +52,7 @@ const DEFAULTS: Record<EvolutionFlagKey, FlagState> = {
   cluster_memory: "internal_only",
   cluster_boundary_enforcer: "internal_only",
   cluster_render_optimizer: "internal_only",
+  cluster_meta_observer: "internal_only",
 };
 
 export const useFeatureFlagsStore = create<FeatureFlagsState>()(
@@ -85,4 +87,5 @@ export const FLAG_LABELS: Record<EvolutionFlagKey, string> = {
   cluster_memory: "Cluster Memory",
   cluster_boundary_enforcer: "Cluster Boundary Enforcer",
   cluster_render_optimizer: "Cluster Render Optimizer",
+  cluster_meta_observer: "Cluster Meta Observer",
 };
