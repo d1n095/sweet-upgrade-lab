@@ -24,7 +24,21 @@ import { systemStateRegistry } from "@/core/scanner/systemStateRegistry";
 import { useCommandLayerStore } from "@/core/scanner/commandLayer";
 import { useSuperControlStore, applyMode, SUPER_MODES, type SuperMode } from "@/core/scanner/superControl";
 import { fileSystemMap, getFileContent } from "@/lib/fileSystemMap";
-import { getSecurityReport } from "@/core/scanner/blackboxHardening";
+// blackboxHardening is not present in this project; derive a lightweight security report locally.
+function getSecurityReport() {
+  const snap = systemStateRegistry.snapshot();
+  const invalid = snap.invalid_states.length;
+  const integrity_score = Math.max(0, 100 - invalid * 10);
+  return {
+    integrity_score,
+    security_status: invalid === 0 ? "SECURE" : invalid < 3 ? "DEGRADED" : "BLOCKED",
+    detected_tampering: snap.invalid_states.map((i, idx) => ({
+      id: `inv-${idx}`,
+      kind: i.state_key,
+      detail: i.reason,
+    })),
+  };
+}
 import { runFailureSimulation } from "@/core/evolution/failureSimulation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
