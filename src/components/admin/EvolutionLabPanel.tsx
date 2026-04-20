@@ -9,8 +9,8 @@ import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Beaker, FlaskConical, Network, ShieldCheck, Workflow, Sparkles, Activity } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Beaker, FlaskConical, Network, ShieldCheck, Workflow, Sparkles, Activity, Shuffle, HeartPulse, Radar, Brain } from "lucide-react";
 import {
   useFeatureFlagsStore,
   FLAG_LABELS,
@@ -26,6 +26,10 @@ import { runExperiment, type ExperimentResult, type ExperimentSnapshot } from "@
 import { evaluateEvolutionGuard, type EvolutionGuardReport } from "@/core/evolution/evolutionGuard";
 import { runEvolutionCycle, type EvolutionCycleReport } from "@/core/evolution/evolutionLoop";
 import { buildClusterRegistry, type ClusterRegistry } from "@/core/evolution/clusterIntelligence";
+import { evaluateAutoReorganizer, type AutoReorganizerReport } from "@/core/evolution/autoReorganizer";
+import { evaluateClusterHealth, type ClusterHealthReport } from "@/core/evolution/clusterHealthScoring";
+import { simulateImpact, type ImpactReport } from "@/core/evolution/clusterImpactSimulator";
+import { evaluateClusterMemory, recordSnapshot, type ClusterMemoryReport } from "@/core/evolution/clusterMemory";
 import { useSystemStateStore } from "@/stores/systemStateStore";
 
 interface Props {
@@ -47,6 +51,11 @@ export function EvolutionLabPanel({ isFounder }: Props) {
   const [guard, setGuard] = useState<EvolutionGuardReport | null>(null);
   const [cycle, setCycle] = useState<EvolutionCycleReport | null>(null);
   const [clusters, setClusters] = useState<ClusterRegistry | null>(null);
+  const [reorg, setReorg] = useState<AutoReorganizerReport | null>(null);
+  const [clusterHealth, setClusterHealth] = useState<ClusterHealthReport | null>(null);
+  const [impact, setImpact] = useState<ImpactReport | null>(null);
+  const [impactFile, setImpactFile] = useState("");
+  const [memory, setMemory] = useState<ClusterMemoryReport | null>(null);
 
   // Best-effort inputs derived from systemStateStore — all degrade safely.
   const inputs = useMemo(() => {
@@ -267,7 +276,145 @@ export function EvolutionLabPanel({ isFounder }: Props) {
         <p className="text-xs text-muted-foreground">Run cluster intelligence to populate.</p>
       ),
     },
+    {
+      key: "auto_reorganizer",
+      icon: <Shuffle className="w-4 h-4" />,
+      run: () => {
+        const reg = clusters ?? buildClusterRegistry(inputs.depGraph);
+        if (!clusters) setClusters(reg);
+        setReorg(evaluateAutoReorganizer(reg));
+      },
+      body: reorg ? (
+        <div className="text-xs space-y-2">
+          <p className="text-muted-foreground">{reorg.notes}</p>
+          {reorg.suggestions.length > 0 && (
+            <ul className="space-y-1">
+              {reorg.suggestions.map((s) => (
+                <li key={s.id} className="border rounded p-2">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline">{s.action}</Badge>
+                    {s.safe && <Badge variant="secondary">safe</Badge>}
+                  </div>
+                  <p className="font-mono mt-1 break-all">{s.target}</p>
+                  <p className="text-muted-foreground mt-1">{s.rationale}</p>
+                  <p className="mt-1">→ {s.expected_gain}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">No reorg suggestions yet.</p>
+      ),
+    },
+    {
+      key: "cluster_health_scoring",
+      icon: <HeartPulse className="w-4 h-4" />,
+      run: () => {
+        const reg = clusters ?? buildClusterRegistry(inputs.depGraph);
+        if (!clusters) setClusters(reg);
+        setClusterHealth(evaluateClusterHealth(reg));
+      },
+      body: clusterHealth ? (
+        <div className="text-xs space-y-2">
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="outline">healthy {clusterHealth.summary.healthy}</Badge>
+            <Badge variant="secondary">inefficient {clusterHealth.summary.inefficient}</Badge>
+            <Badge variant={clusterHealth.summary.unstable ? "destructive" : "outline"}>
+              unstable {clusterHealth.summary.unstable}
+            </Badge>
+            <Badge variant={clusterHealth.summary.critical ? "destructive" : "outline"}>
+              critical {clusterHealth.summary.critical}
+            </Badge>
+          </div>
+          {clusterHealth.alerts.length > 0 && (
+            <ul className="list-disc pl-4 text-muted-foreground">
+              {clusterHealth.alerts.slice(0, 6).map((a, i) => (
+                <li key={i}>
+                  <span className="font-mono">{a.cluster_id}</span> — {a.flag}: {a.reason}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">No cluster health computed.</p>
+      ),
+    },
+    {
+      key: "cluster_impact_simulator",
+      icon: <Radar className="w-4 h-4" />,
+      run: () => {
+        if (!impactFile.trim()) return;
+        const reg = clusters ?? buildClusterRegistry(inputs.depGraph);
+        if (!clusters) setClusters(reg);
+        setImpact(simulateImpact(impactFile.trim(), { edges: inputs.depGraph.edges, registry: reg }));
+      },
+      body: (
+        <div className="text-xs space-y-2">
+          <Input
+            placeholder="src/components/SomeFile.tsx"
+            value={impactFile}
+            onChange={(e) => setImpactFile(e.target.value)}
+            className="h-7 text-xs"
+          />
+          {impact && (
+            <div className="space-y-1">
+              <Badge variant={impact.risk_level === "critical" || impact.risk_level === "high" ? "destructive" : "outline"}>
+                {impact.risk_level}
+              </Badge>
+              <p>Re-render spread: {impact.rerender_spread}</p>
+              <p className="text-muted-foreground">{impact.reason}</p>
+              {impact.affected_clusters.length > 0 && (
+                <p className="font-mono text-[10px]">
+                  clusters: {impact.affected_clusters.slice(0, 6).map((c) => c.cluster_id).join(", ")}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "cluster_memory",
+      icon: <Brain className="w-4 h-4" />,
+      run: () => {
+        const reg = clusters ?? buildClusterRegistry(inputs.depGraph);
+        if (!clusters) setClusters(reg);
+        const health = clusterHealth ?? evaluateClusterHealth(reg);
+        if (!clusterHealth) setClusterHealth(health);
+        recordSnapshot(reg, health);
+        setMemory(evaluateClusterMemory());
+      },
+      body: memory ? (
+        <div className="text-xs space-y-2">
+          <p className="text-muted-foreground">Snapshots: {memory.snapshot_count}</p>
+          {memory.predictions.length > 0 && (
+            <ul className="space-y-1">
+              {memory.predictions.slice(0, 4).map((p, i) => (
+                <li key={i} className="border rounded p-2">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="destructive">{p.confidence}</Badge>
+                    <span className="font-mono">{p.cluster_id}</span>
+                  </div>
+                  <p className="mt-1">{p.prediction}</p>
+                  <p className="text-muted-foreground mt-1">→ {p.recommendation}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+          <ul className="list-disc pl-4 text-muted-foreground">
+            {memory.recommendations.map((r, i) => (
+              <li key={i}>{r}</li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">Run to record a snapshot &amp; compute predictions.</p>
+      ),
+    },
   ];
+
 
   return (
     <Card>
