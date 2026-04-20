@@ -69,10 +69,10 @@ import {
   type CompanyStackReport,
 } from "@/core/business/autonomousCompanyStack";
 import {
-  runCampaignCalendar,
-  type CampaignCalendarInput,
-  type CampaignCalendarReport,
-} from "@/core/business/campaignCalendar";
+  runAutoCampaignTrigger,
+  type AutoTriggerInput,
+  type AutoTriggerReport,
+} from "@/core/business/autoCampaignTrigger";
 
 export type CommandStatus = "pending" | "ok" | "error";
 
@@ -272,8 +272,8 @@ declare global {
       lastCompanyStack: () => CompanyStackReport | null;
       runDiscountEngine: (input: DiscountEngineInput) => Promise<CommandEntry>;
       lastDiscountReport: () => DiscountEngineReport | null;
-      runCampaignCalendar: (input: CampaignCalendarInput) => Promise<CommandEntry>;
-      lastCampaignCalendar: () => CampaignCalendarReport | null;
+      runAutoCampaignTrigger: (input: AutoTriggerInput) => Promise<CommandEntry>;
+      lastAutoCampaignReport: () => AutoTriggerReport | null;
     };
   }
 }
@@ -289,7 +289,7 @@ let lastSecurityReport: SecurityReport | null = null;
 let lastMetaReport: MetaSystemReport | null = null;
 let lastDiscountReport: DiscountEngineReport | null = null;
 let lastCompanyStackReport: CompanyStackReport | null = null;
-let lastCampaignCalendarReport: CampaignCalendarReport | null = null;
+let lastAutoCampaignReport: AutoTriggerReport | null = null;
 
 if (typeof window !== "undefined") {
   ensureRegistrySubscription();
@@ -400,11 +400,11 @@ if (typeof window !== "undefined") {
       return report;
     }, [`${input.products.length}p / ${input.events.length}ev`]),
     lastDiscountReport: () => lastDiscountReport,
-    runCampaignCalendar: (input) => dispatchCommand("campaign.calendar", () => {
-      const report = runCampaignCalendar(input);
-      lastCampaignCalendarReport = report;
+    runAutoCampaignTrigger: (input) => dispatchCommand("autoCampaign.run", () => {
+      const report = runAutoCampaignTrigger(input);
+      lastAutoCampaignReport = report;
       return report;
-    }, [`${input.events.length} events`]),
-    lastCampaignCalendar: () => lastCampaignCalendarReport,
+    }, [`${input.products.length} products`]),
+    lastAutoCampaignReport: () => lastAutoCampaignReport,
   };
 }
