@@ -38,7 +38,13 @@ export type EvolutionFlagKey =
   | "integrity_monitor"
   | "production_readiness"
   | "evolution_tracker"
-  | "architecture_clusterer";
+  | "architecture_clusterer"
+  | "live_system_model"
+  | "failure_predictor"
+  | "intent_alignment"
+  | "complexity_reducer"
+  | "code_quarantine"
+  | "change_simulator";
 
 interface FeatureFlagsState {
   flags: Record<EvolutionFlagKey, FlagState>;
@@ -71,6 +77,12 @@ const DEFAULTS: Record<EvolutionFlagKey, FlagState> = {
   production_readiness: "internal_only",
   evolution_tracker: "internal_only",
   architecture_clusterer: "internal_only",
+  live_system_model: "internal_only",
+  failure_predictor: "internal_only",
+  intent_alignment: "internal_only",
+  complexity_reducer: "internal_only",
+  code_quarantine: "internal_only",
+  change_simulator: "internal_only",
 };
 
 export const useFeatureFlagsStore = create<FeatureFlagsState>()(
@@ -115,4 +127,10 @@ export const FLAG_LABELS: Record<EvolutionFlagKey, string> = {
   production_readiness: "Production Readiness",
   evolution_tracker: "Evolution Tracker",
   architecture_clusterer: "Architecture Clusterer",
+  live_system_model: "Live System Model",
+  failure_predictor: "Failure Predictor",
+  intent_alignment: "Intent Alignment",
+  complexity_reducer: "Complexity Reducer",
+  code_quarantine: "Code Quarantine",
+  change_simulator: "Change Simulator",
 };
