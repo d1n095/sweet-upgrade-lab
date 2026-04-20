@@ -1746,6 +1746,60 @@ const SystemExplorer = () => {
         {/* FILES TAB */}
         {mainTab === "files" && (
           <div className="space-y-3">
+            {/* SYSTEM ORCHESTRATOR — strict step ordering */}
+            {(() => {
+              const orch = runOrchestrator();
+              const statusColor =
+                orch.status === "VERIFIED" ? "text-primary" :
+                orch.status === "WARNING"  ? "text-amber-600 dark:text-amber-400" :
+                                              "text-destructive";
+              const borderColor =
+                orch.status === "BLOCKED" ? "border-destructive/50 bg-destructive/5" :
+                orch.status === "WARNING" ? "border-amber-500/40 bg-amber-500/5" :
+                                             "border-primary/40 bg-primary/5";
+              return (
+                <Card className={borderColor}>
+                  <CardHeader className="py-2 flex flex-row items-center justify-between">
+                    <CardTitle className="text-xs font-mono">🎛 System Orchestrator — Step Ordering</CardTitle>
+                    <Badge variant="outline" className="text-[10px]">
+                      <span className={`font-bold ${statusColor}`}>{orch.status}</span> · {orch.duration_ms}ms
+                    </Badge>
+                  </CardHeader>
+                  <CardContent className="text-[11px] font-mono space-y-1">
+                    <div className="flex flex-wrap gap-3 pb-1 border-b border-border/40">
+                      <div>files: <span className="font-bold">{orch.summary.files}</span></div>
+                      <div>routes: <span className="font-bold">{orch.summary.routes_file_backed}/{orch.summary.routes_registered}</span></div>
+                      <div>cycles: <span className="font-bold">{orch.summary.cycles}</span></div>
+                      <div>arch_violations: <span className="font-bold">{orch.summary.arch_violations}</span></div>
+                      <div>healing_required: <span className="font-bold">{orch.summary.healing_required ? "yes" : "no"}</span></div>
+                    </div>
+                    <ol className="space-y-0.5">
+                      {orch.steps.map((s) => {
+                        const icon =
+                          s.status === "ok" ? "✅" :
+                          s.status === "warning" ? "⚠️" :
+                          s.status === "skipped" ? "⏭" : "❌";
+                        const color =
+                          s.status === "ok" ? "text-primary" :
+                          s.status === "warning" ? "text-amber-600 dark:text-amber-400" :
+                          s.status === "skipped" ? "text-muted-foreground" :
+                                                    "text-destructive";
+                        return (
+                          <li key={s.step} className={color}>
+                            {icon} step {s.step}: {s.name} <span className="text-muted-foreground">({s.duration_ms}ms)</span>
+                            {s.reason && <span className="text-muted-foreground"> — {s.reason}</span>}
+                          </li>
+                        );
+                      })}
+                    </ol>
+                    <div className="pt-1 border-t border-border/40 text-muted-foreground text-[10px]">
+                      Block rule: if step 1 (Truth Layer) fails, steps 2–5 are skipped.
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })()}
+
             {/* SCANNER v2 — verified through zero-fake-state guard */}
             {(() => {
               const env = runScannerV2Verified();
