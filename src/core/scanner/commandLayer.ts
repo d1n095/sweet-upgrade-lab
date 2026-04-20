@@ -42,6 +42,11 @@ import {
   type ProtocolSpec,
 } from "@/core/evolution/protocolLayer";
 import {
+  getSecurityReport,
+  getTamperLog,
+  type SecurityReport,
+} from "@/core/scanner/blackboxHardening";
+import {
   buildConsciousness,
   type ProjectSnapshot,
   type ConsciousnessReport,
