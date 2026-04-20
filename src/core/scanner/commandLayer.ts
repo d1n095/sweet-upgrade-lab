@@ -372,5 +372,11 @@ if (typeof window !== "undefined") {
       return report;
     }),
     lastMetaReport: () => lastMetaReport,
+    companyStack: (input) => dispatchCommand("company.stack", () => {
+      const report = buildCompanyStackReport(input);
+      lastCompanyStackReport = report;
+      return report;
+    }, [`${input.features.length} features · ${input.base_tiers.length} tiers`]),
+    lastCompanyStack: () => lastCompanyStackReport,
   };
 }
