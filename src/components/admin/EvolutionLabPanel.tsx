@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Beaker, FlaskConical, Network, ShieldCheck, Workflow, Sparkles, Activity, Shuffle, HeartPulse, Radar, Brain } from "lucide-react";
+import { Beaker, FlaskConical, Network, ShieldCheck, Workflow, Sparkles, Activity, Shuffle, HeartPulse, Radar, Brain, Lock, Gauge } from "lucide-react";
 import {
   useFeatureFlagsStore,
   FLAG_LABELS,
@@ -30,6 +30,8 @@ import { evaluateAutoReorganizer, type AutoReorganizerReport } from "@/core/evol
 import { evaluateClusterHealth, type ClusterHealthReport } from "@/core/evolution/clusterHealthScoring";
 import { simulateImpact, type ImpactReport } from "@/core/evolution/clusterImpactSimulator";
 import { evaluateClusterMemory, recordSnapshot, type ClusterMemoryReport } from "@/core/evolution/clusterMemory";
+import { enforceClusterBoundaries, type BoundaryReport } from "@/core/evolution/clusterBoundaryEnforcer";
+import { evaluateClusterRenderOptimizer, type RenderOptimizerReport } from "@/core/evolution/clusterRenderOptimizer";
 import { useSystemStateStore } from "@/stores/systemStateStore";
 
 interface Props {
@@ -56,6 +58,8 @@ export function EvolutionLabPanel({ isFounder }: Props) {
   const [impact, setImpact] = useState<ImpactReport | null>(null);
   const [impactFile, setImpactFile] = useState("");
   const [memory, setMemory] = useState<ClusterMemoryReport | null>(null);
+  const [boundary, setBoundary] = useState<BoundaryReport | null>(null);
+  const [renderOpt, setRenderOpt] = useState<RenderOptimizerReport | null>(null);
 
   // Best-effort inputs derived from systemStateStore — all degrade safely.
   const inputs = useMemo(() => {
@@ -413,6 +417,115 @@ export function EvolutionLabPanel({ isFounder }: Props) {
         <p className="text-xs text-muted-foreground">Run to record a snapshot &amp; compute predictions.</p>
       ),
     },
+    {
+      key: "cluster_boundary_enforcer",
+      icon: <Lock className="w-4 h-4" />,
+      run: () => {
+        const reg = clusters ?? buildClusterRegistry(inputs.depGraph);
+        if (!clusters) setClusters(reg);
+        setBoundary(
+          enforceClusterBoundaries({
+            edges: inputs.depGraph.edges,
+            registry: reg,
+          })
+        );
+      },
+      body: boundary ? (
+        <div className="text-xs space-y-2">
+          <div className="flex flex-wrap gap-2">
+            <Badge
+              variant={
+                boundary.status === "OK"
+                  ? "outline"
+                  : boundary.status === "WARN"
+                    ? "secondary"
+                    : "destructive"
+              }
+            >
+              {boundary.status}
+            </Badge>
+            <Badge variant="outline">R1 orphans {boundary.summary.R1}</Badge>
+            <Badge variant="outline">R2 broken {boundary.summary.R2}</Badge>
+            <Badge variant="outline">R3 layer {boundary.summary.R3}</Badge>
+          </div>
+          <p className="text-muted-foreground">{boundary.notes}</p>
+          {boundary.orphan_assignments.length > 0 && (
+            <div>
+              <p className="font-medium">Orphan assignments</p>
+              <ul className="space-y-1">
+                {boundary.orphan_assignments.slice(0, 5).map((o) => (
+                  <li key={o.file} className="border rounded p-2">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary">{o.confidence}</Badge>
+                      <span className="font-mono break-all">{o.file}</span>
+                    </div>
+                    <p className="mt-1">→ {o.suggested_cluster}</p>
+                    <p className="text-muted-foreground">{o.reason}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {boundary.broken_link_fixes.length > 0 && (
+            <div>
+              <p className="font-medium">Broken link fixes</p>
+              <ul className="space-y-1">
+                {boundary.broken_link_fixes.slice(0, 5).map((b, i) => (
+                  <li key={i} className="border rounded p-2">
+                    <p className="font-mono break-all">{b.from}</p>
+                    <p className="text-muted-foreground break-all">✗ {b.broken_target}</p>
+                    {b.suggested_target && (
+                      <p className="break-all">→ {b.suggested_target}</p>
+                    )}
+                    <p className="text-muted-foreground">{b.reason}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">No boundary scan yet.</p>
+      ),
+    },
+    {
+      key: "cluster_render_optimizer",
+      icon: <Gauge className="w-4 h-4" />,
+      run: () => {
+        const reg = clusters ?? buildClusterRegistry(inputs.depGraph);
+        if (!clusters) setClusters(reg);
+        setRenderOpt(evaluateClusterRenderOptimizer(reg));
+      },
+      body: renderOpt ? (
+        <div className="text-xs space-y-2">
+          <div className="flex flex-wrap gap-2">
+            <Badge variant={renderOpt.totals.cascade_high ? "destructive" : "outline"}>
+              {renderOpt.totals.cascade_high} high-cascade
+            </Badge>
+            <Badge variant="secondary">
+              ~{renderOpt.totals.estimated_renders_saved} renders saved
+            </Badge>
+          </div>
+          <p className="text-muted-foreground">{renderOpt.notes}</p>
+          {renderOpt.optimizations.length > 0 && (
+            <ul className="space-y-1">
+              {renderOpt.optimizations.slice(0, 6).map((o) => (
+                <li key={o.id} className="border rounded p-2">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline">{o.kind.replace(/_/g, " ")}</Badge>
+                    <span className="font-mono">{o.cluster_id}</span>
+                  </div>
+                  <p className="mt-1">{o.rationale}</p>
+                  <p className="text-muted-foreground">→ {o.expected_gain}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">No render analysis yet.</p>
+      ),
+    },
   ];
 
 
@@ -425,7 +538,7 @@ export function EvolutionLabPanel({ isFounder }: Props) {
           <Badge variant="outline" className="ml-2">internal</Badge>
         </CardTitle>
         <p className="text-xs text-muted-foreground">
-          Observability-first. All 7 engines run on-demand and never mutate project code.
+          Observability-first. All engines run on-demand and never mutate project code.
         </p>
       </CardHeader>
       <CardContent className="space-y-4">

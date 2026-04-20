@@ -26,7 +26,9 @@ export type EvolutionFlagKey =
   | "auto_reorganizer"
   | "cluster_health_scoring"
   | "cluster_impact_simulator"
-  | "cluster_memory";
+  | "cluster_memory"
+  | "cluster_boundary_enforcer"
+  | "cluster_render_optimizer";
 
 interface FeatureFlagsState {
   flags: Record<EvolutionFlagKey, FlagState>;
@@ -47,6 +49,8 @@ const DEFAULTS: Record<EvolutionFlagKey, FlagState> = {
   cluster_health_scoring: "internal_only",
   cluster_impact_simulator: "internal_only",
   cluster_memory: "internal_only",
+  cluster_boundary_enforcer: "internal_only",
+  cluster_render_optimizer: "internal_only",
 };
 
 export const useFeatureFlagsStore = create<FeatureFlagsState>()(
@@ -79,4 +83,6 @@ export const FLAG_LABELS: Record<EvolutionFlagKey, string> = {
   cluster_health_scoring: "Cluster Health Scoring",
   cluster_impact_simulator: "Cluster Impact Simulator",
   cluster_memory: "Cluster Memory",
+  cluster_boundary_enforcer: "Cluster Boundary Enforcer",
+  cluster_render_optimizer: "Cluster Render Optimizer",
 };
