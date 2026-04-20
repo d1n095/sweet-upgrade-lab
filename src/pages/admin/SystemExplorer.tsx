@@ -19,6 +19,7 @@ import ReactMarkdown from "react-markdown";
 import { useNavigate } from "react-router-dom";
 import { ScanControls, IssueAnalysisPanel, SystemCommandCenter } from "./system";
 import { NoAiArchitectureDashboard } from "@/components/admin/NoAiArchitectureDashboard";
+import { ExecutionGovernorPanel } from "@/components/admin/ExecutionGovernorPanel";
 
 type WorkItem = {
   id: string;
@@ -1746,6 +1747,8 @@ const SystemExplorer = () => {
         {/* FILES TAB */}
         {mainTab === "files" && (
           <div className="space-y-3">
+            {/* EXECUTION GOVERNOR — single-flight scheduler */}
+            <ExecutionGovernorPanel />
             {/* NO-AI ARCHITECTURE LAYER — deterministic rule-based engines */}
             <NoAiArchitectureDashboard />
             {/* SCANNER v2 — verified through zero-fake-state guard */}
