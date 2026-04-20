@@ -31,6 +31,7 @@ import { versionedArchitectureStore } from "@/core/scanner/versionedArchitecture
 import { rollbackEngine } from "@/core/scanner/rollbackEngine";
 import { regressionGuard } from "@/core/scanner/regressionGuard";
 import { releaseGate } from "@/core/scanner/releaseGate";
+import { patternMemory } from "@/core/scanner/patternMemory";
 
 export type PipelineStageName =
   | "TRUTH_SCAN"
@@ -279,6 +280,18 @@ class DeterministicBuildPipeline {
               : `${Object.keys(result.diff.changes).length} field changes vs ${result.diff.from_version_id}`
           }`
         );
+        // ── Pattern Memory — store an observation per committed version (no interpretation) ──
+        try {
+          const entry = patternMemory.observe(result.version);
+          if (entry) {
+            this.log(
+              run,
+              `🧠 pattern memory recorded for ${result.version.version_id} (top=${entry.top_connected.length}, viol=${entry.violations.length})`
+            );
+          }
+        } catch (e: any) {
+          this.log(run, `… pattern memory observe threw: ${e?.message ?? e}`);
+        }
       } else {
         this.log(run, `… version not committed (see Versioned Architecture panel)`);
       }

@@ -146,6 +146,12 @@ export const SYSTEM_ROLE_REGISTRY: ReadonlyArray<SystemRoleEntry> = Object.freez
     can_block_execution: false,
     description: "Zero-tolerance binary verdict (PASS/FAIL). Any violation across architecture, dep graph, regression, release gate, or drift = FAIL. No warnings.",
   },
+  {
+    module: "patternMemory",
+    role: "READ_ONLY_REPORTER",
+    can_block_execution: false,
+    description: "Stores per-version observations: top 10 connected files, violations, file kinds. Derives stable files, repeated violations, and frequently moved files by raw counting only.",
+  },
   // ── 3. DATA PRODUCERS ────────────────────────────────────────────────────
   {
     module: "fileSystemMap",
