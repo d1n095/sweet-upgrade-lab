@@ -51,6 +51,13 @@ import {
   type ProjectSnapshot,
   type ConsciousnessReport,
 } from "@/core/evolution/multiProjectConsciousness";
+import {
+  setMetaMode,
+  getMetaReport,
+  META_MODES,
+  type MetaMode,
+  type MetaSystemReport,
+} from "@/core/scanner/metaControl";
 
 export type CommandStatus = "pending" | "ok" | "error";
 
