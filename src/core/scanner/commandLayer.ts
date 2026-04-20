@@ -68,6 +68,11 @@ import {
   type CompanyStackInput,
   type CompanyStackReport,
 } from "@/core/business/autonomousCompanyStack";
+import {
+  runCampaignCalendar,
+  type CampaignCalendarInput,
+  type CampaignCalendarReport,
+} from "@/core/business/campaignCalendar";
 
 export type CommandStatus = "pending" | "ok" | "error";
 
