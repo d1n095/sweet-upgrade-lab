@@ -296,5 +296,11 @@ if (typeof window !== "undefined") {
       return report;
     }, [`${input.failure_chains.length} chains`]),
     lastPreFailure: () => lastPreFailureReport,
+    generateSyntheticUniverse: (input) => dispatchCommand("syntheticUniverse.generate", () => {
+      const report = generateSyntheticUniverse(input);
+      lastSyntheticUniverseReport = report;
+      return report;
+    }, [`${(input.known_patterns ?? []).length} patterns`]),
+    lastSyntheticUniverse: () => lastSyntheticUniverseReport,
   };
 }
