@@ -25,6 +25,11 @@ import {
   type CrossSystemEvolutionReport,
 } from "@/core/evolution/crossSystemEvolution";
 import {
+  detectPreFailures,
+  type PreFailureInput,
+  type PreFailureReport,
+} from "@/core/evolution/preFailureDetection";
+import {
   buildConsciousness,
   type ProjectSnapshot,
   type ConsciousnessReport,
@@ -210,6 +215,8 @@ declare global {
       lastFailureSim: () => FailureSimulationReport | null;
       evolveAcrossSystems: (input: CrossSystemEvolutionInput) => Promise<CommandEntry>;
       lastCrossEvolution: () => CrossSystemEvolutionReport | null;
+      detectPreFailures: (input: PreFailureInput) => Promise<CommandEntry>;
+      lastPreFailure: () => PreFailureReport | null;
     };
   }
 }
@@ -218,6 +225,7 @@ let lastRefactorReport: RefactorCycleReport | null = null;
 let lastConsciousnessReport: ConsciousnessReport | null = null;
 let lastFailureSimReport: FailureSimulationReport | null = null;
 let lastCrossEvolutionReport: CrossSystemEvolutionReport | null = null;
+let lastPreFailureReport: PreFailureReport | null = null;
 
 if (typeof window !== "undefined") {
   ensureRegistrySubscription();
@@ -274,5 +282,11 @@ if (typeof window !== "undefined") {
       return report;
     }, [`${input.reports.length} projects`]),
     lastCrossEvolution: () => lastCrossEvolutionReport,
+    detectPreFailures: (input) => dispatchCommand("preFailure.detect", () => {
+      const report = detectPreFailures(input);
+      lastPreFailureReport = report;
+      return report;
+    }, [`${input.failure_chains.length} chains`]),
+    lastPreFailure: () => lastPreFailureReport,
   };
 }
