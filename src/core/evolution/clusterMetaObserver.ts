@@ -14,7 +14,7 @@
  */
 import type { ClusterRegistry } from "./clusterIntelligence";
 import type { ClusterHealthReport } from "./clusterHealthScoring";
-import { evaluateClusterMemory, type ClusterMemoryReport } from "./clusterMemory";
+import { evaluateClusterMemory, getHistory, type ClusterMemoryReport } from "./clusterMemory";
 
 export type DriftKind =
   | "cluster_added"
