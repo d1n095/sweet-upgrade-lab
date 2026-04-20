@@ -5,7 +5,7 @@ import { safeInvoke } from "@/lib/safeInvoke";
 import { useWorkQueueStore } from "@/stores/workQueueStore";
 import { fileSystemMap, type FileEntry, getFileContent, getCodeIndex, getDuplicatedLines, getCodeIssues, getRawSources, scanFileContent, scanInputSummary } from "@/lib/fileSystemMap";
 import { runTruthEngine } from "@/architecture/truthEngine";
-import { runScannerV2 } from "@/architecture/scannerV2";
+import { runScannerV2, runScannerV2Verified } from "@/architecture/scannerV2";
 import { ROUTE_REGISTRY } from "@/architecture/routeRegistry";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useFounderRole } from "@/hooks/useFounderRole";
@@ -1745,57 +1745,77 @@ const SystemExplorer = () => {
         {/* FILES TAB */}
         {mainTab === "files" && (
           <div className="space-y-3">
-            {/* SCANNER v2 — official entrypoint, fail-loud */}
+            {/* SCANNER v2 — verified through zero-fake-state guard */}
             {(() => {
-              const v2 = runScannerV2();
-              const statusColor = v2.scanner_status === "VERIFIED" ? "text-primary" : "text-destructive";
+              const env = runScannerV2Verified();
+              const blocked = env.verification_status !== "TRUE";
+              const v2 = blocked ? null : (env.payload as Exclude<typeof env.payload, string>);
+              const statusColor = blocked
+                ? "text-destructive"
+                : v2!.scanner_status === "VERIFIED"
+                ? "text-primary"
+                : "text-destructive";
               return (
-                <Card className="border-primary/40 bg-primary/5">
+                <Card className={blocked ? "border-destructive/50 bg-destructive/5" : "border-primary/40 bg-primary/5"}>
                   <CardHeader className="py-2 flex flex-row items-center justify-between">
-                    <CardTitle className="text-xs font-mono">🔬 Scanner v2 — Truth Engine (official)</CardTitle>
-                    <Badge variant="outline" className="text-[10px]">confidence {v2.confidence_score}%</Badge>
+                    <CardTitle className="text-xs font-mono">🔬 Scanner v2 — Zero-Fake-State Verified</CardTitle>
+                    <Badge variant="outline" className="text-[10px]">
+                      data_source: {env.data_source} · verified: {env.verification_status} · confidence {env.confidence_score}%
+                    </Badge>
                   </CardHeader>
                   <CardContent className="text-[11px] font-mono space-y-1">
-                    <div className="flex flex-wrap gap-3">
-                      <div>scanner_status: <span className={`font-bold ${statusColor}`}>{v2.scanner_status}</span></div>
-                      <div>source: <span className="text-muted-foreground">{v2.inputs.source}</span></div>
-                      <div>generated: <span className="text-muted-foreground">{v2.generated_at}</span></div>
-                    </div>
-                    <div className="flex flex-wrap gap-3 pt-1 border-t border-border/40">
-                      <div>received_files: <span className="font-bold">{v2.inputs.received_files}</span></div>
-                      <div>components: <span className="font-bold">{v2.processed.components}</span></div>
-                      <div>routes: <span className="font-bold">{v2.processed.routes}</span></div>
-                      <div>utilities: <span className="font-bold">{v2.processed.utilities}</span></div>
-                      <div>other: <span className="font-bold">{v2.processed.other}</span></div>
-                    </div>
-                    {v2.errors.length > 0 && (
-                      <div className="text-destructive">❌ {v2.errors.join("; ")}</div>
+                    {blocked ? (
+                      <div className="text-destructive font-bold">
+                        STATE BLOCKED — NO VERIFIABLE DATA
+                        <div className="text-[10px] font-normal mt-1 text-muted-foreground">{env.blocked_reason}</div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex flex-wrap gap-3">
+                          <div>scanner_status: <span className={`font-bold ${statusColor}`}>{v2!.scanner_status}</span></div>
+                          <div>source: <span className="text-muted-foreground">{v2!.inputs.source}</span></div>
+                          <div>generated: <span className="text-muted-foreground">{v2!.generated_at}</span></div>
+                        </div>
+                        <div className="flex flex-wrap gap-3 pt-1 border-t border-border/40">
+                          <div>received_files: <span className="font-bold">{v2!.inputs.received_files}</span></div>
+                          <div>components: <span className="font-bold">{v2!.processed.components}</span></div>
+                          <div>routes: <span className="font-bold">{v2!.processed.routes}</span></div>
+                          <div>utilities: <span className="font-bold">{v2!.processed.utilities}</span></div>
+                          <div>other: <span className="font-bold">{v2!.processed.other}</span></div>
+                        </div>
+                        <div className="pt-1 border-t border-border/40 text-muted-foreground">
+                          evidence: file_count={env.evidence.file_count} · raw_sources={env.evidence.raw_source_count}
+                        </div>
+                        {v2!.errors.length > 0 && (
+                          <div className="text-destructive">❌ {v2!.errors.join("; ")}</div>
+                        )}
+                        <details>
+                          <summary className="cursor-pointer text-muted-foreground">classification rules used</summary>
+                          <ul className="ml-3 mt-1 space-y-0.5">
+                            <li>R1: file under src/pages/ → route</li>
+                            <li>R2: contains &lt;Route path=...&gt; → route</li>
+                            <li>R3: contains JSX (&lt;PascalCase ...&gt;) → component</li>
+                            <li>R3b: imports react + exports PascalCase symbol → component</li>
+                            <li>R4: file under lib/utils/stores/hooks → utility</li>
+                            <li>R5: no rule matched → other</li>
+                          </ul>
+                        </details>
+                        <details>
+                          <summary className="cursor-pointer text-muted-foreground">excluded files (rules)</summary>
+                          <ul className="ml-3 mt-1 space-y-0.5">{v2!.excluded.map((e, i) => <li key={i}>{e.path} — {e.reason}</li>)}</ul>
+                        </details>
+                        <details>
+                          <summary className="cursor-pointer text-muted-foreground">classification log (first {v2!.classification_log.length})</summary>
+                          <ul className="ml-3 mt-1 space-y-0.5">
+                            {v2!.classification_log.map((c) => (
+                              <li key={c.path}>
+                                <span className="text-primary">[{c.classification}]</span> {c.path} <span className="text-muted-foreground">— {c.rule}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </details>
+                      </>
                     )}
-                    <details>
-                      <summary className="cursor-pointer text-muted-foreground">classification rules used</summary>
-                      <ul className="ml-3 mt-1 space-y-0.5">
-                        <li>R1: file under src/pages/ → route</li>
-                        <li>R2: contains &lt;Route path=...&gt; → route</li>
-                        <li>R3: contains JSX (&lt;PascalCase ...&gt;) → component</li>
-                        <li>R3b: imports react + exports PascalCase symbol → component</li>
-                        <li>R4: file under lib/utils/stores/hooks → utility</li>
-                        <li>R5: no rule matched → other</li>
-                      </ul>
-                    </details>
-                    <details>
-                      <summary className="cursor-pointer text-muted-foreground">excluded files (rules)</summary>
-                      <ul className="ml-3 mt-1 space-y-0.5">{v2.excluded.map((e, i) => <li key={i}>{e.path} — {e.reason}</li>)}</ul>
-                    </details>
-                    <details>
-                      <summary className="cursor-pointer text-muted-foreground">classification log (first {v2.classification_log.length})</summary>
-                      <ul className="ml-3 mt-1 space-y-0.5">
-                        {v2.classification_log.map((c) => (
-                          <li key={c.path}>
-                            <span className="text-primary">[{c.classification}]</span> {c.path} <span className="text-muted-foreground">— {c.rule}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </details>
                   </CardContent>
                 </Card>
               );
