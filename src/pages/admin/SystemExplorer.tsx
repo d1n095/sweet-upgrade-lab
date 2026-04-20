@@ -1759,6 +1759,12 @@ const SystemExplorer = () => {
           <div className="space-y-3">
             {/* ABSOLUTE CONTROL — single decision authority (STOP/CONTINUE) */}
             <AbsoluteControlPanel />
+            {/* QUEUE COLLAPSE — read-only deduplicator for the work queue */}
+            <QueueCollapsePanel />
+            {/* SIGNAL DEDUPLICATOR — merges duplicate reports across all reporters */}
+            <SignalDeduplicatorPanel />
+            {/* HARD STATE LOCK — only AUTHORITY may write system state */}
+            <HardStateLockPanel />
             {/* UNIFIED SYSTEM TRUTH — single source of truth, orchestrated by ExecutionController */}
             <SystemTruthPanel />
 
