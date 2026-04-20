@@ -22,7 +22,11 @@ export type EvolutionFlagKey =
   | "evolution_guard"
   | "evolution_loop"
   | "cluster_intelligence"
-  | "cluster_visualization";
+  | "cluster_visualization"
+  | "auto_reorganizer"
+  | "cluster_health_scoring"
+  | "cluster_impact_simulator"
+  | "cluster_memory";
 
 interface FeatureFlagsState {
   flags: Record<EvolutionFlagKey, FlagState>;
@@ -39,6 +43,10 @@ const DEFAULTS: Record<EvolutionFlagKey, FlagState> = {
   evolution_loop: "internal_only",
   cluster_intelligence: "internal_only",
   cluster_visualization: "internal_only",
+  auto_reorganizer: "internal_only",
+  cluster_health_scoring: "internal_only",
+  cluster_impact_simulator: "internal_only",
+  cluster_memory: "internal_only",
 };
 
 export const useFeatureFlagsStore = create<FeatureFlagsState>()(
@@ -67,4 +75,8 @@ export const FLAG_LABELS: Record<EvolutionFlagKey, string> = {
   evolution_loop: "Evolution Loop",
   cluster_intelligence: "Cluster Intelligence",
   cluster_visualization: "Cluster Visualization",
+  auto_reorganizer: "Auto Reorganizer",
+  cluster_health_scoring: "Cluster Health Scoring",
+  cluster_impact_simulator: "Cluster Impact Simulator",
+  cluster_memory: "Cluster Memory",
 };
