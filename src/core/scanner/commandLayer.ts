@@ -51,6 +51,13 @@ import {
   type ProjectSnapshot,
   type ConsciousnessReport,
 } from "@/core/evolution/multiProjectConsciousness";
+import {
+  setMetaMode,
+  getMetaReport,
+  META_MODES,
+  type MetaMode,
+  type MetaSystemReport,
+} from "@/core/scanner/metaControl";
 
 export type CommandStatus = "pending" | "ok" | "error";
 
@@ -243,6 +250,9 @@ declare global {
       securityReport: () => Promise<CommandEntry>;
       tamperLog: () => Promise<CommandEntry>;
       lastSecurityReport: () => SecurityReport | null;
+      metaMode: (mode: MetaMode | string) => Promise<CommandEntry>;
+      metaReport: () => Promise<CommandEntry>;
+      lastMetaReport: () => MetaSystemReport | null;
     };
   }
 }
@@ -255,6 +265,7 @@ let lastPreFailureReport: PreFailureReport | null = null;
 let lastSyntheticUniverseReport: SyntheticUniverseReport | null = null;
 let lastProtocolReport: ComplianceReport | null = null;
 let lastSecurityReport: SecurityReport | null = null;
+let lastMetaReport: MetaSystemReport | null = null;
 
 if (typeof window !== "undefined") {
   ensureRegistrySubscription();
@@ -338,5 +349,20 @@ if (typeof window !== "undefined") {
     }),
     tamperLog: () => dispatchCommand("blackbox.tamperLog", () => getTamperLog()),
     lastSecurityReport: () => lastSecurityReport,
+    metaMode: (mode) => dispatchCommand(`meta.${String(mode).toUpperCase()}`, () => {
+      const upper = String(mode).toUpperCase() as MetaMode;
+      if (!META_MODES.includes(upper)) {
+        throw new Error(`unknown meta mode "${mode}" — must be one of ${META_MODES.join(", ")}`);
+      }
+      const report = setMetaMode(upper);
+      lastMetaReport = report;
+      return report;
+    }, [mode]),
+    metaReport: () => dispatchCommand("meta.report", () => {
+      const report = getMetaReport();
+      lastMetaReport = report;
+      return report;
+    }),
+    lastMetaReport: () => lastMetaReport,
   };
 }
