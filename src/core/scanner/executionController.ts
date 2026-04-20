@@ -234,7 +234,7 @@ class ExecutionController {
               file_evidence_ref: "src/lib/fileSystemMap.ts (type=page)",
             },
             {
-              state_key: "dependency_summary",
+              state_key: "dependency_graph",
               value: {
                 edges: depReport.edges.length,
                 cycles: depReport.circular_dependencies.length,
