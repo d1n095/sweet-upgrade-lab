@@ -37,6 +37,7 @@ import ReferralLanding from "./pages/ReferralLanding";
 import CookieBanner from "./components/cookie/CookieBanner";
 import MaintenanceGuard from "./components/guards/MaintenanceGuard";
 import MiniWorkbench from "./components/admin/MiniWorkbench";
+import GodModeOverlay from "./components/admin/GodModeOverlay";
 import { usePageVisibility, ToggleablePage } from "./stores/pageVisibilityStore";
 import { useAdminRole } from "./hooks/useAdminRole";
 import { usePreviewCleanMode } from "./hooks/usePreviewCleanMode";
@@ -181,6 +182,7 @@ const App = () => {
               </MaintenanceGuard>
               {!isPreviewCleanMode && <CookieBanner />}
               {!isPreviewCleanMode && <MiniWorkbench />}
+              {!isPreviewCleanMode && <GodModeOverlay />}
             </BrowserRouter>
           </TooltipProvider>
         </LanguageProvider>
