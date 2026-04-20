@@ -32,6 +32,7 @@ import { SignalDeduplicatorPanel } from "@/components/admin/SignalDeduplicatorPa
 import { HardStateLockPanel } from "@/components/admin/HardStateLockPanel";
 import { MinimalModePanel } from "@/components/admin/MinimalModePanel";
 import { FinalSnapshotPanel } from "@/components/admin/FinalSnapshotPanel";
+import { ImmutableSnapshotV2Panel } from "@/components/admin/ImmutableSnapshotV2Panel";
 import { DeterministicBuildPipelinePanel } from "@/components/admin/DeterministicBuildPipelinePanel";
 import { VersionedArchitecturePanel } from "@/components/admin/VersionedArchitecturePanel";
 import { RollbackEnginePanel } from "@/components/admin/RollbackEnginePanel";
@@ -1776,6 +1777,8 @@ const SystemExplorer = () => {
             <MinimalModePanel />
             {/* FINAL SNAPSHOT — immutable, hash-verified state taken once per controller run */}
             <FinalSnapshotPanel />
+            {/* IMMUTABLE SNAPSHOT v2 — full audit evidence: files, dep graph, routes, violations + integrity hash */}
+            <ImmutableSnapshotV2Panel />
             {/* DETERMINISTIC BUILD PIPELINE — 6-stage release-grade orchestrator */}
             <DeterministicBuildPipelinePanel />
             {/* VERSIONED ARCHITECTURE STATE — append-only versions of verified system state */}

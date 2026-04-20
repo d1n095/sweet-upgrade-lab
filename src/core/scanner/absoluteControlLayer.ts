@@ -99,6 +99,12 @@ export const SYSTEM_ROLE_REGISTRY: ReadonlyArray<SystemRoleEntry> = Object.freez
     description: "Captures one immutable snapshot per controller run with a verification hash.",
   },
   {
+    module: "immutableSnapshotV2",
+    role: "READ_ONLY_REPORTER",
+    can_block_execution: false,
+    description: "Audit-grade snapshot store: full files, dep graph, route registry, violations + integrity hash. Append-only, dedup by hash.",
+  },
+  {
     module: "deterministicBuildPipeline",
     role: "READ_ONLY_REPORTER",
     can_block_execution: false,
