@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useStealthStore } from '@/core/scanner/stealthMode';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -189,7 +190,8 @@ const MiniWorkbench = () => {
     }
   };
 
-  if (accessLoading || !hasAccess || isCheckout) return null;
+  const stealthActive = useStealthStore((s) => s.status === 'ACTIVE');
+  if (accessLoading || !hasAccess || isCheckout || stealthActive) return null;
 
   const totalBadge = allTasks.length;
 
