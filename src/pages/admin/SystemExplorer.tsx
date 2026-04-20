@@ -24,6 +24,7 @@ import { SystemStateRegistryPanel } from "@/components/admin/SystemStateRegistry
 import { RealityCheckPanel } from "@/components/admin/RealityCheckPanel";
 import { LoopPreventionPanel } from "@/components/admin/LoopPreventionPanel";
 import { ArchitectureEnforcementPanel } from "@/components/admin/ArchitectureEnforcementPanel";
+import { ControlledArchitecturePanel } from "@/components/admin/ControlledArchitecturePanel";
 
 type WorkItem = {
   id: string;
@@ -1751,6 +1752,8 @@ const SystemExplorer = () => {
         {/* FILES TAB */}
         {mainTab === "files" && (
           <div className="space-y-3">
+            {/* CONTROLLED ARCHITECTURE — Phase 1/2/3 file-truth derivation */}
+            <ControlledArchitecturePanel />
             {/* ARCHITECTURE ENFORCEMENT — A1/A2/A3/A4 hard rules */}
             <ArchitectureEnforcementPanel />
             {/* LOOP PREVENTION — L1/L2/L3 deterministic anti-loop guard */}
