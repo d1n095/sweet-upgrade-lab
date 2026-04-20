@@ -16,6 +16,7 @@ import { create } from "zustand";
 import { systemStateRegistry } from "./systemStateRegistry";
 import { useSystemStateStore } from "@/stores/systemStateStore";
 import { useStealthStore, StealthScheduler } from "./stealthMode";
+import { predictNextActions, resetIntentHistory } from "./systemIntent";
 
 export type CommandStatus = "pending" | "ok" | "error";
 
@@ -185,6 +186,8 @@ declare global {
       logs: () => Promise<CommandEntry>;
       registry: () => Promise<CommandEntry>;
       slots: () => Promise<CommandEntry>;
+      predict: () => Promise<CommandEntry>;
+      resetIntent: () => Promise<CommandEntry>;
       lastCommand: () => CommandEntry | null;
       commandLog: () => CommandEntry[];
     };
@@ -207,6 +210,11 @@ if (typeof window !== "undefined") {
     logs: () => dispatchCommand("system.logs", () => useStealthStore.getState().hidden_logs),
     registry: () => dispatchCommand("registry.snapshot", () => systemStateRegistry.snapshot()),
     slots: () => dispatchCommand("store.slots", () => useSystemStateStore.getState().slots),
+    predict: () => dispatchCommand("intent.predict", () => predictNextActions()),
+    resetIntent: () => dispatchCommand("intent.reset", () => {
+      resetIntentHistory();
+      return "ok";
+    }),
     lastCommand: () => useCommandLayerStore.getState().last_command,
     commandLog: () => useCommandLayerStore.getState().log,
   };
