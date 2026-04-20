@@ -105,6 +105,12 @@ export const SYSTEM_ROLE_REGISTRY: ReadonlyArray<SystemRoleEntry> = Object.freez
     description: "Audit-grade snapshot store: full files, dep graph, route registry, violations + integrity hash. Append-only, dedup by hash.",
   },
   {
+    module: "driftDetector",
+    role: "READ_ONLY_REPORTER",
+    can_block_execution: false,
+    description: "Compares live system to last v2 snapshot baseline. Reports STABLE / DRIFT_DETECTED / NO_BASELINE with file, route, graph, and violation deltas.",
+  },
+  {
     module: "deterministicBuildPipeline",
     role: "READ_ONLY_REPORTER",
     can_block_execution: false,
