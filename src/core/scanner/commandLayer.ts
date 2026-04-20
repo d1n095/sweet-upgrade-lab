@@ -58,6 +58,11 @@ import {
   type MetaMode,
   type MetaSystemReport,
 } from "@/core/scanner/metaControl";
+import {
+  buildCompanyStackReport,
+  type CompanyStackInput,
+  type CompanyStackReport,
+} from "@/core/business/autonomousCompanyStack";
 
 export type CommandStatus = "pending" | "ok" | "error";
 
