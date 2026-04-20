@@ -26,6 +26,7 @@ import { LoopPreventionPanel } from "@/components/admin/LoopPreventionPanel";
 import { ArchitectureEnforcementPanel } from "@/components/admin/ArchitectureEnforcementPanel";
 import { ExecutionControllerPanel } from "@/components/admin/ExecutionControllerPanel";
 import { SystemTruthPanel } from "@/components/admin/SystemTruthPanel";
+import { AbsoluteControlPanel } from "@/components/admin/AbsoluteControlPanel";
 
 type WorkItem = {
   id: string;
