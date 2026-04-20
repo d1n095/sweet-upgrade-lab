@@ -122,6 +122,12 @@ export const SYSTEM_ROLE_REGISTRY: ReadonlyArray<SystemRoleEntry> = Object.freez
     can_block_execution: false,
     description: "Compares candidate build to previous version; returns BLOCK on file drop, route mismatch, new orphans, or coupling rise. Pipeline enforces the block.",
   },
+  {
+    module: "releaseGate",
+    role: "READ_ONLY_REPORTER",
+    can_block_execution: false,
+    description: "Final aggregate verdict (APPROVED/BLOCKED). Combines pipeline status, regression result, architecture score, and critical violations.",
+  },
   // ── 3. DATA PRODUCERS ────────────────────────────────────────────────────
   {
     module: "fileSystemMap",

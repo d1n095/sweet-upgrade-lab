@@ -30,6 +30,7 @@ import { finalSnapshotEngine, type ImmutableSnapshot } from "@/core/scanner/fina
 import { versionedArchitectureStore } from "@/core/scanner/versionedArchitectureStore";
 import { rollbackEngine } from "@/core/scanner/rollbackEngine";
 import { regressionGuard } from "@/core/scanner/regressionGuard";
+import { releaseGate } from "@/core/scanner/releaseGate";
 
 export type PipelineStageName =
   | "TRUTH_SCAN"
@@ -308,6 +309,20 @@ class DeterministicBuildPipeline {
       }
     } catch (e: any) {
       this.log(run, `… rollback evaluation threw: ${e?.message ?? e}`);
+    }
+    // ── Release Gate — final APPROVED/BLOCKED verdict ──
+    try {
+      const decision = releaseGate.evaluate(run);
+      this.log(
+        run,
+        `🔒 release ${decision.release_status}${
+          decision.blocking_reasons.length > 0
+            ? ` — ${decision.blocking_reasons.join("; ")}`
+            : ""
+        }`
+      );
+    } catch (e: any) {
+      this.log(run, `… release gate threw: ${e?.message ?? e}`);
     }
     this.history.push(clone(run));
     if (this.history.length > 30) this.history.shift();

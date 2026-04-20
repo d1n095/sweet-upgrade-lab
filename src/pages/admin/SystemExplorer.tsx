@@ -36,6 +36,7 @@ import { DeterministicBuildPipelinePanel } from "@/components/admin/Deterministi
 import { VersionedArchitecturePanel } from "@/components/admin/VersionedArchitecturePanel";
 import { RollbackEnginePanel } from "@/components/admin/RollbackEnginePanel";
 import { RegressionGuardPanel } from "@/components/admin/RegressionGuardPanel";
+import { ReleaseGatePanel } from "@/components/admin/ReleaseGatePanel";
 
 type WorkItem = {
   id: string;
@@ -1781,6 +1782,8 @@ const SystemExplorer = () => {
             <VersionedArchitecturePanel />
             {/* REGRESSION GUARD — blocks release when candidate is worse than previous version */}
             <RegressionGuardPanel />
+            {/* RELEASE GATE — final APPROVED/BLOCKED verdict aggregating all stability checks */}
+            <ReleaseGatePanel />
             {/* ROLLBACK ENGINE — restores last stable version on instability triggers */}
             <RollbackEnginePanel />
             {/* UNIFIED SYSTEM TRUTH — single source of truth, orchestrated by ExecutionController */}
