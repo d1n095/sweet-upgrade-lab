@@ -906,6 +906,328 @@ export function EvolutionLabPanel({ isFounder }: Props) {
         <p className="text-xs text-muted-foreground">No state scan yet.</p>
       ),
     },
+    {
+      key: "risk_heatmap",
+      icon: <Flame className="w-4 h-4" />,
+      run: async () => {
+        await loadHistorySignals();
+        setRisk(buildRiskHeatmap({
+          edges: inputs.depGraph.edges,
+          change_frequency: changeCounts,
+          bug_density: bugCounts,
+        }));
+      },
+      body: risk ? (
+        <div className="text-xs space-y-2">
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="destructive">red {risk.totals.red}</Badge>
+            <Badge className="bg-orange-500 text-white">orange {risk.totals.orange}</Badge>
+            <Badge className="bg-emerald-500 text-white">green {risk.totals.green}</Badge>
+            <Badge variant="outline">grey {risk.totals.grey}</Badge>
+          </div>
+          <p className="text-muted-foreground">{risk.notes}</p>
+          {risk.hotspots.length > 0 && (
+            <ul className="space-y-1">
+              {risk.hotspots.map((h) => (
+                <li key={h.file} className="border rounded p-2">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="destructive">{h.risk_score}</Badge>
+                    <span className="font-mono break-all">{h.file}</span>
+                  </div>
+                  <p className="text-muted-foreground mt-1">
+                    dep {h.dep_weight} · changes {h.change_count} · bugs {h.bug_count}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">Run to fetch history + build the heatmap.</p>
+      ),
+    },
+    {
+      key: "in_frontend_ci",
+      icon: <CheckCircle2 className="w-4 h-4" />,
+      run: () => {
+        const struct = analyzeProjectStructure({ edges: inputs.depGraph.edges });
+        const dep = buildDepGraph(inputs.depGraph.edges);
+        const naming = struct.findings.filter(f => f.kind === "inconsistent_pattern");
+        const broken = struct.findings.filter(f => f.kind === "broken_import");
+        const cycles = struct.findings.filter(f => f.kind === "circular_dependency");
+        setCi(runInFrontendCi({
+          naming_violations: naming.length,
+          naming_examples: naming.flatMap(f => f.files),
+          broken_imports: broken.length,
+          broken_examples: broken.map(f => f.detail),
+          arch_violations: dep.violations.length,
+          arch_examples: dep.violations.map(v => `${v.from} → ${v.to}`),
+          cycles: cycles.length,
+          cycle_examples: cycles.map(c => c.detail),
+        }));
+      },
+      body: ci ? (
+        <div className="text-xs space-y-2">
+          <div className="flex items-center gap-2">
+            <Badge variant={ci.would_block ? "destructive" : ci.overall === "warn" ? "secondary" : "default"}>
+              {ci.would_block ? "WOULD BLOCK" : ci.overall.toUpperCase()}
+            </Badge>
+            <span className="text-muted-foreground">{ci.summary}</span>
+          </div>
+          <ul className="space-y-1">
+            {ci.stages.map((s) => (
+              <li key={s.stage} className="border rounded p-2">
+                <div className="flex items-center gap-2">
+                  <Badge variant={s.status === "fail" ? "destructive" : s.status === "warn" ? "secondary" : "outline"}>
+                    {s.status}
+                  </Badge>
+                  <span className="font-mono">{s.stage}</span>
+                  <span className="text-muted-foreground">×{s.count}</span>
+                </div>
+                {s.details.length > 0 && (
+                  <ul className="mt-1 font-mono text-[10px] text-muted-foreground space-y-0.5">
+                    {s.details.map((d, i) => <li key={i} className="break-all">· {d}</li>)}
+                  </ul>
+                )}
+                {s.status !== "pass" && (
+                  <p className="text-muted-foreground mt-1 italic">{s.fix_hint}</p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">No CI run yet.</p>
+      ),
+    },
+    {
+      key: "integrity_monitor",
+      icon: <ShieldAlert className="w-4 h-4" />,
+      run: () => {
+        const struct = analyzeProjectStructure({ edges: inputs.depGraph.edges });
+        const orphans = struct.findings.filter(f => f.kind === "orphan_module").flatMap(f => f.files);
+        const cycles = struct.findings.filter(f => f.kind === "circular_dependency").map(f => [...f.files]);
+        setIntegrity(runIntegrityMonitor({
+          edges: inputs.depGraph.edges,
+          known_files: fileSystemMap.map(f => f.path),
+          sources: normalizedSources,
+          orphans,
+          cycles,
+        }));
+      },
+      body: integrity ? (
+        <div className="text-xs space-y-2">
+          <div className="flex flex-wrap gap-2">
+            <Badge variant={integrity.would_stop_build ? "destructive" : integrity.status === "warn" ? "secondary" : "default"}>
+              {integrity.would_stop_build ? "CRITICAL" : integrity.status.toUpperCase()}
+            </Badge>
+            <Badge variant="outline">broken {integrity.summary.broken_imports}</Badge>
+            <Badge variant="outline">cycles {integrity.summary.circular_dependencies}</Badge>
+            <Badge variant="outline">unused {integrity.summary.unused_exports}</Badge>
+            <Badge variant="outline">side-fx {integrity.summary.uncontrolled_side_effects}</Badge>
+          </div>
+          <p className="text-muted-foreground">{integrity.notes}</p>
+          {integrity.violations.length > 0 && (
+            <ul className="space-y-1">
+              {integrity.violations.slice(0, 6).map((v, i) => (
+                <li key={i} className="border rounded p-2">
+                  <div className="flex items-center gap-2">
+                    <Badge variant={v.severity === "critical" ? "destructive" : "secondary"}>
+                      {v.rule}
+                    </Badge>
+                    <span className="font-mono break-all">{v.file}</span>
+                  </div>
+                  <p className="text-muted-foreground mt-1">{v.detail}</p>
+                  <p className="italic mt-1">→ {v.fix}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">Silent — run to surface violations.</p>
+      ),
+    },
+    {
+      key: "production_readiness",
+      icon: <Rocket className="w-4 h-4" />,
+      run: () => {
+        setReadiness(runProductionReadiness({ sources: normalizedSources }));
+      },
+      body: readiness ? (
+        <div className="text-xs space-y-2">
+          <div className="flex flex-wrap gap-2">
+            <Badge variant={readiness.status === "BLOCKED" ? "destructive" : readiness.status === "NEEDS_CLEANUP" ? "secondary" : "default"}>
+              {readiness.status}
+            </Badge>
+            <Badge variant="outline">{readiness.total_files} files</Badge>
+            <Badge variant="outline">{(readiness.total_bytes / 1024).toFixed(0)} KB</Badge>
+            <Badge variant={readiness.summary.console_log ? "destructive" : "outline"}>
+              console {readiness.summary.console_log}
+            </Badge>
+            <Badge variant={readiness.summary.debugger ? "destructive" : "outline"}>
+              debugger {readiness.summary.debugger}
+            </Badge>
+            <Badge variant="outline">TODO {readiness.summary.todo_marker}</Badge>
+            <Badge variant="outline">wildcards {readiness.summary.wildcard_import}</Badge>
+            <Badge variant="outline">bloat {readiness.summary.bundle_bloat}</Badge>
+          </div>
+          <p className="text-muted-foreground">{readiness.notes}</p>
+          {readiness.largest_modules.length > 0 && (
+            <details className="rounded-md border p-2">
+              <summary className="text-[11px] font-medium cursor-pointer">Largest modules</summary>
+              <ul className="mt-1 font-mono text-[10px] space-y-0.5">
+                {readiness.largest_modules.map(m => (
+                  <li key={m.file} className="break-all">
+                    [{(m.bytes / 1024).toFixed(1)} KB] {m.file}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+          {readiness.findings.length > 0 && (
+            <ul className="space-y-1">
+              {readiness.findings.slice(0, 8).map((f, i) => (
+                <li key={i} className="border rounded p-2">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary">{f.kind}</Badge>
+                    <span className="font-mono break-all">{f.file}:{f.line_hint}</span>
+                  </div>
+                  <p className="font-mono text-[10px] mt-1 break-all">{f.detail}</p>
+                  <p className="italic mt-1">→ {f.fix}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">Run to scan production hygiene.</p>
+      ),
+    },
+    {
+      key: "evolution_tracker",
+      icon: <History className="w-4 h-4" />,
+      run: async () => {
+        await loadHistorySignals();
+        const coupling: Record<string, number> = {};
+        const dep = buildDepGraph(inputs.depGraph.edges);
+        for (const n of dep.nodes) coupling[n.id] = n.in_degree + n.out_degree;
+        setEvoTrack(runEvolutionTracker({
+          change_counts: changeCounts,
+          coupling,
+          failures: bugCounts,
+        }));
+      },
+      body: evoTrack ? (
+        <div className="text-xs space-y-2">
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="outline">window {evoTrack.window_size}</Badge>
+            <Badge variant={evoTrack.findings.length ? "secondary" : "outline"}>
+              {evoTrack.findings.length} signals
+            </Badge>
+          </div>
+          <p className="text-muted-foreground">{evoTrack.notes}</p>
+          {evoTrack.hot_files.length > 0 && (
+            <details className="rounded-md border p-2" open>
+              <summary className="text-[11px] font-medium cursor-pointer">Hot files</summary>
+              <ul className="mt-1 font-mono text-[10px] space-y-0.5">
+                {evoTrack.hot_files.map(h => (
+                  <li key={h.file} className="break-all">
+                    [c{h.changes}/d{h.coupling}/b{h.failures}] {h.file}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+          {evoTrack.findings.length > 0 && (
+            <ul className="space-y-1">
+              {evoTrack.findings.slice(0, 8).map((f, i) => (
+                <li key={i} className="border rounded p-2">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary">{f.kind}</Badge>
+                    <span className="font-mono break-all">{f.target}</span>
+                  </div>
+                  <p className="text-muted-foreground mt-1">{f.metric}</p>
+                  <p className="italic mt-1">→ {f.suggestion}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">Run to load change history + analyze.</p>
+      ),
+    },
+    {
+      key: "architecture_clusterer",
+      icon: <Boxes className="w-4 h-4" />,
+      run: async () => {
+        await loadHistorySignals();
+        setClusterer(runArchitectureClusterer({
+          edges: inputs.depGraph.edges,
+          change_counts: changeCounts,
+        }));
+      },
+      body: clusterer ? (
+        <div className="text-xs space-y-2">
+          <p className="text-muted-foreground">{clusterer.notes}</p>
+          <details className="rounded-md border p-2" open>
+            <summary className="text-[11px] font-medium cursor-pointer">
+              Clusters ({clusterer.clusters.length})
+            </summary>
+            <ul className="mt-1 space-y-1">
+              {clusterer.clusters.slice(0, 8).map(c => (
+                <li key={c.cluster_id} className="border rounded p-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant={c.is_natural ? "default" : "outline"}>
+                      {(c.density * 100).toFixed(0)}% dense
+                    </Badge>
+                    <span className="font-mono">{c.cluster_id}</span>
+                    <span className="text-muted-foreground">
+                      {c.files.length} files · churn {c.churn_total}
+                    </span>
+                  </div>
+                  <p className="text-muted-foreground mt-1">
+                    internal {c.internal_edges} / external {c.external_edges}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </details>
+          {clusterer.decoupling.length > 0 && (
+            <div>
+              <p className="font-medium">Decoupling opportunities</p>
+              <ul className="space-y-1">
+                {clusterer.decoupling.map((d, i) => (
+                  <li key={i} className="border rounded p-2">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="destructive">{d.edge_count} cables</Badge>
+                      <span className="font-mono">{d.from_cluster} → {d.to_cluster}</span>
+                    </div>
+                    <p className="italic mt-1">→ {d.suggestion}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {clusterer.micro_modules.length > 0 && (
+            <div>
+              <p className="font-medium">Micro-module suggestions</p>
+              <ul className="space-y-1">
+                {clusterer.micro_modules.map((m, i) => (
+                  <li key={i} className="border rounded p-2">
+                    <Badge variant="secondary">{m.cluster_id}</Badge>
+                    <p className="text-muted-foreground mt-1">{m.reason}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">Run to derive cluster boundaries.</p>
+      ),
+    },
   ];
 
 
