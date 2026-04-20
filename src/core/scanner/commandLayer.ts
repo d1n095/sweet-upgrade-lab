@@ -15,6 +15,11 @@ import {
   type RefactorCycleReport,
 } from "@/core/evolution/autonomousRefactor";
 import {
+  runFailureSimulation,
+  type FailureSimulationInput,
+  type FailureSimulationReport,
+} from "@/core/evolution/failureSimulation";
+import {
   buildConsciousness,
   type ProjectSnapshot,
   type ConsciousnessReport,
@@ -196,12 +201,15 @@ declare global {
       commandLog: () => CommandEntry[];
       lastRefactor: () => RefactorCycleReport | null;
       lastConsciousness: () => ConsciousnessReport | null;
+      simulateFailures: (input: FailureSimulationInput) => Promise<CommandEntry>;
+      lastFailureSim: () => FailureSimulationReport | null;
     };
   }
 }
 
 let lastRefactorReport: RefactorCycleReport | null = null;
 let lastConsciousnessReport: ConsciousnessReport | null = null;
+let lastFailureSimReport: FailureSimulationReport | null = null;
 
 if (typeof window !== "undefined") {
   ensureRegistrySubscription();
@@ -246,5 +254,11 @@ if (typeof window !== "undefined") {
     commandLog: () => useCommandLayerStore.getState().log,
     lastRefactor: () => lastRefactorReport,
     lastConsciousness: () => lastConsciousnessReport,
+    simulateFailures: (input) => dispatchCommand("failure.simulate", () => {
+      const report = runFailureSimulation(input);
+      lastFailureSimReport = report;
+      return report;
+    }, [`${input.scenarios.length} scenarios`]),
+    lastFailureSim: () => lastFailureSimReport,
   };
 }
