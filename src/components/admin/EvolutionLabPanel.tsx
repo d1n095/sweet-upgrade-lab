@@ -9,8 +9,8 @@ import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Beaker, FlaskConical, Network, ShieldCheck, Workflow, Sparkles, Activity } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Beaker, FlaskConical, Network, ShieldCheck, Workflow, Sparkles, Activity, Shuffle, HeartPulse, Radar, Brain } from "lucide-react";
 import {
   useFeatureFlagsStore,
   FLAG_LABELS,
@@ -26,6 +26,10 @@ import { runExperiment, type ExperimentResult, type ExperimentSnapshot } from "@
 import { evaluateEvolutionGuard, type EvolutionGuardReport } from "@/core/evolution/evolutionGuard";
 import { runEvolutionCycle, type EvolutionCycleReport } from "@/core/evolution/evolutionLoop";
 import { buildClusterRegistry, type ClusterRegistry } from "@/core/evolution/clusterIntelligence";
+import { evaluateAutoReorganizer, type AutoReorganizerReport } from "@/core/evolution/autoReorganizer";
+import { evaluateClusterHealth, type ClusterHealthReport } from "@/core/evolution/clusterHealthScoring";
+import { simulateImpact, type ImpactReport } from "@/core/evolution/clusterImpactSimulator";
+import { evaluateClusterMemory, recordSnapshot, type ClusterMemoryReport } from "@/core/evolution/clusterMemory";
 import { useSystemStateStore } from "@/stores/systemStateStore";
 
 interface Props {
@@ -47,6 +51,11 @@ export function EvolutionLabPanel({ isFounder }: Props) {
   const [guard, setGuard] = useState<EvolutionGuardReport | null>(null);
   const [cycle, setCycle] = useState<EvolutionCycleReport | null>(null);
   const [clusters, setClusters] = useState<ClusterRegistry | null>(null);
+  const [reorg, setReorg] = useState<AutoReorganizerReport | null>(null);
+  const [clusterHealth, setClusterHealth] = useState<ClusterHealthReport | null>(null);
+  const [impact, setImpact] = useState<ImpactReport | null>(null);
+  const [impactFile, setImpactFile] = useState("");
+  const [memory, setMemory] = useState<ClusterMemoryReport | null>(null);
 
   // Best-effort inputs derived from systemStateStore — all degrade safely.
   const inputs = useMemo(() => {
