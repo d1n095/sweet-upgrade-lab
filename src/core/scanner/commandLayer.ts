@@ -30,6 +30,11 @@ import {
   type PreFailureReport,
 } from "@/core/evolution/preFailureDetection";
 import {
+  generateSyntheticUniverse,
+  type SyntheticUniverseInput,
+  type SyntheticUniverseReport,
+} from "@/core/evolution/syntheticUniverse";
+import {
   buildConsciousness,
   type ProjectSnapshot,
   type ConsciousnessReport,
@@ -217,6 +222,8 @@ declare global {
       lastCrossEvolution: () => CrossSystemEvolutionReport | null;
       detectPreFailures: (input: PreFailureInput) => Promise<CommandEntry>;
       lastPreFailure: () => PreFailureReport | null;
+      generateSyntheticUniverse: (input: SyntheticUniverseInput) => Promise<CommandEntry>;
+      lastSyntheticUniverse: () => SyntheticUniverseReport | null;
     };
   }
 }
@@ -226,6 +233,7 @@ let lastConsciousnessReport: ConsciousnessReport | null = null;
 let lastFailureSimReport: FailureSimulationReport | null = null;
 let lastCrossEvolutionReport: CrossSystemEvolutionReport | null = null;
 let lastPreFailureReport: PreFailureReport | null = null;
+let lastSyntheticUniverseReport: SyntheticUniverseReport | null = null;
 
 if (typeof window !== "undefined") {
   ensureRegistrySubscription();
@@ -288,5 +296,11 @@ if (typeof window !== "undefined") {
       return report;
     }, [`${input.failure_chains.length} chains`]),
     lastPreFailure: () => lastPreFailureReport,
+    generateSyntheticUniverse: (input) => dispatchCommand("syntheticUniverse.generate", () => {
+      const report = generateSyntheticUniverse(input);
+      lastSyntheticUniverseReport = report;
+      return report;
+    }, [`${(input.known_patterns ?? []).length} patterns`]),
+    lastSyntheticUniverse: () => lastSyntheticUniverseReport,
   };
 }
