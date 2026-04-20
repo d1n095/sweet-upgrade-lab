@@ -7,6 +7,7 @@ import { fileSystemMap, type FileEntry, getFileContent, getCodeIndex, getDuplica
 import { runTruthEngine } from "@/architecture/truthEngine";
 import { runScannerV2, runScannerV2Verified } from "@/architecture/scannerV2";
 import { runOrchestrator } from "@/core/scanner/orchestrator";
+import ObservabilityDashboardV2 from "@/components/admin/ObservabilityDashboardV2";
 import { ROUTE_REGISTRY } from "@/architecture/routeRegistry";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useFounderRole } from "@/hooks/useFounderRole";
