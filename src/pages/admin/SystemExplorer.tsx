@@ -21,6 +21,7 @@ import { ScanControls, IssueAnalysisPanel, SystemCommandCenter } from "./system"
 import { NoAiArchitectureDashboard } from "@/components/admin/NoAiArchitectureDashboard";
 import { ExecutionGovernorPanel } from "@/components/admin/ExecutionGovernorPanel";
 import { SystemStateRegistryPanel } from "@/components/admin/SystemStateRegistryPanel";
+import { RealityCheckPanel } from "@/components/admin/RealityCheckPanel";
 
 type WorkItem = {
   id: string;
@@ -1748,6 +1749,8 @@ const SystemExplorer = () => {
         {/* FILES TAB */}
         {mainTab === "files" && (
           <div className="space-y-3">
+            {/* REALITY CHECK — RC1/RC2/RC3 against state registry */}
+            <RealityCheckPanel />
             {/* SYSTEM STATE REGISTRY — single source of truth (append-only) */}
             <SystemStateRegistryPanel />
             {/* EXECUTION GOVERNOR — single-flight scheduler */}
