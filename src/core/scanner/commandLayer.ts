@@ -35,6 +35,13 @@ import {
   type SyntheticUniverseReport,
 } from "@/core/evolution/syntheticUniverse";
 import {
+  evaluateProtocolCompliance,
+  getProtocolSpec,
+  type ProjectProtocolSubmission,
+  type ComplianceReport,
+  type ProtocolSpec,
+} from "@/core/evolution/protocolLayer";
+import {
   buildConsciousness,
   type ProjectSnapshot,
   type ConsciousnessReport,
