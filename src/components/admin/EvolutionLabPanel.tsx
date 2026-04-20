@@ -1011,17 +1011,21 @@ export function EvolutionLabPanel({ isFounder }: Props) {
     {
       key: "integrity_monitor",
       icon: <ShieldAlert className="w-4 h-4" />,
-      run: () => {
-        const struct = analyzeProjectStructure({ edges: inputs.depGraph.edges });
-        const orphans = struct.findings.filter(f => f.kind === "orphan_module").flatMap(f => f.files);
-        const cycles = struct.findings.filter(f => f.kind === "circular_dependency").map(f => [...f.files]);
-        setIntegrity(runIntegrityMonitor({
-          edges: inputs.depGraph.edges,
-          known_files: fileSystemMap.map(f => f.path),
-          sources: normalizedSources,
-          orphans,
-          cycles,
-        }));
+      run: async () => {
+        await runAndStore("integrity_monitor", () => {
+          const struct = analyzeProjectStructure({ edges: inputs.depGraph.edges });
+          const orphans = struct.findings.filter(f => f.kind === "orphan_module").flatMap(f => f.files);
+          const cycles = struct.findings.filter(f => f.kind === "circular_dependency").map(f => [...f.files]);
+          const r = runIntegrityMonitor({
+            edges: inputs.depGraph.edges,
+            known_files: fileSystemMap.map(f => f.path),
+            sources: normalizedSources,
+            orphans,
+            cycles,
+          });
+          setIntegrity(r);
+          return r;
+        });
       },
       body: integrity ? (
         <div className="text-xs space-y-2">
