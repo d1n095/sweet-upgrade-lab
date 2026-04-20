@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Beaker, FlaskConical, Network, ShieldCheck, Workflow, Sparkles, Activity, Shuffle, HeartPulse, Radar, Brain, Lock, Gauge } from "lucide-react";
+import { Beaker, FlaskConical, Network, ShieldCheck, Workflow, Sparkles, Activity, Shuffle, HeartPulse, Radar, Brain, Lock, Gauge, Eye } from "lucide-react";
 import {
   useFeatureFlagsStore,
   FLAG_LABELS,
@@ -32,6 +32,7 @@ import { simulateImpact, type ImpactReport } from "@/core/evolution/clusterImpac
 import { evaluateClusterMemory, recordSnapshot, type ClusterMemoryReport } from "@/core/evolution/clusterMemory";
 import { enforceClusterBoundaries, type BoundaryReport } from "@/core/evolution/clusterBoundaryEnforcer";
 import { evaluateClusterRenderOptimizer, type RenderOptimizerReport } from "@/core/evolution/clusterRenderOptimizer";
+import { evaluateClusterMetaObserver, type MetaObserverReport } from "@/core/evolution/clusterMetaObserver";
 import { useSystemStateStore } from "@/stores/systemStateStore";
 
 interface Props {
@@ -60,6 +61,7 @@ export function EvolutionLabPanel({ isFounder }: Props) {
   const [memory, setMemory] = useState<ClusterMemoryReport | null>(null);
   const [boundary, setBoundary] = useState<BoundaryReport | null>(null);
   const [renderOpt, setRenderOpt] = useState<RenderOptimizerReport | null>(null);
+  const [meta, setMeta] = useState<MetaObserverReport | null>(null);
 
   // Best-effort inputs derived from systemStateStore — all degrade safely.
   const inputs = useMemo(() => {
