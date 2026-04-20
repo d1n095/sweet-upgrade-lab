@@ -67,7 +67,7 @@ export function EvolutionLabPanel({ isFounder }: Props) {
   const [structure, setStructure] = useState<StructureReport | null>(null);
   const [depGraph, setDepGraph] = useState<DepGraphReport | null>(null);
   const [chainFile, setChainFile] = useState("");
-  const [chain, setChain] = useState<{ upstream: string[]; downstream: string[] } | null>(null);
+  const [chain, setChain] = useState<{ upstream: ReadonlyArray<string>; downstream: ReadonlyArray<string> } | null>(null);
 
   // Best-effort inputs derived from systemStateStore — all degrade safely.
   const inputs = useMemo(() => {
