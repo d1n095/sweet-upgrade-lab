@@ -33,6 +33,7 @@ import {
   type HeatmapReport,
 } from "@/core/architecture/dependencyHeatmap";
 import { systemStateRegistry } from "@/core/scanner/systemStateRegistry";
+import { hardStateLock } from "@/core/scanner/hardStateLock";
 
 export type ControllerState =
   | "IDLE"
@@ -214,45 +215,48 @@ class ExecutionController {
           rec.detail = `${depReport.edges.length} edges, ${depReport.circular_dependencies.length} cycles, ${depReport.isolated_nodes.length} isolated`;
         } else if (phase === "REGISTRY") {
           if (!structureResult || !archReport || !depReport) throw new Error("missing inputs for registry");
-          systemStateRegistry.recordBatch([
-            {
-              state_key: "file_count",
-              value: structureResult.files_total,
-              source_module: "executionController",
-              file_evidence_ref: "src/lib/fileSystemMap.ts",
-            },
-            {
-              state_key: "component_count",
-              value: structureResult.components_indexed,
-              source_module: "executionController",
-              file_evidence_ref: "src/lib/fileSystemMap.ts (type=component)",
-            },
-            {
-              state_key: "route_count",
-              value: structureResult.pages_indexed,
-              source_module: "executionController",
-              file_evidence_ref: "src/lib/fileSystemMap.ts (type=page)",
-            },
-            {
-              state_key: "dependency_graph",
-              value: {
-                edges: depReport.edges.length,
-                cycles: depReport.circular_dependencies.length,
-                isolated: depReport.isolated_nodes.length,
+          hardStateLock.recordBatch({
+            writer_module: "executionController",
+            entries: [
+              {
+                state_key: "file_count",
+                value: structureResult.files_total,
+                source_module: "executionController",
+                file_evidence_ref: "src/lib/fileSystemMap.ts",
               },
-              source_module: "executionController",
-              file_evidence_ref: "src/core/architecture/dependencyHeatmap.ts",
-            },
-            {
-              state_key: "architecture_status",
-              value: {
-                build_status: archReport.build_status,
-                violations: archReport.violations.length,
+              {
+                state_key: "component_count",
+                value: structureResult.components_indexed,
+                source_module: "executionController",
+                file_evidence_ref: "src/lib/fileSystemMap.ts (type=component)",
               },
-              source_module: "executionController",
-              file_evidence_ref: "src/core/architecture/architectureEnforcementCore.ts",
-            },
-          ]);
+              {
+                state_key: "route_count",
+                value: structureResult.pages_indexed,
+                source_module: "executionController",
+                file_evidence_ref: "src/lib/fileSystemMap.ts (type=page)",
+              },
+              {
+                state_key: "dependency_graph",
+                value: {
+                  edges: depReport.edges.length,
+                  cycles: depReport.circular_dependencies.length,
+                  isolated: depReport.isolated_nodes.length,
+                },
+                source_module: "executionController",
+                file_evidence_ref: "src/core/architecture/dependencyHeatmap.ts",
+              },
+              {
+                state_key: "architecture_status",
+                value: {
+                  build_status: archReport.build_status,
+                  violations: archReport.violations.length,
+                },
+                source_module: "executionController",
+                file_evidence_ref: "src/core/architecture/architectureEnforcementCore.ts",
+              },
+            ],
+          });
           registryPushed = 5;
           structureResult.registry_records_pushed = registryPushed;
           rec.detail = `pushed ${registryPushed} state-keys to registry`;
