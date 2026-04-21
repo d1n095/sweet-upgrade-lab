@@ -9,6 +9,7 @@ import {
   Handshake, Heart, Eye, LogOut, Home, Shield, Crown,
   Activity, User, Menu, X, Star, FileText, Percent, Truck, Wallet, Globe,
   AlertTriangle, ScanLine, Sparkles, History, ShoppingCart, Radar, Zap,
+  Mail, LayoutDashboard, ShoppingBag, Megaphone, Terminal, Database,
 } from 'lucide-react';
 import { useEmployeeRole } from '@/hooks/useEmployeeRole';
 import { useFounderRole } from '@/hooks/useFounderRole';
