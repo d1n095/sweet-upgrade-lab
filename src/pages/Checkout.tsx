@@ -13,6 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { safeInvoke } from '@/lib/safeInvoke';
 import { toast } from 'sonner';
 import { useStoreSettings } from '@/stores/storeSettingsStore';
+import SEOHead from '@/components/seo/SEOHead';
 import { logActivity } from '@/utils/activityLogger';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -368,6 +369,7 @@ const Checkout = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead title={language === 'sv' ? 'Kassa' : 'Checkout'} description={language === 'sv' ? 'Slutför din beställning säkert.' : 'Complete your order securely.'} noindex />
       {/* Minimal distraction-free header — logo + secure badge only */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-background border-b border-border">
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">

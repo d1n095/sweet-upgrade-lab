@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger, ScrollableTabs } from '@/components/ui/tabs';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
+import SEOHead from '@/components/seo/SEOHead';
 import ReviewStars from '@/components/reviews/ReviewStars';
 import ReferralDashboard from '@/components/referral/ReferralDashboard';
 import { supabase } from '@/integrations/supabase/client';
@@ -253,6 +254,7 @@ const MemberProfile = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead title={language === 'sv' ? 'Min profil' : 'My profile'} description="Member profile" noindex />
       <Header />
       <main className="pt-24 pb-20">
         <div className="container mx-auto px-4">

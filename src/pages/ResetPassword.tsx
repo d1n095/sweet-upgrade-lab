@@ -8,6 +8,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { toast } from 'sonner';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
+import SEOHead from '@/components/seo/SEOHead';
 
 const ResetPassword = () => {
   const { language } = useLanguage();
@@ -82,6 +83,7 @@ const ResetPassword = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead title={language === 'sv' ? 'Återställ lösenord' : 'Reset password'} description="Reset your password" noindex />
       <Header />
       <main className="container mx-auto px-4 py-20">
         <div className="max-w-md mx-auto">

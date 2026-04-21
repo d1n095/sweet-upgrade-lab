@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import AffiliateDashboard from '@/components/dashboard/AffiliateDashboard';
+import SEOHead from '@/components/seo/SEOHead';
 
 const AffiliatePanel = () => {
   const { user, loading: authLoading } = useAuth();
@@ -101,6 +102,7 @@ const AffiliatePanel = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead title="Affiliate Panel" description="Affiliate dashboard" noindex />
       <Header />
       <main className="pt-24 pb-20">
         <div className="container mx-auto px-4 max-w-4xl">
