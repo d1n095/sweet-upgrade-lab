@@ -77,6 +77,7 @@ export type RuleAction =
   | DiscountAction
   | PriceChangeAction
   | CampaignAction
+  | MarkProductStatusAction
   | FlagAction
   | NoOpAction;
 
