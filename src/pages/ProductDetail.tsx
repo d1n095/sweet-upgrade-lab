@@ -26,30 +26,9 @@ import SEOHead from '@/components/seo/SEOHead';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 
-function generateAutoSeoDescription(product: DbProduct): string {
-  const parts: string[] = [];
-  if (product.description_sv) parts.push(product.description_sv.substring(0, 80));
-  if (product.ingredients_sv) {
-    const ingList = product.ingredients_sv.split(',').slice(0, 3).map(s => s.trim()).join(', ');
-    parts.push(`Innehåller ${ingList}`);
-  }
-  if (product.certifications?.length) parts.push(product.certifications.join(', '));
-  const result = parts.join('. ').substring(0, 155);
-  return result || `Köp ${product.title_sv} hos 4ThePeople — noggrant utvalt, giftfritt och hållbart.`;
-}
-
-function generateAutoSeoKeywords(product: DbProduct): string {
-  const keywords: string[] = [product.title_sv];
-  if (product.category) keywords.push(product.category);
-  if (product.tags?.length) keywords.push(...product.tags.slice(0, 5));
-  if (product.vendor) keywords.push(product.vendor);
-  if (product.certifications?.length) keywords.push(...product.certifications.slice(0, 3));
-  if (product.ingredients_sv) {
-    keywords.push(...product.ingredients_sv.split(',').slice(0, 3).map(s => s.trim()));
-  }
-  keywords.push('4thepeople', 'köp online');
-  return [...new Set(keywords)].join(', ');
-}
+// SEO is fully DB-driven — meta_title / meta_description / meta_keywords
+// columns on `products` are the single source of truth. No client-side
+// generation, no AI, no templated fallbacks beyond the product title.
 
 function parseBullets(text: string | null | undefined): string[] {
   if (!text) return [];
@@ -219,9 +198,9 @@ const ProductDetail = () => {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead
-        title={product.meta_title || `${product.title_sv} — Köp online | 4thepeople`}
-        description={product.meta_description || generateAutoSeoDescription(product)}
-        keywords={product.meta_keywords || generateAutoSeoKeywords(product)}
+        title={product.meta_title || product.title_sv}
+        description={product.meta_description || ''}
+        keywords={product.meta_keywords || ''}
         canonical={`/product/${handle}`}
         ogType="product"
         ogImage={images[0]}
