@@ -5,6 +5,7 @@ import { Search, Package, Truck, CheckCircle2, Clock, MapPin, AlertCircle, FileC
 import { useLanguage } from '@/context/LanguageContext';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
+import SEOHead from '@/components/seo/SEOHead';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -341,6 +342,13 @@ const TrackOrder = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead
+        title={language === 'sv' ? 'Spåra din order' : 'Track your order'}
+        description={language === 'sv'
+          ? 'Spåra din beställning från 4thepeople i realtid med ordernummer och e-post.'
+          : 'Track your 4thepeople order in real time using your order number and email.'}
+        canonical="/track-order"
+      />
       <Header />
       
       <main className="pt-24 pb-20">

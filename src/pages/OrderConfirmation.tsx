@@ -4,6 +4,7 @@ import { CheckCircle, Package, Clock, Mail, ArrowRight, Truck, Loader2, Sparkles
 import { useLanguage } from '@/context/LanguageContext';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
+import SEOHead from '@/components/seo/SEOHead';
 import { Button } from '@/components/ui/button';
 import { Link, useSearchParams } from 'react-router-dom';
 import { storeConfig } from '@/config/storeConfig';
@@ -143,6 +144,11 @@ const OrderConfirmation = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead
+        title={language === 'sv' ? 'Tack för din beställning' : 'Thank you for your order'}
+        description={language === 'sv' ? 'Din beställning är bekräftad.' : 'Your order is confirmed.'}
+        noindex
+      />
       <Header />
       <main className="pt-24 pb-20">
         <div className="container mx-auto px-4 max-w-3xl">
