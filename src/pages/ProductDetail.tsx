@@ -24,6 +24,7 @@ import RelatedProducts from '@/components/product/RelatedProducts';
 import ProductBundles from '@/components/product/ProductBundles';
 import SEOHead from '@/components/seo/SEOHead';
 import { Badge } from '@/components/ui/badge';
+import { storeConfig } from '@/config/storeConfig';
 import { toast } from 'sonner';
 
 // SEO is fully DB-driven — meta_title / meta_description / meta_keywords
