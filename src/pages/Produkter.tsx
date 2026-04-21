@@ -179,7 +179,16 @@ const Produkter = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEOHead title={t('shop.title')} description={t('shop.subtitle')} keywords="butik, shop, giftfri, naturlig, kroppsvård" canonical="/produkter" />
+      <SEOHead
+        title={t('shop.title')}
+        description={t('shop.subtitle')}
+        keywords="butik, shop, giftfri, naturlig, kroppsvård"
+        canonical="/produkter"
+        breadcrumbs={[
+          { name: language === 'sv' ? 'Hem' : 'Home', url: '/' },
+          { name: t('shop.title'), url: '/produkter' },
+        ]}
+      />
       <Header />
 
       <main className="pt-24 pb-20">

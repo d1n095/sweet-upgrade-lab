@@ -5,6 +5,7 @@ import { Search, Package, Truck, CheckCircle2, Clock, MapPin, AlertCircle, FileC
 import { useLanguage } from '@/context/LanguageContext';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
+import SEOHead from '@/components/seo/SEOHead';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';

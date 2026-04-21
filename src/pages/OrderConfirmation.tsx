@@ -4,6 +4,7 @@ import { CheckCircle, Package, Clock, Mail, ArrowRight, Truck, Loader2, Sparkles
 import { useLanguage } from '@/context/LanguageContext';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
+import SEOHead from '@/components/seo/SEOHead';
 import { Button } from '@/components/ui/button';
 import { Link, useSearchParams } from 'react-router-dom';
 import { storeConfig } from '@/config/storeConfig';
