@@ -8,6 +8,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { toast } from 'sonner';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
+import SEOHead from '@/components/seo/SEOHead';
 
 const ResetPassword = () => {
   const { language } = useLanguage();

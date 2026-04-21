@@ -13,6 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { safeInvoke } from '@/lib/safeInvoke';
 import { toast } from 'sonner';
 import { useStoreSettings } from '@/stores/storeSettingsStore';
+import SEOHead from '@/components/seo/SEOHead';
 import { logActivity } from '@/utils/activityLogger';
 import { useAuth } from '@/hooks/useAuth';
 

@@ -7,6 +7,7 @@ import { useAdminRole } from '@/hooks/useAdminRole';
 import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
+import SEOHead from '@/components/seo/SEOHead';
 
 interface BalanceData {
   donationTotal: number;

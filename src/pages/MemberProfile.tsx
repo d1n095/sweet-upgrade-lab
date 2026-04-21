@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger, ScrollableTabs } from '@/components/ui/tabs';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
+import SEOHead from '@/components/seo/SEOHead';
 import ReviewStars from '@/components/reviews/ReviewStars';
 import ReferralDashboard from '@/components/referral/ReferralDashboard';
 import { supabase } from '@/integrations/supabase/client';

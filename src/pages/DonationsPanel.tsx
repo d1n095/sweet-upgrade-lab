@@ -11,6 +11,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import DonationImpact from '@/components/donations/DonationImpact';
+import SEOHead from '@/components/seo/SEOHead';
 
 interface DonationSummary {
   totalDonated: number;

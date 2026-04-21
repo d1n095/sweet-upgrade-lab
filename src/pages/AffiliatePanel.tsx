@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import AffiliateDashboard from '@/components/dashboard/AffiliateDashboard';
+import SEOHead from '@/components/seo/SEOHead';
 
 const AffiliatePanel = () => {
   const { user, loading: authLoading } = useAuth();
