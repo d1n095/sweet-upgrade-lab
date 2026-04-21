@@ -235,6 +235,37 @@ export const DEFAULT_RULES: Rule[] = [
     }),
     enabled: true,
   }),
+
+  // ── R8: cart_abandonment (high value) → conversion campaign 7d ───────────
+  defineRule<"cart_abandonment">({
+    id: "R8_cart_abandonment_conversion_campaign",
+    description: "IF cart_abandonment AND cart_value ≥ 500 SEK → conversion_opt campaign 7d",
+    event_type: "cart_abandonment",
+    priority: RULE_PRIORITY.EVENT_DRIVEN,
+    condition: (p) => p.cart_value >= 500 && p.items_count > 0,
+    action: (p) => ({
+      type: "trigger_campaign",
+      campaign_type: "conversion_opt",
+      duration_days: 7,
+      reason: `cart_abandonment:${p.abandoned_at_step}:${p.cart_value}sek`,
+    }),
+    enabled: true,
+  }),
+
+  // ── R9: cart_abandonment (low value) → flag for review ───────────────────
+  defineRule<"cart_abandonment">({
+    id: "R9_cart_abandonment_flag",
+    description: "IF cart_abandonment AND cart_value < 500 SEK → flag info",
+    event_type: "cart_abandonment",
+    priority: RULE_PRIORITY.DEFAULT,
+    condition: (p) => p.cart_value < 500 && p.items_count > 0,
+    action: (p) => ({
+      type: "flag_for_review",
+      reason: `cart_abandonment:${p.abandoned_at_step}:${p.cart_value}sek`,
+      severity: "info",
+    }),
+    enabled: true,
+  }),
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────

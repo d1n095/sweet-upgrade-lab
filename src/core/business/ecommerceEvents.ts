@@ -24,7 +24,8 @@ export type EcommerceEventType =
   | "low_stock"
   | "high_stock"
   | "price_drop_needed"
-  | "campaign_trigger";
+  | "campaign_trigger"
+  | "cart_abandonment";
 
 export type EcommerceEventSeverity = "info" | "warning" | "critical";
 
@@ -67,7 +68,67 @@ export type EventPayloadMap = {
       | "seasonal";
     trigger_reason: string;
   };
+  cart_abandonment: {
+    session_id: string;
+    cart_value: number;
+    items_count: number;
+    abandoned_at_step: "cart" | "checkout" | "payment";
+    minutes_since_last_activity: number;
+    user_id?: string | null;
+  };
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Cart-abandonment thresholds — deterministic constants, no AI.
+// ─────────────────────────────────────────────────────────────────────────────
+export const CART_ABANDONMENT_THRESHOLDS = {
+  /** Minimum cart value (SEK) to qualify as a recoverable abandonment. */
+  min_cart_value: 100,
+  /** Minutes of inactivity before a cart is considered abandoned. */
+  inactivity_minutes: 30,
+  /** Cart value (SEK) at which severity escalates from info → warning. */
+  high_value_threshold: 500,
+} as const;
+
+/**
+ * Pure evaluator for cart abandonment events. Same input → same event (or none).
+ * Caller supplies the raw signal; this function applies the static thresholds.
+ */
+export function evaluateCartAbandonment(input: {
+  session_id: string;
+  cart_value: number;
+  items_count: number;
+  abandoned_at_step: "cart" | "checkout" | "payment";
+  minutes_since_last_activity: number;
+  user_id?: string | null;
+}): EcommerceEvent[] {
+  if (input.cart_value < CART_ABANDONMENT_THRESHOLDS.min_cart_value) return [];
+  if (input.items_count <= 0) return [];
+  if (input.minutes_since_last_activity < CART_ABANDONMENT_THRESHOLDS.inactivity_minutes) return [];
+
+  const severity: EcommerceEventSeverity =
+    input.cart_value >= CART_ABANDONMENT_THRESHOLDS.high_value_threshold
+      ? "warning"
+      : "info";
+
+  return [
+    {
+      event_type: "cart_abandonment",
+      product_id: null,
+      variant_id: null,
+      severity,
+      source: "cart_abandonment_evaluator",
+      payload: {
+        session_id: input.session_id,
+        cart_value: input.cart_value,
+        items_count: input.items_count,
+        abandoned_at_step: input.abandoned_at_step,
+        minutes_since_last_activity: input.minutes_since_last_activity,
+        user_id: input.user_id ?? null,
+      },
+    },
+  ];
+}
 
 export interface EcommerceEvent<T extends EcommerceEventType = EcommerceEventType> {
   id?: string;
