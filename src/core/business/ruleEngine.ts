@@ -26,8 +26,17 @@ export type RuleActionType =
   | "apply_discount"
   | "change_price"
   | "trigger_campaign"
+  | "mark_product_status"
   | "flag_for_review"
   | "no_op";
+
+export type ProductStatus = "active" | "draft" | "archived" | "out_of_stock";
+
+export interface MarkProductStatusAction {
+  type: "mark_product_status";
+  status: ProductStatus;
+  reason: string;
+}
 
 export interface DiscountAction {
   type: "apply_discount";
@@ -68,6 +77,7 @@ export type RuleAction =
   | DiscountAction
   | PriceChangeAction
   | CampaignAction
+  | MarkProductStatusAction
   | FlagAction
   | NoOpAction;
 
@@ -263,6 +273,20 @@ export const DEFAULT_RULES: Rule[] = [
       type: "flag_for_review",
       reason: `cart_abandonment:${p.abandoned_at_step}:${p.cart_value}sek`,
       severity: "info",
+    }),
+    enabled: true,
+  }),
+  // ── R10: out of stock → mark product status as out_of_stock (SAFETY) ────
+  defineRule<"low_stock">({
+    id: "R10_oos_mark_status",
+    description: "IF stock - reserved ≤ 0 → mark_product_status=out_of_stock",
+    event_type: "low_stock",
+    priority: RULE_PRIORITY.SAFETY,
+    condition: (p) => p.stock - p.reserved <= 0,
+    action: () => ({
+      type: "mark_product_status",
+      status: "out_of_stock",
+      reason: "auto:stock_zero",
     }),
     enabled: true,
   }),
