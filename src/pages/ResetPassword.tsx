@@ -83,6 +83,7 @@ const ResetPassword = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead title={language === 'sv' ? 'Återställ lösenord' : 'Reset password'} description="Reset your password" noindex />
       <Header />
       <main className="container mx-auto px-4 py-20">
         <div className="max-w-md mx-auto">

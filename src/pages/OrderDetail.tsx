@@ -137,6 +137,7 @@ const OrderDetail = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead title={language === 'sv' ? 'Orderdetaljer' : 'Order details'} description="Order details" noindex />
       <Header />
       <div className="max-w-3xl mx-auto px-4 py-8">
         {/* Back link */}

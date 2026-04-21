@@ -306,6 +306,7 @@ const BalancePage = () => {
 
   return (
     <div className="space-y-6">
+      <SEOHead title={language === 'sv' ? 'Saldo' : 'Balance'} description="Account balance" noindex />
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}

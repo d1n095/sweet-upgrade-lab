@@ -254,6 +254,7 @@ const MemberProfile = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead title={language === 'sv' ? 'Min profil' : 'My profile'} description="Member profile" noindex />
       <Header />
       <main className="pt-24 pb-20">
         <div className="container mx-auto px-4">

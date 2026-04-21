@@ -80,6 +80,7 @@ const DonationsPanel = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead title="Donations Panel" description="Donations management" noindex />
       <Header />
       <main className="pt-24 pb-20">
         <div className="container mx-auto px-4 max-w-4xl">
