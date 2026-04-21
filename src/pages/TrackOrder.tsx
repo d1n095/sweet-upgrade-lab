@@ -342,6 +342,13 @@ const TrackOrder = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead
+        title={language === 'sv' ? 'Spåra din order' : 'Track your order'}
+        description={language === 'sv'
+          ? 'Spåra din beställning från 4thepeople i realtid med ordernummer och e-post.'
+          : 'Track your 4thepeople order in real time using your order number and email.'}
+        canonical="/track-order"
+      />
       <Header />
       
       <main className="pt-24 pb-20">

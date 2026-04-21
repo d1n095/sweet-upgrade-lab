@@ -144,6 +144,11 @@ const OrderConfirmation = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead
+        title={language === 'sv' ? 'Tack för din beställning' : 'Thank you for your order'}
+        description={language === 'sv' ? 'Din beställning är bekräftad.' : 'Your order is confirmed.'}
+        noindex
+      />
       <Header />
       <main className="pt-24 pb-20">
         <div className="container mx-auto px-4 max-w-3xl">

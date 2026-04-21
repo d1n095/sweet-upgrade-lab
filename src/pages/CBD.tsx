@@ -131,6 +131,16 @@ const CBD = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead
+        title={language === 'sv' ? 'CBD & Hampaprodukter — Kommer snart' : 'CBD & Hemp Products — Coming Soon'}
+        description={t.hero.subtitle}
+        canonical="/cbd"
+        keywords="cbd, hampa, hemp, naturlig, ekologisk"
+        breadcrumbs={[
+          { name: language === 'sv' ? 'Hem' : 'Home', url: '/' },
+          { name: 'CBD', url: '/cbd' },
+        ]}
+      />
       <Header />
       
       <main className="pt-24 md:pt-32">
