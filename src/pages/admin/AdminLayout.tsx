@@ -45,6 +45,7 @@ const navGroups: NavGroup[] = [
     label: '',
     items: [
       { to: '/admin', label: 'Dashboard', icon: BarChart3, end: true, role: 'all' },
+      { to: '/admin/control-center', label: 'Control Center', icon: Eye, role: 'admin' },
     ],
   },
   {

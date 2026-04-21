@@ -81,6 +81,7 @@ import AdminSecurity from "./pages/admin/AdminSecurity";
 import AdminIssues from "./pages/admin/AdminIssues";
 import AdminScans from "./pages/admin/AdminScans";
 import AdminControl from "./pages/admin/AdminControl";
+import AdminControlCenter from "./pages/admin/AdminControlCenter";
 
 const SystemExplorer = lazy(() => import("./pages/admin/SystemExplorer"));
 const DevOS = lazy(() => import("./pages/admin/DevOS"));
@@ -182,6 +183,7 @@ const App = () => {
                     <Route path="issues" element={<AdminIssues />} />
                     <Route path="scans" element={<AdminScans />} />
                     <Route path="control" element={<AdminControl />} />
+                    <Route path="control-center" element={<AdminControlCenter />} />
                   </Route>
 
                   <Route path="*" element={<NotFound />} />
