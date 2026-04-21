@@ -9,6 +9,7 @@ import {
   Handshake, Heart, Eye, LogOut, Home, Shield, Crown,
   Activity, User, Menu, X, Star, FileText, Percent, Truck, Wallet, Globe,
   AlertTriangle, ScanLine, Sparkles, History, ShoppingCart, Radar, Zap,
+  Mail, LayoutDashboard, ShoppingBag, Megaphone, Terminal, Database,
 } from 'lucide-react';
 import { useEmployeeRole } from '@/hooks/useEmployeeRole';
 import { useFounderRole } from '@/hooks/useFounderRole';
@@ -42,69 +43,80 @@ interface NavGroup {
 
 const navGroups: NavGroup[] = [
   {
-    label: '',
+    label: 'DASHBOARD',
     items: [
-      { to: '/admin', label: 'Dashboard', icon: BarChart3, end: true, role: 'all' },
-      { to: '/admin/control-center', label: 'Control Center', icon: Eye, role: 'admin' },
+      { to: '/admin', label: 'Översikt', icon: LayoutDashboard, end: true, role: 'all' },
+      { to: '/admin/stats', label: 'Statistik', icon: BarChart3, role: 'admin' },
+      { to: '/admin/insights', label: 'Insights', icon: Activity, role: 'admin' },
+      { to: '/admin/overview', label: 'System Overview', icon: Eye, role: 'admin' },
     ],
   },
   {
-    label: 'DRIFT',
+    label: 'COMMERCE',
     items: [
       { to: '/admin/ops', label: 'Operations', icon: ClipboardList, role: 'all' },
-      { to: '/admin/orders', label: 'Ordrar', icon: ClipboardList, role: 'all' },
+      { to: '/admin/orders', label: 'Ordrar', icon: ShoppingBag, role: 'all' },
       { to: '/admin/pos', label: 'Kassa (POS)', icon: ShoppingCart, role: 'all' },
-      { to: '/admin/incidents', label: 'Ärenden', icon: AlertTriangle, role: 'all' },
-      { to: '/admin/warehouse', label: 'Warehouse', icon: ScanLine, role: 'all' },
-      { to: '/admin/shipping', label: 'Frakt', icon: Truck, role: 'admin' },
-      { to: '/admin/staff', label: 'Workbench', icon: Crown, role: 'founder' },
-    ],
-  },
-  {
-    label: 'LAGER',
-    items: [
       { to: '/admin/products', label: 'Produkter', icon: Package, role: 'all' },
       { to: '/admin/categories', label: 'Kategorier', icon: Grid, role: 'admin' },
       { to: '/admin/reviews', label: 'Recensioner', icon: Star, role: 'all' },
+      { to: '/admin/warehouse', label: 'Warehouse', icon: ScanLine, role: 'all' },
+      { to: '/admin/shipping', label: 'Frakt', icon: Truck, role: 'admin' },
+      { to: '/admin/incidents', label: 'Ärenden', icon: AlertTriangle, role: 'all' },
+      { to: '/admin/payments', label: 'Betalningar', icon: Wallet, role: 'admin' },
+      { to: '/admin/finance', label: 'Ekonomi', icon: Wallet, role: 'admin' },
     ],
   },
   {
-    label: 'TILLVÄXT',
+    label: 'USERS & ACCESS',
+    items: [
+      { to: '/admin/members', label: 'Användare', icon: Users, role: 'admin' },
+      { to: '/admin/staff', label: 'Workbench', icon: Crown, role: 'founder' },
+      { to: '/admin/security', label: 'Säkerhet & Roller', icon: Shield, role: 'admin' },
+    ],
+  },
+  {
+    label: 'COMMUNICATION',
+    items: [
+      { to: '/admin/content', label: 'Innehåll & E-post', icon: Mail, role: 'admin' },
+      { to: '/admin/legal', label: 'Juridik', icon: FileText, role: 'admin' },
+    ],
+  },
+  {
+    label: 'MARKETING & SEO',
     items: [
       { to: '/admin/growth', label: 'Tillväxt', icon: Activity, role: 'admin' },
-      { to: '/admin/stats', label: 'Statistik', icon: BarChart3, role: 'admin' },
-      { to: '/admin/insights', label: 'Insights', icon: Activity, role: 'admin' },
       { to: '/admin/campaigns', label: 'Kampanjer', icon: Percent, role: 'admin' },
       { to: '/admin/events-dashboard', label: 'Events Dashboard', icon: Zap, role: 'admin' },
-      { to: '/admin/seo', label: 'SEO', icon: Globe, role: 'admin' },
+      { to: '/admin/seo', label: 'SEO & Metadata', icon: Globe, role: 'admin' },
     ],
   },
   {
-    label: 'EKONOMI',
+    label: 'AFFILIATE',
     items: [
-      { to: '/admin/finance', label: 'Ekonomi', icon: Wallet, role: 'admin' },
+      { to: '/admin/partners', label: 'Partners & Referrals', icon: Handshake, role: 'admin' },
       { to: '/admin/donations', label: 'Donationer', icon: Heart, role: 'admin' },
-      { to: '/admin/partners', label: 'Partners', icon: Handshake, role: 'admin' },
     ],
   },
   {
-    label: 'SYSTEM',
+    label: 'SYSTEM CONTROL',
     items: [
       { to: '/admin/issues', label: 'Issues', icon: AlertTriangle, role: 'admin' },
       { to: '/admin/scans', label: 'Skanningar', icon: Radar, role: 'admin' },
-      { to: '/admin/security', label: 'Säkerhet', icon: Shield, role: 'admin' },
-      { to: '/admin/overview', label: 'System Overview', icon: Eye, role: 'admin' },
-      { to: '/admin/system-explorer', label: 'Command Center', icon: Radar, role: 'admin' },
+      { to: '/admin/logs', label: 'Loggar', icon: Activity, role: 'admin' },
       { to: '/admin/history', label: 'Historik', icon: History, role: 'admin' },
       { to: '/admin/changes', label: 'Ändringslogg', icon: Activity, role: 'admin' },
-      { to: '/admin/members', label: 'Användare', icon: Users, role: 'admin' },
-      { to: '/admin/content', label: 'Innehåll', icon: FileText, role: 'admin' },
-      { to: '/admin/legal', label: 'Juridik', icon: Heart, role: 'admin' },
-      { to: '/admin/logs', label: 'Logg', icon: Activity, role: 'admin' },
       { to: '/admin/data', label: 'Data Center', icon: Sparkles, role: 'admin' },
-      { to: '/admin/database', label: 'Databas', icon: Grid, role: 'admin' },
+      { to: '/admin/database', label: 'Databas', icon: Database, role: 'admin' },
       { to: '/admin/settings', label: 'Inställningar', icon: Settings, role: 'admin' },
-      { to: '/admin/debug', label: 'Debug', icon: Shield, role: 'admin' },
+      { to: '/admin/debug', label: 'Debug', icon: Terminal, role: 'admin' },
+    ],
+  },
+  {
+    label: 'COMMAND CENTER',
+    items: [
+      { to: '/admin/control-center', label: 'Control Center', icon: Eye, role: 'admin' },
+      { to: '/admin/system-explorer', label: 'System Explorer', icon: Radar, role: 'admin' },
     ],
   },
 ];
