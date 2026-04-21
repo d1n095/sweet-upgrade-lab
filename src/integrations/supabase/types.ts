@@ -3834,6 +3834,56 @@ export type Database = {
           },
         ]
       }
+      stock_history: {
+        Row: {
+          change_reason: string | null
+          changed_at: string
+          changed_by: string | null
+          delta_stock: number | null
+          id: string
+          new_reserved: number | null
+          new_stock: number | null
+          old_reserved: number | null
+          old_stock: number | null
+          product_id: string
+          source: string
+        }
+        Insert: {
+          change_reason?: string | null
+          changed_at?: string
+          changed_by?: string | null
+          delta_stock?: number | null
+          id?: string
+          new_reserved?: number | null
+          new_stock?: number | null
+          old_reserved?: number | null
+          old_stock?: number | null
+          product_id: string
+          source?: string
+        }
+        Update: {
+          change_reason?: string | null
+          changed_at?: string
+          changed_by?: string | null
+          delta_stock?: number | null
+          id?: string
+          new_reserved?: number | null
+          new_stock?: number | null
+          old_reserved?: number | null
+          old_stock?: number | null
+          product_id?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_history_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       store_settings: {
         Row: {
           id: string
@@ -4871,6 +4921,7 @@ export type Database = {
         | "high_stock"
         | "price_drop_needed"
         | "campaign_trigger"
+        | "cart_abandonment"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -5035,6 +5086,7 @@ export const Constants = {
         "high_stock",
         "price_drop_needed",
         "campaign_trigger",
+        "cart_abandonment",
       ],
     },
   },
