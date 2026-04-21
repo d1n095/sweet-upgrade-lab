@@ -26,8 +26,17 @@ export type RuleActionType =
   | "apply_discount"
   | "change_price"
   | "trigger_campaign"
+  | "mark_product_status"
   | "flag_for_review"
   | "no_op";
+
+export type ProductStatus = "active" | "draft" | "archived" | "out_of_stock";
+
+export interface MarkProductStatusAction {
+  type: "mark_product_status";
+  status: ProductStatus;
+  reason: string;
+}
 
 export interface DiscountAction {
   type: "apply_discount";
