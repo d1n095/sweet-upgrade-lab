@@ -1,8 +1,15 @@
 User-agent: Googlebot
 Allow: /
+Disallow: /admin/
+Disallow: /checkout
+Disallow: /balance
+Disallow: /reset-password
 
 User-agent: Bingbot
 Allow: /
+Disallow: /admin/
+Disallow: /checkout
+Disallow: /balance
 
 User-agent: Twitterbot
 Allow: /
@@ -13,5 +20,11 @@ Allow: /
 User-agent: *
 Allow: /
 Disallow: /admin/
+Disallow: /checkout
+Disallow: /balance
+Disallow: /reset-password
+Disallow: /affiliate-panel
+Disallow: /donations-panel
 
+Sitemap: https://4thepeople.se/sitemap.xml
 Sitemap: https://jjvbvrgjanisbuhalevj.supabase.co/functions/v1/sitemap

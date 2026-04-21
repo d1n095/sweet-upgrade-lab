@@ -24,6 +24,7 @@ import RelatedProducts from '@/components/product/RelatedProducts';
 import ProductBundles from '@/components/product/ProductBundles';
 import SEOHead from '@/components/seo/SEOHead';
 import { Badge } from '@/components/ui/badge';
+import { storeConfig } from '@/config/storeConfig';
 import { toast } from 'sonner';
 
 // SEO is fully DB-driven — meta_title / meta_description / meta_keywords
@@ -199,22 +200,40 @@ const ProductDetail = () => {
     <div className="min-h-screen bg-background">
       <SEOHead
         title={product.meta_title || product.title_sv}
-        description={product.meta_description || ''}
+        description={product.meta_description || product.description_sv || ''}
         keywords={product.meta_keywords || ''}
         canonical={`/product/${handle}`}
         ogType="product"
         ogImage={images[0]}
         schemaType="Product"
+        breadcrumbs={[
+          { name: lang === 'sv' ? 'Hem' : 'Home', url: '/' },
+          { name: lang === 'sv' ? 'Produkter' : 'Products', url: '/produkter' },
+          { name: product.title_sv, url: `/product/${handle}` },
+        ]}
         schemaData={{
           name: product.title_sv,
-          description: product.description_sv || '',
-          image: images[0] || '',
+          description: product.description_sv || product.meta_description || '',
+          image: images.length > 0 ? images : undefined,
+          sku: product.id,
+          mpn: product.handle || product.id,
+          category: product.category || undefined,
           offers: {
             '@type': 'Offer',
+            url: `${storeConfig.siteUrl}/product/${handle}`,
             price: product.price,
-            priceCurrency: 'SEK',
+            priceCurrency: product.currency || 'SEK',
             availability: isOutOfStock ? 'https://schema.org/OutOfStock' : 'https://schema.org/InStock',
+            itemCondition: 'https://schema.org/NewCondition',
+            priceValidUntil: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
           },
+          ...(reviewStats.count > 0 && {
+            aggregateRating: {
+              '@type': 'AggregateRating',
+              ratingValue: reviewStats.average.toFixed(1),
+              reviewCount: reviewStats.count,
+            },
+          }),
         }}
       />
       <Header />

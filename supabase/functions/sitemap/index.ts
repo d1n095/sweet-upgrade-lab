@@ -19,12 +19,20 @@ serve(async () => {
     .select("slug, updated_at")
     .eq("is_visible", true);
 
+  // Static pages — MUST match actual React routes in src/App.tsx
   const staticPages = [
     { loc: "/", priority: "1.0", changefreq: "daily" },
     { loc: "/produkter", priority: "0.9", changefreq: "daily" },
-    { loc: "/om-oss", priority: "0.6", changefreq: "monthly" },
-    { loc: "/kontakt", priority: "0.5", changefreq: "monthly" },
-    { loc: "/butik", priority: "0.8", changefreq: "weekly" },
+    { loc: "/about", priority: "0.6", changefreq: "monthly" },
+    { loc: "/contact", priority: "0.5", changefreq: "monthly" },
+    { loc: "/track-order", priority: "0.4", changefreq: "monthly" },
+    { loc: "/affiliate", priority: "0.5", changefreq: "monthly" },
+    { loc: "/business", priority: "0.5", changefreq: "monthly" },
+    { loc: "/whats-new", priority: "0.5", changefreq: "weekly" },
+    { loc: "/policies/privacy", priority: "0.3", changefreq: "yearly" },
+    { loc: "/policies/terms", priority: "0.3", changefreq: "yearly" },
+    { loc: "/policies/shipping", priority: "0.3", changefreq: "yearly" },
+    { loc: "/policies/returns", priority: "0.3", changefreq: "yearly" },
   ];
 
   let xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -65,8 +73,8 @@ serve(async () => {
 
   return new Response(xml, {
     headers: {
-      "Content-Type": "application/xml",
-      "Cache-Control": "public, max-age=3600",
+      "Content-Type": "application/xml; charset=utf-8",
+      "Cache-Control": "public, max-age=3600, s-maxage=3600",
     },
   });
 });
