@@ -34,6 +34,29 @@ import {
   type ArchitectureReport,
   type ArchitectureViolation,
 } from "@/core/architecture/architectureEnforcementCore";
+import { recordFailure } from "@/lib/failureMemory";
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * ENDPOINT/STATUS MISMATCH TRACKER (additive, rule-based, no AI)
+ *
+ * Records repeated scan failures keyed by `${endpoint}::${expected}->${actual}`.
+ * When occurrence_count exceeds threshold, the pattern is flagged as
+ * "persistent inconsistency" and persisted to functional_failure_memory via
+ * recordFailure(). Pure counting — no inference.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+export interface EndpointMismatchStat {
+  readonly pattern_key: string;
+  readonly endpoint: string;
+  readonly expected_status: string;
+  readonly actual_status: string;
+  readonly occurrence_count: number;
+  readonly first_seen_at: string;
+  readonly last_seen_at: string;
+  readonly persistent: boolean; // true when occurrence_count > PERSISTENT_THRESHOLD
+}
+
+const PERSISTENT_THRESHOLD = 3;
 
 export interface PatternTopConnected {
   readonly file: string;
