@@ -112,6 +112,8 @@ export interface PatternMemoryState {
   frequently_moved_files: ReadonlyArray<FrequentlyMovedFileStat>;
   repeated_top_connected: ReadonlyArray<RepeatedTopConnectedStat>;
   duplicate_observations: number;
+  endpoint_mismatches: ReadonlyArray<EndpointMismatchStat>;
+  persistent_inconsistencies: ReadonlyArray<EndpointMismatchStat>;
 }
 
 class PatternMemory {
