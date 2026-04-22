@@ -459,6 +459,7 @@ class PatternMemory {
     this.movedHistory.clear();
     this.stableCandidates = null;
     this.endpointMismatches.clear();
+    this.persistentFlags = [];
     this.emit();
   }
 }
