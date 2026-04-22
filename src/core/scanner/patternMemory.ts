@@ -58,6 +58,18 @@ export interface EndpointMismatchStat {
 
 const PERSISTENT_THRESHOLD = 3;
 
+export interface PersistentInconsistencyFlag {
+  readonly type: "persistent_inconsistency";
+  readonly severity: "high";
+  readonly source: "patternMemory";
+  readonly pattern_key: string;
+  readonly endpoint: string;
+  readonly expected_status: string;
+  readonly actual_status: string;
+  readonly occurrence_count: number;
+  readonly flagged_at: string;
+}
+
 export interface PatternTopConnected {
   readonly file: string;
   readonly coupling_score: number;
@@ -135,6 +147,7 @@ class PatternMemory {
     string,
     { from: string; to: string; at_version: string }[]
   >();
+  private persistentFlags: PersistentInconsistencyFlag[] = [];
   private stableCandidates: Set<string> | null = null; // intersection across all observations
 
   // Endpoint+status mismatch tracker (additive, rule-based)
@@ -275,6 +288,7 @@ class PatternMemory {
     bucket.last_seen_at = now;
 
     const persistent = bucket.occurrence_count > PERSISTENT_THRESHOLD;
+    const justBreached = bucket.occurrence_count === PERSISTENT_THRESHOLD + 1;
 
     // Persist to functional_failure_memory (fire-and-forget; pure side-effect, no AI).
     void recordFailure({
@@ -288,6 +302,23 @@ class PatternMemory {
       severity: persistent ? "high" : "medium",
     });
 
+    // Emit structured flag once per threshold breach (no duplicate logging).
+    if (justBreached) {
+      this.persistentFlags.push(
+        Object.freeze({
+          type: "persistent_inconsistency" as const,
+          severity: "high" as const,
+          source: "patternMemory" as const,
+          pattern_key,
+          endpoint: bucket.endpoint,
+          expected_status: bucket.expected_status,
+          actual_status: bucket.actual_status,
+          occurrence_count: bucket.occurrence_count,
+          flagged_at: now,
+        })
+      );
+    }
+
     this.emit();
     return Object.freeze({
       pattern_key,
@@ -299,6 +330,11 @@ class PatternMemory {
       last_seen_at: bucket.last_seen_at,
       persistent,
     });
+  }
+
+  /** Read structured flags emitted on threshold breach. */
+  getPersistentFlags(): ReadonlyArray<PersistentInconsistencyFlag> {
+    return [...this.persistentFlags];
   }
 
   /**
@@ -423,6 +459,7 @@ class PatternMemory {
     this.movedHistory.clear();
     this.stableCandidates = null;
     this.endpointMismatches.clear();
+    this.persistentFlags = [];
     this.emit();
   }
 }
