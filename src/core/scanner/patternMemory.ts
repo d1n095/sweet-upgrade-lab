@@ -159,6 +159,8 @@ class PatternMemory {
     { from: string; to: string; at_version: string }[]
   >();
   private persistentFlags: PersistentInconsistencyFlag[] = [];
+  private systemicFlags: SystemicEndpointFailureFlag[] = [];
+  private systemicEscalatedEndpoints = new Set<string>();
   private stableCandidates: Set<string> | null = null; // intersection across all observations
 
   // Endpoint+status mismatch tracker (additive, rule-based)
