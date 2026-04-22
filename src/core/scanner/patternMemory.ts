@@ -137,6 +137,19 @@ class PatternMemory {
   >();
   private stableCandidates: Set<string> | null = null; // intersection across all observations
 
+  // Endpoint+status mismatch tracker (additive, rule-based)
+  private endpointMismatches = new Map<
+    string,
+    {
+      endpoint: string;
+      expected_status: string;
+      actual_status: string;
+      occurrence_count: number;
+      first_seen_at: string;
+      last_seen_at: string;
+    }
+  >();
+
   private listeners = new Set<() => void>();
 
   subscribe(fn: () => void): () => void {
