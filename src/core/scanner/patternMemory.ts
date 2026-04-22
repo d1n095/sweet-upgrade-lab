@@ -147,6 +147,7 @@ class PatternMemory {
     string,
     { from: string; to: string; at_version: string }[]
   >();
+  private persistentFlags: PersistentInconsistencyFlag[] = [];
   private stableCandidates: Set<string> | null = null; // intersection across all observations
 
   // Endpoint+status mismatch tracker (additive, rule-based)
