@@ -422,6 +422,7 @@ class PatternMemory {
     this.fileLastKind.clear();
     this.movedHistory.clear();
     this.stableCandidates = null;
+    this.endpointMismatches.clear();
     this.emit();
   }
 }
