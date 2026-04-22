@@ -275,6 +275,7 @@ class PatternMemory {
     bucket.last_seen_at = now;
 
     const persistent = bucket.occurrence_count > PERSISTENT_THRESHOLD;
+    const justBreached = bucket.occurrence_count === PERSISTENT_THRESHOLD + 1;
 
     // Persist to functional_failure_memory (fire-and-forget; pure side-effect, no AI).
     void recordFailure({
@@ -288,6 +289,23 @@ class PatternMemory {
       severity: persistent ? "high" : "medium",
     });
 
+    // Emit structured flag once per threshold breach (no duplicate logging).
+    if (justBreached) {
+      this.persistentFlags.push(
+        Object.freeze({
+          type: "persistent_inconsistency" as const,
+          severity: "high" as const,
+          source: "patternMemory" as const,
+          pattern_key,
+          endpoint: bucket.endpoint,
+          expected_status: bucket.expected_status,
+          actual_status: bucket.actual_status,
+          occurrence_count: bucket.occurrence_count,
+          flagged_at: now,
+        })
+      );
+    }
+
     this.emit();
     return Object.freeze({
       pattern_key,
@@ -299,6 +317,11 @@ class PatternMemory {
       last_seen_at: bucket.last_seen_at,
       persistent,
     });
+  }
+
+  /** Read structured flags emitted on threshold breach. */
+  getPersistentFlags(): ReadonlyArray<PersistentInconsistencyFlag> {
+    return [...this.persistentFlags];
   }
 
   /**
