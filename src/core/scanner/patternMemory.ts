@@ -34,6 +34,29 @@ import {
   type ArchitectureReport,
   type ArchitectureViolation,
 } from "@/core/architecture/architectureEnforcementCore";
+import { recordFailure } from "@/lib/failureMemory";
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * ENDPOINT/STATUS MISMATCH TRACKER (additive, rule-based, no AI)
+ *
+ * Records repeated scan failures keyed by `${endpoint}::${expected}->${actual}`.
+ * When occurrence_count exceeds threshold, the pattern is flagged as
+ * "persistent inconsistency" and persisted to functional_failure_memory via
+ * recordFailure(). Pure counting — no inference.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+export interface EndpointMismatchStat {
+  readonly pattern_key: string;
+  readonly endpoint: string;
+  readonly expected_status: string;
+  readonly actual_status: string;
+  readonly occurrence_count: number;
+  readonly first_seen_at: string;
+  readonly last_seen_at: string;
+  readonly persistent: boolean; // true when occurrence_count > PERSISTENT_THRESHOLD
+}
+
+const PERSISTENT_THRESHOLD = 3;
 
 export interface PatternTopConnected {
   readonly file: string;
@@ -89,6 +112,8 @@ export interface PatternMemoryState {
   frequently_moved_files: ReadonlyArray<FrequentlyMovedFileStat>;
   repeated_top_connected: ReadonlyArray<RepeatedTopConnectedStat>;
   duplicate_observations: number;
+  endpoint_mismatches: ReadonlyArray<EndpointMismatchStat>;
+  persistent_inconsistencies: ReadonlyArray<EndpointMismatchStat>;
 }
 
 class PatternMemory {
@@ -111,6 +136,19 @@ class PatternMemory {
     { from: string; to: string; at_version: string }[]
   >();
   private stableCandidates: Set<string> | null = null; // intersection across all observations
+
+  // Endpoint+status mismatch tracker (additive, rule-based)
+  private endpointMismatches = new Map<
+    string,
+    {
+      endpoint: string;
+      expected_status: string;
+      actual_status: string;
+      occurrence_count: number;
+      first_seen_at: string;
+      last_seen_at: string;
+    }
+  >();
 
   private listeners = new Set<() => void>();
 
@@ -168,6 +206,26 @@ class PatternMemory {
       ? [...this.stableCandidates].sort()
       : [];
 
+    const endpoint_mismatches: EndpointMismatchStat[] = [];
+    for (const [pattern_key, m] of this.endpointMismatches) {
+      endpoint_mismatches.push({
+        pattern_key,
+        endpoint: m.endpoint,
+        expected_status: m.expected_status,
+        actual_status: m.actual_status,
+        occurrence_count: m.occurrence_count,
+        first_seen_at: m.first_seen_at,
+        last_seen_at: m.last_seen_at,
+        persistent: m.occurrence_count > PERSISTENT_THRESHOLD,
+      });
+    }
+    endpoint_mismatches.sort(
+      (a, b) =>
+        b.occurrence_count - a.occurrence_count ||
+        a.pattern_key.localeCompare(b.pattern_key)
+    );
+    const persistent_inconsistencies = endpoint_mismatches.filter((e) => e.persistent);
+
     return {
       entries: [...this.entries],
       total_observations: this.entries.length,
@@ -176,7 +234,71 @@ class PatternMemory {
       frequently_moved_files,
       repeated_top_connected,
       duplicate_observations: this.duplicate_observations,
+      endpoint_mismatches,
+      persistent_inconsistencies,
     };
+  }
+
+  /**
+   * Record a scan failure where an endpoint returned an unexpected status.
+   * Pure counting + threshold flag — calls failureMemory.recordFailure() to
+   * persist the pattern_key and increment occurrence_count in the DB.
+   *
+   * RULE: occurrence_count > PERSISTENT_THRESHOLD → flagged as
+   * "persistent inconsistency". No interpretation beyond the threshold.
+   */
+  recordEndpointMismatch(opts: {
+    endpoint: string;
+    expected_status: number | string;
+    actual_status: number | string;
+    component?: string;
+    fail_reason?: string;
+  }): EndpointMismatchStat {
+    const expected = String(opts.expected_status);
+    const actual = String(opts.actual_status);
+    const pattern_key = `${opts.endpoint}::${expected}->${actual}`;
+    const now = new Date().toISOString();
+
+    let bucket = this.endpointMismatches.get(pattern_key);
+    if (!bucket) {
+      bucket = {
+        endpoint: opts.endpoint,
+        expected_status: expected,
+        actual_status: actual,
+        occurrence_count: 0,
+        first_seen_at: now,
+        last_seen_at: now,
+      };
+      this.endpointMismatches.set(pattern_key, bucket);
+    }
+    bucket.occurrence_count += 1;
+    bucket.last_seen_at = now;
+
+    const persistent = bucket.occurrence_count > PERSISTENT_THRESHOLD;
+
+    // Persist to functional_failure_memory (fire-and-forget; pure side-effect, no AI).
+    void recordFailure({
+      action: "scan_endpoint_check",
+      component: opts.component || opts.endpoint,
+      entityType: "endpoint",
+      failedStep: `status_mismatch:${expected}->${actual}`,
+      failReason:
+        opts.fail_reason ||
+        `Endpoint ${opts.endpoint} expected ${expected}, got ${actual}`,
+      severity: persistent ? "high" : "medium",
+    });
+
+    this.emit();
+    return Object.freeze({
+      pattern_key,
+      endpoint: bucket.endpoint,
+      expected_status: bucket.expected_status,
+      actual_status: bucket.actual_status,
+      occurrence_count: bucket.occurrence_count,
+      first_seen_at: bucket.first_seen_at,
+      last_seen_at: bucket.last_seen_at,
+      persistent,
+    });
   }
 
   /**
@@ -300,6 +422,7 @@ class PatternMemory {
     this.fileLastKind.clear();
     this.movedHistory.clear();
     this.stableCandidates = null;
+    this.endpointMismatches.clear();
     this.emit();
   }
 }
