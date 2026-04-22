@@ -513,6 +513,8 @@ class PatternMemory {
     this.stableCandidates = null;
     this.endpointMismatches.clear();
     this.persistentFlags = [];
+    this.systemicFlags = [];
+    this.systemicEscalatedEndpoints.clear();
     this.emit();
   }
 }
