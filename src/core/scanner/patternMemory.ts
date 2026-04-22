@@ -57,6 +57,7 @@ export interface EndpointMismatchStat {
 }
 
 const PERSISTENT_THRESHOLD = 3;
+const SYSTEMIC_DISTINCT_KEYS_THRESHOLD = 2; // >= 2 distinct pattern_keys on same endpoint
 
 export interface PersistentInconsistencyFlag {
   readonly type: "persistent_inconsistency";
@@ -67,6 +68,16 @@ export interface PersistentInconsistencyFlag {
   readonly expected_status: string;
   readonly actual_status: string;
   readonly occurrence_count: number;
+  readonly flagged_at: string;
+}
+
+export interface SystemicEndpointFailureFlag {
+  readonly type: "systemic_endpoint_failure";
+  readonly severity: "critical";
+  readonly source: "patternMemory";
+  readonly endpoint: string;
+  readonly distinct_pattern_keys: ReadonlyArray<string>;
+  readonly total_occurrences: number;
   readonly flagged_at: string;
 }
 
