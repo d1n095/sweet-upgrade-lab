@@ -57,6 +57,7 @@ export interface EndpointMismatchStat {
 }
 
 const PERSISTENT_THRESHOLD = 3;
+const SYSTEMIC_DISTINCT_KEYS_THRESHOLD = 2; // >= 2 distinct pattern_keys on same endpoint
 
 export interface PersistentInconsistencyFlag {
   readonly type: "persistent_inconsistency";
@@ -67,6 +68,16 @@ export interface PersistentInconsistencyFlag {
   readonly expected_status: string;
   readonly actual_status: string;
   readonly occurrence_count: number;
+  readonly flagged_at: string;
+}
+
+export interface SystemicEndpointFailureFlag {
+  readonly type: "systemic_endpoint_failure";
+  readonly severity: "critical";
+  readonly source: "patternMemory";
+  readonly endpoint: string;
+  readonly distinct_pattern_keys: ReadonlyArray<string>;
+  readonly total_occurrences: number;
   readonly flagged_at: string;
 }
 
@@ -148,6 +159,8 @@ class PatternMemory {
     { from: string; to: string; at_version: string }[]
   >();
   private persistentFlags: PersistentInconsistencyFlag[] = [];
+  private systemicFlags: SystemicEndpointFailureFlag[] = [];
+  private systemicEscalatedEndpoints = new Set<string>();
   private stableCandidates: Set<string> | null = null; // intersection across all observations
 
   // Endpoint+status mismatch tracker (additive, rule-based)
@@ -319,6 +332,41 @@ class PatternMemory {
       );
     }
 
+    // Secondary rule: multiple distinct pattern_keys on same endpoint → systemic.
+    const distinctKeys: string[] = [];
+    let totalOccurrences = 0;
+    for (const [k, b] of this.endpointMismatches) {
+      if (b.endpoint === opts.endpoint) {
+        distinctKeys.push(k);
+        totalOccurrences += b.occurrence_count;
+      }
+    }
+    if (
+      distinctKeys.length >= SYSTEMIC_DISTINCT_KEYS_THRESHOLD &&
+      !this.systemicEscalatedEndpoints.has(opts.endpoint)
+    ) {
+      this.systemicEscalatedEndpoints.add(opts.endpoint);
+      this.systemicFlags.push(
+        Object.freeze({
+          type: "systemic_endpoint_failure" as const,
+          severity: "critical" as const,
+          source: "patternMemory" as const,
+          endpoint: opts.endpoint,
+          distinct_pattern_keys: Object.freeze([...distinctKeys]),
+          total_occurrences: totalOccurrences,
+          flagged_at: now,
+        })
+      );
+      void recordFailure({
+        action: "scan_endpoint_check",
+        component: opts.component || opts.endpoint,
+        entityType: "endpoint",
+        failedStep: `systemic_endpoint_failure:${distinctKeys.length}_keys`,
+        failReason: `Endpoint ${opts.endpoint} has ${distinctKeys.length} distinct mismatch patterns`,
+        severity: "critical",
+      });
+    }
+
     this.emit();
     return Object.freeze({
       pattern_key,
@@ -335,6 +383,11 @@ class PatternMemory {
   /** Read structured flags emitted on threshold breach. */
   getPersistentFlags(): ReadonlyArray<PersistentInconsistencyFlag> {
     return [...this.persistentFlags];
+  }
+
+  /** Read systemic endpoint failure escalations. */
+  getSystemicFlags(): ReadonlyArray<SystemicEndpointFailureFlag> {
+    return [...this.systemicFlags];
   }
 
   /**
@@ -460,6 +513,8 @@ class PatternMemory {
     this.stableCandidates = null;
     this.endpointMismatches.clear();
     this.persistentFlags = [];
+    this.systemicFlags = [];
+    this.systemicEscalatedEndpoints.clear();
     this.emit();
   }
 }
