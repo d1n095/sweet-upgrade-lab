@@ -58,6 +58,18 @@ export interface EndpointMismatchStat {
 
 const PERSISTENT_THRESHOLD = 3;
 
+export interface PersistentInconsistencyFlag {
+  readonly type: "persistent_inconsistency";
+  readonly severity: "high";
+  readonly source: "patternMemory";
+  readonly pattern_key: string;
+  readonly endpoint: string;
+  readonly expected_status: string;
+  readonly actual_status: string;
+  readonly occurrence_count: number;
+  readonly flagged_at: string;
+}
+
 export interface PatternTopConnected {
   readonly file: string;
   readonly coupling_score: number;
