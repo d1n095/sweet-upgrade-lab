@@ -81,6 +81,16 @@ export interface SystemicEndpointFailureFlag {
   readonly flagged_at: string;
 }
 
+export interface MultiLayerInconsistencyFlag {
+  readonly type: "multi_layer_inconsistency";
+  readonly severity: "critical";
+  readonly source: "patternMemory";
+  readonly endpoint: string;
+  readonly contributing_sources: ReadonlyArray<string>;
+  readonly signal_count: number;
+  readonly flagged_at: string;
+}
+
 export interface PatternTopConnected {
   readonly file: string;
   readonly coupling_score: number;
@@ -161,6 +171,10 @@ class PatternMemory {
   private persistentFlags: PersistentInconsistencyFlag[] = [];
   private systemicFlags: SystemicEndpointFailureFlag[] = [];
   private systemicEscalatedEndpoints = new Set<string>();
+  // Cross-module endpoint signals: endpoint → set of source identifiers.
+  private endpointSignalSources = new Map<string, Set<string>>();
+  private multiLayerFlags: MultiLayerInconsistencyFlag[] = [];
+  private multiLayerEscalatedEndpoints = new Set<string>();
   private stableCandidates: Set<string> | null = null; // intersection across all observations
 
   // Endpoint+status mismatch tracker (additive, rule-based)
@@ -367,6 +381,9 @@ class PatternMemory {
       });
     }
 
+    // Self-register patternMemory as a signal source for this endpoint.
+    this.registerEndpointSignal(opts.endpoint, "patternMemory");
+
     this.emit();
     return Object.freeze({
       pattern_key,
@@ -380,6 +397,51 @@ class PatternMemory {
     });
   }
 
+  /**
+   * Register that an external engine has flagged an endpoint. When ≥2 distinct
+   * sources flag the same endpoint → emit "multi_layer_inconsistency".
+   * Pure counting; deterministic; idempotent per (endpoint, source).
+   */
+  registerEndpointSignal(endpoint: string, source: string): void {
+    let sources = this.endpointSignalSources.get(endpoint);
+    if (!sources) {
+      sources = new Set<string>();
+      this.endpointSignalSources.set(endpoint, sources);
+    }
+    const before = sources.size;
+    sources.add(source);
+    const after = sources.size;
+
+    if (
+      after >= 2 &&
+      after > before &&
+      !this.multiLayerEscalatedEndpoints.has(endpoint)
+    ) {
+      this.multiLayerEscalatedEndpoints.add(endpoint);
+      const now = new Date().toISOString();
+      this.multiLayerFlags.push(
+        Object.freeze({
+          type: "multi_layer_inconsistency" as const,
+          severity: "critical" as const,
+          source: "patternMemory" as const,
+          endpoint,
+          contributing_sources: Object.freeze([...sources].sort()),
+          signal_count: after,
+          flagged_at: now,
+        })
+      );
+      void recordFailure({
+        action: "cross_module_collision",
+        component: endpoint,
+        entityType: "endpoint",
+        failedStep: `multi_layer_inconsistency:${after}_sources`,
+        failReason: `Endpoint ${endpoint} flagged by ${after} engines: ${[...sources].sort().join(", ")}`,
+        severity: "critical",
+      });
+      this.emit();
+    }
+  }
+
   /** Read structured flags emitted on threshold breach. */
   getPersistentFlags(): ReadonlyArray<PersistentInconsistencyFlag> {
     return [...this.persistentFlags];
@@ -388,6 +450,11 @@ class PatternMemory {
   /** Read systemic endpoint failure escalations. */
   getSystemicFlags(): ReadonlyArray<SystemicEndpointFailureFlag> {
     return [...this.systemicFlags];
+  }
+
+  /** Read cross-module multi-layer inconsistencies. */
+  getMultiLayerFlags(): ReadonlyArray<MultiLayerInconsistencyFlag> {
+    return [...this.multiLayerFlags];
   }
 
   /**
@@ -515,6 +582,9 @@ class PatternMemory {
     this.persistentFlags = [];
     this.systemicFlags = [];
     this.systemicEscalatedEndpoints.clear();
+    this.endpointSignalSources.clear();
+    this.multiLayerFlags = [];
+    this.multiLayerEscalatedEndpoints.clear();
     this.emit();
   }
 }
