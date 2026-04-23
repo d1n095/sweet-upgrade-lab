@@ -69,6 +69,7 @@ export interface PersistentInconsistencyFlag {
   readonly actual_status: string;
   readonly occurrence_count: number;
   readonly flagged_at: string;
+  readonly priority_score: number;
 }
 
 export interface SystemicEndpointFailureFlag {
@@ -79,6 +80,7 @@ export interface SystemicEndpointFailureFlag {
   readonly distinct_pattern_keys: ReadonlyArray<string>;
   readonly total_occurrences: number;
   readonly flagged_at: string;
+  readonly priority_score: number;
 }
 
 export interface MultiLayerInconsistencyFlag {
@@ -89,6 +91,28 @@ export interface MultiLayerInconsistencyFlag {
   readonly contributing_sources: ReadonlyArray<string>;
   readonly signal_count: number;
   readonly flagged_at: string;
+  readonly priority_score: number;
+}
+
+/**
+ * Deterministic priority scoring for emitted flags.
+ * Base severity: critical=3, high=2, medium=1.
+ * Modifiers: +2 multi_layer_inconsistency, +2 systemic_endpoint_failure,
+ * +1 occurrence_count > 5, +1 triggered by ruleEvolution.
+ */
+export function computePriorityScore(input: {
+  severity: "critical" | "high" | "medium";
+  type?: string;
+  occurrence_count?: number;
+  contributing_sources?: ReadonlyArray<string>;
+}): number {
+  const base = input.severity === "critical" ? 3 : input.severity === "high" ? 2 : 1;
+  let score = base;
+  if (input.type === "multi_layer_inconsistency") score += 2;
+  if (input.type === "systemic_endpoint_failure") score += 2;
+  if ((input.occurrence_count ?? 0) > 5) score += 1;
+  if (input.contributing_sources?.includes("ruleEvolution")) score += 1;
+  return score;
 }
 
 export interface PatternTopConnected {
