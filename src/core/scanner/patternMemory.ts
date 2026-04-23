@@ -171,6 +171,10 @@ class PatternMemory {
   private persistentFlags: PersistentInconsistencyFlag[] = [];
   private systemicFlags: SystemicEndpointFailureFlag[] = [];
   private systemicEscalatedEndpoints = new Set<string>();
+  // Cross-module endpoint signals: endpoint → set of source identifiers.
+  private endpointSignalSources = new Map<string, Set<string>>();
+  private multiLayerFlags: MultiLayerInconsistencyFlag[] = [];
+  private multiLayerEscalatedEndpoints = new Set<string>();
   private stableCandidates: Set<string> | null = null; // intersection across all observations
 
   // Endpoint+status mismatch tracker (additive, rule-based)
