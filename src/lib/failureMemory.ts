@@ -104,3 +104,73 @@ export async function resolveFailure(patternId: string): Promise<boolean> {
     return false;
   }
 }
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * IN-MEMORY ENDPOINT PRIORITY AGGREGATION
+ * Pure deterministic accumulation. No new schema. Reuses existing identifiers
+ * (endpoint + pattern_key). Dedup is enforced via a per-endpoint Set so the
+ * same pattern_key is counted only once.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+interface EndpointAggregate {
+  endpoint: string;
+  total_priority_score: number;
+  number_of_flags: number;
+  pattern_keys: Set<string>;
+}
+
+const endpointAggregates = new Map<string, EndpointAggregate>();
+
+export interface TopCriticalEndpoint {
+  endpoint: string;
+  total_priority_score: number;
+  number_of_flags: number;
+  pattern_keys: string[];
+}
+
+/**
+ * Aggregate a flag's priority score for an endpoint. Idempotent per
+ * (endpoint, pattern_key) — duplicate calls with the same key are ignored.
+ */
+export function aggregateEndpointFlag(
+  endpoint: string,
+  pattern_key: string,
+  priority_score: number,
+): void {
+  let agg = endpointAggregates.get(endpoint);
+  if (!agg) {
+    agg = { endpoint, total_priority_score: 0, number_of_flags: 0, pattern_keys: new Set() };
+    endpointAggregates.set(endpoint, agg);
+  }
+  if (agg.pattern_keys.has(pattern_key)) return; // no duplicate counting
+  agg.pattern_keys.add(pattern_key);
+  agg.total_priority_score += priority_score;
+  agg.number_of_flags += 1;
+}
+
+/**
+ * Return endpoints sorted by total_priority_score DESC with their contributing
+ * pattern_keys. Deterministic ordering via stable secondary sort by endpoint.
+ */
+export function getTopCriticalEndpoints(limit = 5): TopCriticalEndpoint[] {
+  const out: TopCriticalEndpoint[] = [];
+  for (const agg of endpointAggregates.values()) {
+    out.push({
+      endpoint: agg.endpoint,
+      total_priority_score: agg.total_priority_score,
+      number_of_flags: agg.number_of_flags,
+      pattern_keys: [...agg.pattern_keys].sort(),
+    });
+  }
+  out.sort(
+    (a, b) =>
+      b.total_priority_score - a.total_priority_score ||
+      a.endpoint.localeCompare(b.endpoint),
+  );
+  return out.slice(0, limit);
+}
+
+/** Reset aggregation (test/diagnostic use). */
+export function resetEndpointAggregates(): void {
+  endpointAggregates.clear();
+}
