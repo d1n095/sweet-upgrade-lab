@@ -457,15 +457,22 @@ class PatternMemory {
     ) {
       this.multiLayerEscalatedEndpoints.add(endpoint);
       const now = new Date().toISOString();
+      const sourcesArr = [...sources].sort();
+      const priority_score = computePriorityScore({
+        severity: "critical",
+        type: "multi_layer_inconsistency",
+        contributing_sources: sourcesArr,
+      });
       this.multiLayerFlags.push(
         Object.freeze({
           type: "multi_layer_inconsistency" as const,
           severity: "critical" as const,
           source: "patternMemory" as const,
           endpoint,
-          contributing_sources: Object.freeze([...sources].sort()),
+          contributing_sources: Object.freeze(sourcesArr),
           signal_count: after,
           flagged_at: now,
+          priority_score,
         })
       );
       void recordFailure({
@@ -473,9 +480,10 @@ class PatternMemory {
         component: endpoint,
         entityType: "endpoint",
         failedStep: `multi_layer_inconsistency:${after}_sources`,
-        failReason: `Endpoint ${endpoint} flagged by ${after} engines: ${[...sources].sort().join(", ")}`,
+        failReason: `Endpoint ${endpoint} flagged by ${after} engines: ${sourcesArr.join(", ")}`,
         severity: "critical",
       });
+      aggregateEndpointFlag(endpoint, `multilayer::${endpoint}`, priority_score);
       this.emit();
     }
   }
