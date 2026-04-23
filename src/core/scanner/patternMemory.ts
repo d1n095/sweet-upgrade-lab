@@ -34,7 +34,7 @@ import {
   type ArchitectureReport,
   type ArchitectureViolation,
 } from "@/core/architecture/architectureEnforcementCore";
-import { recordFailure } from "@/lib/failureMemory";
+import { recordFailure, aggregateEndpointFlag } from "@/lib/failureMemory";
 
 /* ──────────────────────────────────────────────────────────────────────────
  * ENDPOINT/STATUS MISMATCH TRACKER (additive, rule-based, no AI)
@@ -69,6 +69,7 @@ export interface PersistentInconsistencyFlag {
   readonly actual_status: string;
   readonly occurrence_count: number;
   readonly flagged_at: string;
+  readonly priority_score: number;
 }
 
 export interface SystemicEndpointFailureFlag {
@@ -79,6 +80,7 @@ export interface SystemicEndpointFailureFlag {
   readonly distinct_pattern_keys: ReadonlyArray<string>;
   readonly total_occurrences: number;
   readonly flagged_at: string;
+  readonly priority_score: number;
 }
 
 export interface MultiLayerInconsistencyFlag {
@@ -89,6 +91,28 @@ export interface MultiLayerInconsistencyFlag {
   readonly contributing_sources: ReadonlyArray<string>;
   readonly signal_count: number;
   readonly flagged_at: string;
+  readonly priority_score: number;
+}
+
+/**
+ * Deterministic priority scoring for emitted flags.
+ * Base severity: critical=3, high=2, medium=1.
+ * Modifiers: +2 multi_layer_inconsistency, +2 systemic_endpoint_failure,
+ * +1 occurrence_count > 5, +1 triggered by ruleEvolution.
+ */
+export function computePriorityScore(input: {
+  severity: "critical" | "high" | "medium";
+  type?: string;
+  occurrence_count?: number;
+  contributing_sources?: ReadonlyArray<string>;
+}): number {
+  const base = input.severity === "critical" ? 3 : input.severity === "high" ? 2 : 1;
+  let score = base;
+  if (input.type === "multi_layer_inconsistency") score += 2;
+  if (input.type === "systemic_endpoint_failure") score += 2;
+  if ((input.occurrence_count ?? 0) > 5) score += 1;
+  if (input.contributing_sources?.includes("ruleEvolution")) score += 1;
+  return score;
 }
 
 export interface PatternTopConnected {
@@ -331,6 +355,11 @@ class PatternMemory {
 
     // Emit structured flag once per threshold breach (no duplicate logging).
     if (justBreached) {
+      const priority_score = computePriorityScore({
+        severity: "high",
+        type: "persistent_inconsistency",
+        occurrence_count: bucket.occurrence_count,
+      });
       this.persistentFlags.push(
         Object.freeze({
           type: "persistent_inconsistency" as const,
@@ -342,8 +371,10 @@ class PatternMemory {
           actual_status: bucket.actual_status,
           occurrence_count: bucket.occurrence_count,
           flagged_at: now,
+          priority_score,
         })
       );
+      aggregateEndpointFlag(bucket.endpoint, pattern_key, priority_score);
     }
 
     // Secondary rule: multiple distinct pattern_keys on same endpoint → systemic.
@@ -360,6 +391,11 @@ class PatternMemory {
       !this.systemicEscalatedEndpoints.has(opts.endpoint)
     ) {
       this.systemicEscalatedEndpoints.add(opts.endpoint);
+      const priority_score = computePriorityScore({
+        severity: "critical",
+        type: "systemic_endpoint_failure",
+        occurrence_count: totalOccurrences,
+      });
       this.systemicFlags.push(
         Object.freeze({
           type: "systemic_endpoint_failure" as const,
@@ -369,6 +405,7 @@ class PatternMemory {
           distinct_pattern_keys: Object.freeze([...distinctKeys]),
           total_occurrences: totalOccurrences,
           flagged_at: now,
+          priority_score,
         })
       );
       void recordFailure({
@@ -379,6 +416,7 @@ class PatternMemory {
         failReason: `Endpoint ${opts.endpoint} has ${distinctKeys.length} distinct mismatch patterns`,
         severity: "critical",
       });
+      aggregateEndpointFlag(opts.endpoint, `systemic::${opts.endpoint}`, priority_score);
     }
 
     // Self-register patternMemory as a signal source for this endpoint.
@@ -419,15 +457,22 @@ class PatternMemory {
     ) {
       this.multiLayerEscalatedEndpoints.add(endpoint);
       const now = new Date().toISOString();
+      const sourcesArr = [...sources].sort();
+      const priority_score = computePriorityScore({
+        severity: "critical",
+        type: "multi_layer_inconsistency",
+        contributing_sources: sourcesArr,
+      });
       this.multiLayerFlags.push(
         Object.freeze({
           type: "multi_layer_inconsistency" as const,
           severity: "critical" as const,
           source: "patternMemory" as const,
           endpoint,
-          contributing_sources: Object.freeze([...sources].sort()),
+          contributing_sources: Object.freeze(sourcesArr),
           signal_count: after,
           flagged_at: now,
+          priority_score,
         })
       );
       void recordFailure({
@@ -435,9 +480,10 @@ class PatternMemory {
         component: endpoint,
         entityType: "endpoint",
         failedStep: `multi_layer_inconsistency:${after}_sources`,
-        failReason: `Endpoint ${endpoint} flagged by ${after} engines: ${[...sources].sort().join(", ")}`,
+        failReason: `Endpoint ${endpoint} flagged by ${after} engines: ${sourcesArr.join(", ")}`,
         severity: "critical",
       });
+      aggregateEndpointFlag(endpoint, `multilayer::${endpoint}`, priority_score);
       this.emit();
     }
   }
