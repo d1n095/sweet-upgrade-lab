@@ -59,6 +59,67 @@ export interface EndpointMismatchStat {
 const PERSISTENT_THRESHOLD = 3;
 const SYSTEMIC_DISTINCT_KEYS_THRESHOLD = 2; // >= 2 distinct pattern_keys on same endpoint
 
+/* ──────────────────────────────────────────────────────────────────────────
+ * STATIC RULE REGISTRY (manually defined — no runtime / AI generation)
+ *
+ * Fixed error categories (closed set):
+ *   - data_flow      : timeouts, fetch failures, sync drift
+ *   - ui_binding     : missing/null props, broken event handlers, render errors
+ *   - performance    : slow queries, oversized payloads, render >budget
+ *   - state_sync     : stale cache, store/server mismatch, race conditions
+ *
+ * Adding a new rule = manually appending to STATIC_VALIDATION_RULES below.
+ * No code path may push to this array at runtime.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+export type ErrorCategory = "data_flow" | "ui_binding" | "performance" | "state_sync";
+
+export interface StaticValidationRule {
+  readonly id: string;
+  readonly category: ErrorCategory;
+  readonly description: string;
+  readonly severity: "critical" | "high" | "medium";
+}
+
+export const STATIC_VALIDATION_RULES: ReadonlyArray<StaticValidationRule> = Object.freeze([
+  // data_flow
+  Object.freeze({ id: "DF-001", category: "data_flow", description: "Endpoint response timeout (>5s)", severity: "high" }),
+  Object.freeze({ id: "DF-002", category: "data_flow", description: "Endpoint returned non-2xx unexpectedly", severity: "high" }),
+  Object.freeze({ id: "DF-003", category: "data_flow", description: "Required field missing in response payload", severity: "medium" }),
+  Object.freeze({ id: "DF-004", category: "data_flow", description: "Edge function invocation failed", severity: "high" }),
+  // ui_binding
+  Object.freeze({ id: "UI-001", category: "ui_binding", description: "Component received null/undefined required prop", severity: "medium" }),
+  Object.freeze({ id: "UI-002", category: "ui_binding", description: "Event handler not bound to interactive element", severity: "medium" }),
+  Object.freeze({ id: "UI-003", category: "ui_binding", description: "Render error caught by boundary", severity: "high" }),
+  // performance
+  Object.freeze({ id: "PF-001", category: "performance", description: "Query/scan exceeded latency budget", severity: "medium" }),
+  Object.freeze({ id: "PF-002", category: "performance", description: "Payload size exceeded recommended limit", severity: "medium" }),
+  // state_sync
+  Object.freeze({ id: "SS-001", category: "state_sync", description: "Store value diverged from server source of truth", severity: "high" }),
+  Object.freeze({ id: "SS-002", category: "state_sync", description: "Stale cache read after invalidation", severity: "medium" }),
+]);
+
+/** Lookup a static rule by id. Returns undefined if not in the registry. */
+export function getStaticRule(id: string): StaticValidationRule | undefined {
+  return STATIC_VALIDATION_RULES.find((r) => r.id === id);
+}
+
+export interface KnownIssueEntry {
+  readonly fingerprint: string; // `${rule_id}::${module}`
+  readonly rule_id: string;
+  readonly category: ErrorCategory;
+  readonly module: string;
+  readonly occurrence_count: number;
+  readonly first_seen_at: string;
+  readonly last_seen_at: string;
+}
+
+export interface KnownIssuesReport {
+  readonly issues: ReadonlyArray<KnownIssueEntry>;
+  readonly by_category: Readonly<Record<ErrorCategory, number>>;
+  readonly total: number;
+}
+
 export interface PersistentInconsistencyFlag {
   readonly type: "persistent_inconsistency";
   readonly severity: "high";
