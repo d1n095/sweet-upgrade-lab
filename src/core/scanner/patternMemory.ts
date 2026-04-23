@@ -81,6 +81,16 @@ export interface SystemicEndpointFailureFlag {
   readonly flagged_at: string;
 }
 
+export interface MultiLayerInconsistencyFlag {
+  readonly type: "multi_layer_inconsistency";
+  readonly severity: "critical";
+  readonly source: "patternMemory";
+  readonly endpoint: string;
+  readonly contributing_sources: ReadonlyArray<string>;
+  readonly signal_count: number;
+  readonly flagged_at: string;
+}
+
 export interface PatternTopConnected {
   readonly file: string;
   readonly coupling_score: number;
