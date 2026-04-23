@@ -2326,7 +2326,11 @@ serve(async (req) => {
       const stepStart = Date.now();
 
       trace(scan_run_id, `process_step[${step_index}] start id=${step.id} scanner=${step.scanType}`);
-      const SCANNER_TIMEOUT_MS = 5000;
+      // Per-step timeout. Heaviest existing scanner (data_integrity) measures
+      // ~13s end-to-end; previous 5s ceiling produced false "Scanner timeout"
+      // failures even though the underlying scan finished. 25s gives headroom
+      // without exceeding edge-function wall-clock budgets.
+      const SCANNER_TIMEOUT_MS = 25000;
       try {
         const realScanner = REAL_DB_SCANNERS[step.scanType];
         if (realScanner) {
