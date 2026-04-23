@@ -571,6 +571,90 @@ class PatternMemory {
   }
 
   /**
+   * Record a detected issue against the static rule registry.
+   * - Rejects unknown rule_ids (no auto-generation of rules).
+   * - Idempotent counter per (rule_id, module) fingerprint.
+   * - Pure logging; does NOT trigger further scans.
+   */
+  recordKnownIssue(opts: { rule_id: string; module: string }): KnownIssueEntry | null {
+    const rule = getStaticRule(opts.rule_id);
+    if (!rule) return null; // unknown rule_id — silently rejected (no dynamic rule creation)
+    const fingerprint = `${opts.rule_id}::${opts.module}`;
+    const now = new Date().toISOString();
+    let bucket = this.knownIssues.get(fingerprint);
+    if (!bucket) {
+      bucket = {
+        rule_id: opts.rule_id,
+        category: rule.category,
+        module: opts.module,
+        occurrence_count: 0,
+        first_seen_at: now,
+        last_seen_at: now,
+      };
+      this.knownIssues.set(fingerprint, bucket);
+    }
+    bucket.occurrence_count += 1;
+    bucket.last_seen_at = now;
+
+    void recordFailure({
+      action: "static_rule_violation",
+      component: opts.module,
+      entityType: rule.category,
+      failedStep: opts.rule_id,
+      failReason: rule.description,
+      severity: rule.severity,
+    });
+
+    this.emit();
+    return Object.freeze({
+      fingerprint,
+      rule_id: bucket.rule_id,
+      category: bucket.category,
+      module: bucket.module,
+      occurrence_count: bucket.occurrence_count,
+      first_seen_at: bucket.first_seen_at,
+      last_seen_at: bucket.last_seen_at,
+    });
+  }
+
+  /**
+   * Report-only view of currently tracked known issues. No mutation, no scan.
+   * Output: detected issues, affected modules, frequency.
+   */
+  getKnownIssuesReport(): KnownIssuesReport {
+    const issues: KnownIssueEntry[] = [];
+    const by_category: Record<ErrorCategory, number> = {
+      data_flow: 0,
+      ui_binding: 0,
+      performance: 0,
+      state_sync: 0,
+    };
+    for (const [fingerprint, b] of this.knownIssues) {
+      issues.push(
+        Object.freeze({
+          fingerprint,
+          rule_id: b.rule_id,
+          category: b.category,
+          module: b.module,
+          occurrence_count: b.occurrence_count,
+          first_seen_at: b.first_seen_at,
+          last_seen_at: b.last_seen_at,
+        })
+      );
+      by_category[b.category] += 1;
+    }
+    issues.sort(
+      (a, b) =>
+        b.occurrence_count - a.occurrence_count || a.fingerprint.localeCompare(b.fingerprint)
+    );
+    return Object.freeze({
+      issues: Object.freeze(issues),
+      by_category: Object.freeze(by_category),
+      total: issues.length,
+    });
+  }
+
+  /**
    * Observe a version. Pure recording — no scoring, no interpretation.
    * Called by the deterministic pipeline (or manually from the panel).
    */
