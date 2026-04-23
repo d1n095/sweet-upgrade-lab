@@ -59,6 +59,67 @@ export interface EndpointMismatchStat {
 const PERSISTENT_THRESHOLD = 3;
 const SYSTEMIC_DISTINCT_KEYS_THRESHOLD = 2; // >= 2 distinct pattern_keys on same endpoint
 
+/* ──────────────────────────────────────────────────────────────────────────
+ * STATIC RULE REGISTRY (manually defined — no runtime / AI generation)
+ *
+ * Fixed error categories (closed set):
+ *   - data_flow      : timeouts, fetch failures, sync drift
+ *   - ui_binding     : missing/null props, broken event handlers, render errors
+ *   - performance    : slow queries, oversized payloads, render >budget
+ *   - state_sync     : stale cache, store/server mismatch, race conditions
+ *
+ * Adding a new rule = manually appending to STATIC_VALIDATION_RULES below.
+ * No code path may push to this array at runtime.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+export type ErrorCategory = "data_flow" | "ui_binding" | "performance" | "state_sync";
+
+export interface StaticValidationRule {
+  readonly id: string;
+  readonly category: ErrorCategory;
+  readonly description: string;
+  readonly severity: "critical" | "high" | "medium";
+}
+
+export const STATIC_VALIDATION_RULES: ReadonlyArray<StaticValidationRule> = Object.freeze([
+  // data_flow
+  Object.freeze({ id: "DF-001", category: "data_flow", description: "Endpoint response timeout (>5s)", severity: "high" }),
+  Object.freeze({ id: "DF-002", category: "data_flow", description: "Endpoint returned non-2xx unexpectedly", severity: "high" }),
+  Object.freeze({ id: "DF-003", category: "data_flow", description: "Required field missing in response payload", severity: "medium" }),
+  Object.freeze({ id: "DF-004", category: "data_flow", description: "Edge function invocation failed", severity: "high" }),
+  // ui_binding
+  Object.freeze({ id: "UI-001", category: "ui_binding", description: "Component received null/undefined required prop", severity: "medium" }),
+  Object.freeze({ id: "UI-002", category: "ui_binding", description: "Event handler not bound to interactive element", severity: "medium" }),
+  Object.freeze({ id: "UI-003", category: "ui_binding", description: "Render error caught by boundary", severity: "high" }),
+  // performance
+  Object.freeze({ id: "PF-001", category: "performance", description: "Query/scan exceeded latency budget", severity: "medium" }),
+  Object.freeze({ id: "PF-002", category: "performance", description: "Payload size exceeded recommended limit", severity: "medium" }),
+  // state_sync
+  Object.freeze({ id: "SS-001", category: "state_sync", description: "Store value diverged from server source of truth", severity: "high" }),
+  Object.freeze({ id: "SS-002", category: "state_sync", description: "Stale cache read after invalidation", severity: "medium" }),
+]);
+
+/** Lookup a static rule by id. Returns undefined if not in the registry. */
+export function getStaticRule(id: string): StaticValidationRule | undefined {
+  return STATIC_VALIDATION_RULES.find((r) => r.id === id);
+}
+
+export interface KnownIssueEntry {
+  readonly fingerprint: string; // `${rule_id}::${module}`
+  readonly rule_id: string;
+  readonly category: ErrorCategory;
+  readonly module: string;
+  readonly occurrence_count: number;
+  readonly first_seen_at: string;
+  readonly last_seen_at: string;
+}
+
+export interface KnownIssuesReport {
+  readonly issues: ReadonlyArray<KnownIssueEntry>;
+  readonly by_category: Readonly<Record<ErrorCategory, number>>;
+  readonly total: number;
+}
+
 export interface PersistentInconsistencyFlag {
   readonly type: "persistent_inconsistency";
   readonly severity: "high";
@@ -212,6 +273,12 @@ class PatternMemory {
       first_seen_at: string;
       last_seen_at: string;
     }
+  >();
+
+  // Static known-issues list (deterministic; entries appended only via recordKnownIssue).
+  private knownIssues = new Map<
+    string,
+    { rule_id: string; category: ErrorCategory; module: string; occurrence_count: number; first_seen_at: string; last_seen_at: string }
   >();
 
   private listeners = new Set<() => void>();
@@ -504,6 +571,90 @@ class PatternMemory {
   }
 
   /**
+   * Record a detected issue against the static rule registry.
+   * - Rejects unknown rule_ids (no auto-generation of rules).
+   * - Idempotent counter per (rule_id, module) fingerprint.
+   * - Pure logging; does NOT trigger further scans.
+   */
+  recordKnownIssue(opts: { rule_id: string; module: string }): KnownIssueEntry | null {
+    const rule = getStaticRule(opts.rule_id);
+    if (!rule) return null; // unknown rule_id — silently rejected (no dynamic rule creation)
+    const fingerprint = `${opts.rule_id}::${opts.module}`;
+    const now = new Date().toISOString();
+    let bucket = this.knownIssues.get(fingerprint);
+    if (!bucket) {
+      bucket = {
+        rule_id: opts.rule_id,
+        category: rule.category,
+        module: opts.module,
+        occurrence_count: 0,
+        first_seen_at: now,
+        last_seen_at: now,
+      };
+      this.knownIssues.set(fingerprint, bucket);
+    }
+    bucket.occurrence_count += 1;
+    bucket.last_seen_at = now;
+
+    void recordFailure({
+      action: "static_rule_violation",
+      component: opts.module,
+      entityType: rule.category,
+      failedStep: opts.rule_id,
+      failReason: rule.description,
+      severity: rule.severity,
+    });
+
+    this.emit();
+    return Object.freeze({
+      fingerprint,
+      rule_id: bucket.rule_id,
+      category: bucket.category,
+      module: bucket.module,
+      occurrence_count: bucket.occurrence_count,
+      first_seen_at: bucket.first_seen_at,
+      last_seen_at: bucket.last_seen_at,
+    });
+  }
+
+  /**
+   * Report-only view of currently tracked known issues. No mutation, no scan.
+   * Output: detected issues, affected modules, frequency.
+   */
+  getKnownIssuesReport(): KnownIssuesReport {
+    const issues: KnownIssueEntry[] = [];
+    const by_category: Record<ErrorCategory, number> = {
+      data_flow: 0,
+      ui_binding: 0,
+      performance: 0,
+      state_sync: 0,
+    };
+    for (const [fingerprint, b] of this.knownIssues) {
+      issues.push(
+        Object.freeze({
+          fingerprint,
+          rule_id: b.rule_id,
+          category: b.category,
+          module: b.module,
+          occurrence_count: b.occurrence_count,
+          first_seen_at: b.first_seen_at,
+          last_seen_at: b.last_seen_at,
+        })
+      );
+      by_category[b.category] += 1;
+    }
+    issues.sort(
+      (a, b) =>
+        b.occurrence_count - a.occurrence_count || a.fingerprint.localeCompare(b.fingerprint)
+    );
+    return Object.freeze({
+      issues: Object.freeze(issues),
+      by_category: Object.freeze(by_category),
+      total: issues.length,
+    });
+  }
+
+  /**
    * Observe a version. Pure recording — no scoring, no interpretation.
    * Called by the deterministic pipeline (or manually from the panel).
    */
@@ -631,6 +782,7 @@ class PatternMemory {
     this.endpointSignalSources.clear();
     this.multiLayerFlags = [];
     this.multiLayerEscalatedEndpoints.clear();
+    this.knownIssues.clear();
     this.emit();
   }
 }
