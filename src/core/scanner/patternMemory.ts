@@ -782,6 +782,7 @@ class PatternMemory {
     this.endpointSignalSources.clear();
     this.multiLayerFlags = [];
     this.multiLayerEscalatedEndpoints.clear();
+    this.knownIssues.clear();
     this.emit();
   }
 }
