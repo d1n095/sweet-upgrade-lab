@@ -275,6 +275,12 @@ class PatternMemory {
     }
   >();
 
+  // Static known-issues list (deterministic; entries appended only via recordKnownIssue).
+  private knownIssues = new Map<
+    string,
+    { rule_id: string; category: ErrorCategory; module: string; occurrence_count: number; first_seen_at: string; last_seen_at: string }
+  >();
+
   private listeners = new Set<() => void>();
 
   subscribe(fn: () => void): () => void {
