@@ -46,9 +46,15 @@ Deno.serve(async (req) => {
     failures.push(`api_slow_${api_ms}ms`);
   }
 
-  // 3) Scan results updating — last successful scan in last 6h
+  // 3) Scanner liveness — distinguish BLIND (truly broken) from IDLE (no run yet).
+  //    Scans are on-demand, not scheduled, so absence of a recent run is NOT a
+  //    failure. We only flag scan_ok=false when:
+  //      • a run is stuck in `running` past SCAN_STALE_MINUTES (real hang), or
+  //      • the most recent run finished with status `failed`.
+  //    "No scan in 6h" is reported as an informational note in `failures`
+  //    but does not flip scan_ok — eliminating the false-negative loop that
+  //    kept overall_status pinned to "failed".
   try {
-    const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
     const { data: lastScan } = await supabase
       .from("scan_runs")
       .select("id, status, completed_at, created_at")
@@ -56,19 +62,18 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
     if (!lastScan) {
+      failures.push("no_scan_runs_yet"); // informational; scan_ok stays true
+    } else if (lastScan.status === "failed") {
       scan_ok = false;
-      failures.push("no_scan_runs");
-    } else if (lastScan.completed_at && lastScan.completed_at < sixHoursAgo) {
-      scan_ok = false;
-      failures.push(`scan_stale_${lastScan.completed_at}`);
+      failures.push(`last_scan_failed:${lastScan.id}`);
     } else if (lastScan.status === "running") {
-      // running > SCAN_STALE_MINUTES → flag as failed
       const startedMs = new Date(lastScan.created_at).getTime();
       if (Date.now() - startedMs > SCAN_STALE_MINUTES * 60 * 1000) {
         scan_ok = false;
         failures.push("scan_stuck_running");
       }
     }
+    // Note: scans older than 6h are normal for an on-demand scanner; no flag.
   } catch (e: any) {
     scan_ok = false;
     failures.push(`scan_check:${e?.message}`);
