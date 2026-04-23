@@ -582,6 +582,9 @@ class PatternMemory {
     this.persistentFlags = [];
     this.systemicFlags = [];
     this.systemicEscalatedEndpoints.clear();
+    this.endpointSignalSources.clear();
+    this.multiLayerFlags = [];
+    this.multiLayerEscalatedEndpoints.clear();
     this.emit();
   }
 }
