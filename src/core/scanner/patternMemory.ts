@@ -150,7 +150,16 @@ export interface SystemicEndpointFailureFlag {
   readonly priority_score: number;
 }
 
-export interface MultiLayerInconsistencyFlag {
+export interface DataFlowBreakpointFlag {
+  readonly type: "data_flow_breakpoint";
+  readonly severity: "critical";
+  readonly source: "patternMemory";
+  readonly scan_id: string;
+  readonly affected_entities: ReadonlyArray<EntityKind>;
+  readonly missing_fields: ReadonlyArray<string>;
+  readonly flagged_at: string;
+  readonly priority_score: number;
+}
   readonly type: "multi_layer_inconsistency";
   readonly severity: "critical";
   readonly source: "patternMemory";
