@@ -160,6 +160,8 @@ export interface DataFlowBreakpointFlag {
   readonly flagged_at: string;
   readonly priority_score: number;
 }
+
+export interface MultiLayerInconsistencyFlag {
   readonly type: "multi_layer_inconsistency";
   readonly severity: "critical";
   readonly source: "patternMemory";
