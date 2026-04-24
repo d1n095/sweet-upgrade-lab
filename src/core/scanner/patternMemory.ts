@@ -596,6 +596,100 @@ class PatternMemory {
     return [...this.multiLayerFlags];
   }
 
+  /** Read data-flow breakpoint flags emitted by `data_flow_breakpoint_detection`. */
+  getDataFlowBreakpointFlags(): ReadonlyArray<DataFlowBreakpointFlag> {
+    return [...this.breakpointFlags];
+  }
+
+  /**
+   * RULE: data_flow_breakpoint_detection
+   *
+   * Trigger: within a single scan_id, ≥2 distinct entities lose identifiers
+   * AND ≥1 null mismatch is observed → emit "data_flow_breakpoint" (critical).
+   *
+   * Pure deterministic counting; idempotent per scan_id (no duplicate flags).
+   * Also forwards observations to failureMemory for cluster aggregation +
+   * tracing hint (last known field presence before null).
+   */
+  recordDataFlowObservation(opts: {
+    scan_id: string;
+    entity: EntityKind;
+    field: string;
+    kind: "id_loss" | "null_mismatch";
+    before?: string;
+  }): DataFlowBreakpointFlag | null {
+    let s = this.breakpointScanState.get(opts.scan_id);
+    if (!s) {
+      s = {
+        entities: new Set(),
+        id_losses: new Set(),
+        null_mismatches: new Set(),
+        missing_fields: new Set(),
+      };
+      this.breakpointScanState.set(opts.scan_id, s);
+    }
+    s.entities.add(opts.entity);
+    s.missing_fields.add(`${opts.entity}.${opts.field}`);
+    if (opts.kind === "id_loss") {
+      s.id_losses.add(`${opts.entity}::${opts.field}`);
+      recordIdLoss({
+        scan_id: opts.scan_id,
+        entity: opts.entity,
+        field: opts.field,
+        before: opts.before,
+      });
+    } else {
+      s.null_mismatches.add(`${opts.entity}::${opts.field}`);
+      recordNullMismatch({
+        scan_id: opts.scan_id,
+        entity: opts.entity,
+        field: opts.field,
+        before: opts.before,
+      });
+    }
+
+    const distinctEntitiesWithIdLoss = new Set<EntityKind>();
+    for (const k of s.id_losses) distinctEntitiesWithIdLoss.add(k.split("::")[0]);
+    const triggered =
+      distinctEntitiesWithIdLoss.size >= 2 &&
+      s.null_mismatches.size >= 1;
+
+    if (!triggered || this.breakpointEscalatedScans.has(opts.scan_id)) {
+      this.emit();
+      return null;
+    }
+    this.breakpointEscalatedScans.add(opts.scan_id);
+
+    const now = new Date().toISOString();
+    const entities = [...s.entities].sort();
+    const fields = [...s.missing_fields].sort();
+    const priority_score = computePriorityScore({
+      severity: "critical",
+      type: "data_flow_breakpoint" as unknown as string,
+    });
+    const flag: DataFlowBreakpointFlag = Object.freeze({
+      type: "data_flow_breakpoint" as const,
+      severity: "critical" as const,
+      source: "patternMemory" as const,
+      scan_id: opts.scan_id,
+      affected_entities: Object.freeze(entities),
+      missing_fields: Object.freeze(fields),
+      flagged_at: now,
+      priority_score,
+    });
+    this.breakpointFlags.push(flag);
+    void recordFailure({
+      action: "data_flow_breakpoint_detection",
+      component: entities.join("+"),
+      entityType: "multi_entity",
+      failedStep: `breakpoint:${entities.length}_entities_${s.null_mismatches.size}_nulls`,
+      failReason: `Co-occurring ID loss + null mismatch in scan ${opts.scan_id} on ${fields.join(", ")}`,
+      severity: "critical",
+    });
+    this.emit();
+    return flag;
+  }
+
   /**
    * Record a detected issue against the static rule registry.
    * - Rejects unknown rule_ids (no auto-generation of rules).
