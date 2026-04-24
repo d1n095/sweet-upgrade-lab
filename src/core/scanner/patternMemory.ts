@@ -34,7 +34,13 @@ import {
   type ArchitectureReport,
   type ArchitectureViolation,
 } from "@/core/architecture/architectureEnforcementCore";
-import { recordFailure, aggregateEndpointFlag } from "@/lib/failureMemory";
+import {
+  recordFailure,
+  aggregateEndpointFlag,
+  recordIdLoss,
+  recordNullMismatch,
+  type EntityKind,
+} from "@/lib/failureMemory";
 
 /* ──────────────────────────────────────────────────────────────────────────
  * ENDPOINT/STATUS MISMATCH TRACKER (additive, rule-based, no AI)
