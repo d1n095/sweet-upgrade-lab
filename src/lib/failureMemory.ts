@@ -319,6 +319,9 @@ export function resetBreakpointClusters(): void {
   scanBuckets.clear();
   breakpointClusters.clear();
   clusterFingerprintCounts.clear();
+  fieldDecayCounts.clear();
+  decayEscalated.clear();
+  decayFlags.length = 0;
 }
 
 /**
