@@ -39,12 +39,30 @@ interface ScanBucket {
   null_mismatches: Set<string>; // `${entity}::${field}`
   missing_fields: Set<string>;  // full field paths e.g. "order.order_number"
   transitions: FieldTransition[];
+  /** Dedup: only first valid→null transition per (entity::field) inside scan. */
+  recorded_transition_keys: Set<string>;
   created_at: string;
 }
 
 const scanBuckets = new Map<string, ScanBucket>();
 const breakpointClusters = new Map<string, BreakpointCluster>(); // keyed by scan_id (no dup)
 const clusterFingerprintCounts = new Map<string, number>(); // sorted entities+fields signature
+
+/* Global decay tracking: counts how many distinct scans observed a given
+ * (entity, field) valid→null transition. Used by escalation rule. */
+const fieldDecayCounts = new Map<string, { entity: EntityKind; field: string; scans: Set<string> }>();
+const decayEscalated = new Set<string>(); // entity::field already escalated
+
+export interface FieldDecayFlag {
+  readonly type: 'field_decay_pattern';
+  readonly severity: 'critical';
+  readonly source: 'failureMemory';
+  readonly entity: EntityKind;
+  readonly field: string;
+  readonly transition_count: number;
+  readonly flagged_at: string;
+}
+const decayFlags: FieldDecayFlag[] = [];
 
 function bucketFor(scan_id: string): ScanBucket {
   let b = scanBuckets.get(scan_id);
@@ -56,11 +74,67 @@ function bucketFor(scan_id: string): ScanBucket {
       null_mismatches: new Set(),
       missing_fields: new Set(),
       transitions: [],
+      recorded_transition_keys: new Set(),
       created_at: new Date().toISOString(),
     };
     scanBuckets.set(scan_id, b);
   }
   return b;
+}
+
+/**
+ * Capture a single field-transition snapshot per (scan, entity, field).
+ * Deterministic: only the first valid→null/missing transition is kept.
+ * Also feeds the global decay counter for escalation.
+ */
+function captureTransition(
+  b: ScanBucket,
+  entity: EntityKind,
+  field: string,
+  before: string,
+  after: 'null' | 'missing',
+): void {
+  const key = `${entity}::${field}`;
+  if (b.recorded_transition_keys.has(key)) return; // no duplicate per scan
+  b.recorded_transition_keys.add(key);
+  b.transitions.push({
+    entity,
+    field_path: `${entity}.${field}`,
+    before,
+    after,
+    at: new Date().toISOString(),
+  });
+
+  // Global decay: count distinct scans per (entity, field) with valid→null.
+  if (after === 'null') {
+    let d = fieldDecayCounts.get(key);
+    if (!d) {
+      d = { entity, field, scans: new Set() };
+      fieldDecayCounts.set(key, d);
+    }
+    d.scans.add(b.scan_id);
+    if (d.scans.size > 3 && !decayEscalated.has(key)) {
+      decayEscalated.add(key);
+      const flag: FieldDecayFlag = Object.freeze({
+        type: 'field_decay_pattern' as const,
+        severity: 'critical' as const,
+        source: 'failureMemory' as const,
+        entity,
+        field,
+        transition_count: d.scans.size,
+        flagged_at: new Date().toISOString(),
+      });
+      decayFlags.push(flag);
+      void recordFailure({
+        action: 'field_decay_pattern',
+        component: entity,
+        entityType: entity,
+        failedStep: `valid_to_null:${field}`,
+        failReason: `Field ${entity}.${field} decayed valid→null in ${d.scans.size} scans`,
+        severity: 'critical',
+      });
+    }
+  }
 }
 
 /**
@@ -77,13 +151,7 @@ export function recordIdLoss(opts: {
   b.entities.add(opts.entity);
   b.id_losses.add(`${opts.entity}::${opts.field}`);
   b.missing_fields.add(`${opts.entity}.${opts.field}`);
-  b.transitions.push({
-    entity: opts.entity,
-    field_path: `${opts.entity}.${opts.field}`,
-    before: opts.before ?? 'present',
-    after: 'missing',
-    at: new Date().toISOString(),
-  });
+  captureTransition(b, opts.entity, opts.field, opts.before ?? 'present', 'missing');
   maybeMaterializeCluster(opts.scan_id);
 }
 
@@ -100,14 +168,44 @@ export function recordNullMismatch(opts: {
   b.entities.add(opts.entity);
   b.null_mismatches.add(`${opts.entity}::${opts.field}`);
   b.missing_fields.add(`${opts.entity}.${opts.field}`);
-  b.transitions.push({
-    entity: opts.entity,
-    field_path: `${opts.entity}.${opts.field}`,
-    before: opts.before ?? 'non-null',
-    after: 'null',
-    at: new Date().toISOString(),
-  });
+  captureTransition(b, opts.entity, opts.field, opts.before ?? 'non-null', 'null');
   maybeMaterializeCluster(opts.scan_id);
+}
+
+export interface FieldTransitionTrace {
+  readonly cluster_id: string;
+  readonly by_entity: Readonly<Record<string, ReadonlyArray<FieldTransition>>>;
+  readonly ordered: ReadonlyArray<FieldTransition>;
+  readonly frequency: Readonly<Record<string, number>>; // `${entity}.${field}` → count
+}
+
+/**
+ * Return the field-transition snapshot for a given cluster, grouped by entity
+ * and including per-field frequency. Read-only.
+ */
+export function getFieldTransitionTrace(cluster_id: string): FieldTransitionTrace | null {
+  const cluster = breakpointClusters.get(cluster_id);
+  if (!cluster) return null;
+  const ordered = [...cluster.transitions];
+  const by_entity: Record<string, FieldTransition[]> = {};
+  const frequency: Record<string, number> = {};
+  for (const t of ordered) {
+    (by_entity[t.entity] ||= []).push(t);
+    frequency[t.field_path] = (frequency[t.field_path] || 0) + 1;
+  }
+  const frozenByEntity: Record<string, ReadonlyArray<FieldTransition>> = {};
+  for (const [k, arr] of Object.entries(by_entity)) frozenByEntity[k] = Object.freeze(arr);
+  return Object.freeze({
+    cluster_id,
+    by_entity: Object.freeze(frozenByEntity),
+    ordered: Object.freeze(ordered),
+    frequency: Object.freeze(frequency),
+  });
+}
+
+/** Read accumulated field-decay escalations. */
+export function getFieldDecayFlags(): ReadonlyArray<FieldDecayFlag> {
+  return [...decayFlags];
 }
 
 /** Idempotent: only one cluster per scan_id. */
@@ -221,6 +319,9 @@ export function resetBreakpointClusters(): void {
   scanBuckets.clear();
   breakpointClusters.clear();
   clusterFingerprintCounts.clear();
+  fieldDecayCounts.clear();
+  decayEscalated.clear();
+  decayFlags.length = 0;
 }
 
 /**
