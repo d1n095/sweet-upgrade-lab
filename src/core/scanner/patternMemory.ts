@@ -277,6 +277,15 @@ class PatternMemory {
   private endpointSignalSources = new Map<string, Set<string>>();
   private multiLayerFlags: MultiLayerInconsistencyFlag[] = [];
   private multiLayerEscalatedEndpoints = new Set<string>();
+  // Data-flow breakpoint detection (per-scan co-occurrence of ID loss + null mismatch).
+  private breakpointFlags: DataFlowBreakpointFlag[] = [];
+  private breakpointEscalatedScans = new Set<string>();
+  private breakpointScanState = new Map<string, {
+    entities: Set<EntityKind>;
+    id_losses: Set<string>;
+    null_mismatches: Set<string>;
+    missing_fields: Set<string>;
+  }>();
   private stableCandidates: Set<string> | null = null; // intersection across all observations
 
   // Endpoint+status mismatch tracker (additive, rule-based)
