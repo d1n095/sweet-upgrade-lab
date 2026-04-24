@@ -46,6 +46,7 @@ import { usePreviewCleanMode } from "./hooks/usePreviewCleanMode";
 import AdminLayout from "./pages/admin/AdminLayout";
 import AdminOverview from "./pages/admin/AdminOverview";
 import SystemOverview from "./pages/admin/SystemOverview";
+import ScannerOverview from "./pages/admin/ScannerOverview";
 import AdminOrders from "./pages/admin/AdminOrders";
 import AdminProducts from "./pages/admin/AdminProducts";
 import AdminCategories from "./pages/admin/AdminCategories";
@@ -176,6 +177,7 @@ const App = () => {
                     <Route path="database" element={<AdminDatabase />} />
                     <Route path="warehouse" element={<ScanPackingMode />} />
                     <Route path="overview" element={<SystemOverview />} />
+                    <Route path="scanner-overview" element={<ScannerOverview />} />
                     <Route path="system-explorer" element={<Suspense fallback={null}><SystemExplorer /></Suspense>} />
                     <Route path="debug" element={<AdminDebug />} />
                     <Route path="ai" element={<Navigate to="/admin/system-explorer" replace />} />
