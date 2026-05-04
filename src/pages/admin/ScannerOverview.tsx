@@ -212,31 +212,74 @@ function ViewSourceButton({ paths, origins }: { paths: string[]; origins?: Sourc
             {filtered.length === 0 ? (
               <div className="text-muted-foreground italic px-1">No matches</div>
             ) : (
-              <ul className="space-y-1">
-                {filtered.map((p) => (
-                  <li key={p} className="flex items-center justify-between gap-2">
-                    <span className="font-mono break-all">{p}</span>
+              <>
+                <ul className="space-y-1">
+                  {filtered.map((p) => (
+                    <li key={p} className="flex items-center justify-between gap-2">
+                      <label className="flex items-center gap-1.5 flex-1 min-w-0 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="h-3 w-3"
+                          checked={selected.has(p)}
+                          onChange={() => toggleOne(p)}
+                        />
+                        <span className="font-mono break-all">{p}</span>
+                      </label>
+                      <button
+                        type="button"
+                        className="text-[10px] underline text-muted-foreground hover:text-foreground"
+                        onClick={() => onCopy(p)}
+                      >
+                        {copied === p ? "copied" : "copy"}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <div className="pt-1 border-t flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
                     <button
                       type="button"
                       className="text-[10px] underline text-muted-foreground hover:text-foreground"
-                      onClick={() => onCopy(p)}
+                      onClick={() =>
+                        setSelected((prev) => {
+                          const allSelected = filtered.every((p) => prev.has(p));
+                          const next = new Set(prev);
+                          if (allSelected) filtered.forEach((p) => next.delete(p));
+                          else filtered.forEach((p) => next.add(p));
+                          return next;
+                        })
+                      }
                     >
-                      {copied === p ? "copied" : "copy"}
+                      {filtered.every((p) => selected.has(p)) ? "Avmarkera alla" : "Välj alla"}
                     </button>
-                  </li>
-                ))}
-                {filtered.length > 1 && (
-                  <li className="pt-1 border-t flex justify-end">
-                    <button
-                      type="button"
-                      className="text-[10px] underline text-muted-foreground hover:text-foreground"
-                      onClick={() => onCopy(filtered.join("\n"))}
-                    >
-                      {copied === filtered.join("\n") ? "copied all" : "copy all"}
-                    </button>
-                  </li>
-                )}
-              </ul>
+                    {selected.size > 0 && (
+                      <span className="text-[10px] text-muted-foreground">
+                        {selected.size} valda
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {selected.size > 0 && (
+                      <button
+                        type="button"
+                        className="text-[10px] underline text-muted-foreground hover:text-foreground"
+                        onClick={() => onCopy([...selected].join("\n"))}
+                      >
+                        {copied === [...selected].join("\n") ? "copied selection" : "copy selection"}
+                      </button>
+                    )}
+                    {filtered.length > 1 && (
+                      <button
+                        type="button"
+                        className="text-[10px] underline text-muted-foreground hover:text-foreground"
+                        onClick={() => onCopy(filtered.join("\n"))}
+                      >
+                        {copied === filtered.join("\n") ? "copied all" : "copy all"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </>
             )}
           </div>
         );
