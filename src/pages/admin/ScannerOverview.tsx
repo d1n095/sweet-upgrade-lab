@@ -147,6 +147,15 @@ function ViewSourceButton({ paths, origins }: { paths: string[]; origins?: Sourc
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const toggleOne = (p: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(p)) next.delete(p);
+      else next.add(p);
+      return next;
+    });
 
   const onCopy = async (p: string) => {
     try {
