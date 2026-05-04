@@ -116,12 +116,15 @@ function suggestSources(opts: {
   return { paths: dedupe([...ep, ...fl, ...en]), origins };
 }
 
-// Parse "entity.field" or "entity::field" → { entity, field }
+// Parse "entity.field", "entity::field", "entity:field", or nested
+// "entity.sub.field" → { entity, field }. Trims whitespace, handles
+// leading separators, falls back to treating the whole string as field.
 function splitFieldPath(path: string): { entity: string; field: string } {
-  const sep = path.includes("::") ? "::" : ".";
-  const idx = path.indexOf(sep);
-  if (idx === -1) return { entity: path, field: "" };
-  return { entity: path.slice(0, idx), field: path.slice(idx + sep.length) };
+  const raw = (path ?? "").trim().replace(/^[.:]+|[.:]+$/g, "");
+  if (!raw) return { entity: "", field: "" };
+  const m = raw.match(/^([^.:]+)(?:::|\.|:)(.+)$/);
+  if (!m) return { entity: "", field: raw };
+  return { entity: m[1].trim(), field: m[2].trim() };
 }
 
 // Parse pattern_key heuristically: usually contains entity/field/endpoint tokens.
@@ -187,6 +190,17 @@ function ViewSourceButton({ paths, origins }: { paths: string[]; origins?: Sourc
               </button>
             </li>
           ))}
+          {paths.length > 1 && (
+            <li className="pt-1 border-t flex justify-end">
+              <button
+                type="button"
+                className="text-[10px] underline text-muted-foreground hover:text-foreground"
+                onClick={() => onCopy(paths.join("\n"))}
+              >
+                {copied === paths.join("\n") ? "copied all" : "copy all"}
+              </button>
+            </li>
+          )}
         </ul>
       )}
     </div>
@@ -461,8 +475,25 @@ export default function ScannerOverview() {
           ) : (
             <ul className="divide-y">
               {clusters.map((c) => {
-                const entitySources = c.affected_entities.flatMap((e) => mapEntity(e));
-                const sources = dedupe(entitySources);
+                const clusterTrace = getFieldTransitionTrace(c.breakpoint_cluster_id);
+                const entityOrigins: SourceOrigin[] = [];
+                const entityPaths = c.affected_entities.flatMap((e) => mapEntity(e));
+                if (entityPaths.length) entityOrigins.push("entity");
+
+                const fieldPathsList: string[] = [];
+                if (clusterTrace) {
+                  const sortedFields = Object.entries(clusterTrace.frequency)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 5)
+                    .map(([fp]) => fp);
+                  for (const fp of sortedFields) {
+                    const { field } = splitFieldPath(fp);
+                    fieldPathsList.push(...mapField(field));
+                  }
+                }
+                if (fieldPathsList.length) entityOrigins.push("field");
+
+                const sources = dedupe([...entityPaths, ...fieldPathsList]);
                 return (
                   <li key={c.breakpoint_cluster_id} className="py-2 space-y-1">
                     <div className="flex items-start justify-between gap-3">
@@ -475,7 +506,7 @@ export default function ScannerOverview() {
                           {c.affected_entities.join(", ") || "—"}
                         </div>
                       </div>
-                      <ViewSourceButton paths={sources} />
+                      <ViewSourceButton paths={sources} origins={entityOrigins} />
                     </div>
                   </li>
                 );
