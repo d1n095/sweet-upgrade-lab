@@ -182,13 +182,24 @@ function ViewSourceButton({ paths, origins }: { paths: string[]; origins?: Sourc
         const filtered = q ? paths.filter((p) => p.toLowerCase().includes(q)) : paths;
         return (
           <div className="text-[11px] bg-muted/40 rounded-md p-2 space-y-1 max-w-[320px] w-[280px]">
-            <input
-              type="text"
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              placeholder="Filter paths…"
-              className="w-full h-6 px-2 text-[11px] rounded border bg-background"
-            />
+            <div className="flex items-center gap-1">
+              <input
+                type="text"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                placeholder="Filter paths…"
+                className="flex-1 h-6 px-2 text-[11px] rounded border bg-background"
+              />
+              {filter && (
+                <button
+                  type="button"
+                  onClick={() => setFilter("")}
+                  className="text-[10px] underline text-muted-foreground hover:text-foreground px-1"
+                >
+                  Rensa
+                </button>
+              )}
+            </div>
             {filtered.length === 0 ? (
               <div className="text-muted-foreground italic px-1">No matches</div>
             ) : (
