@@ -99,16 +99,21 @@ function dedupe(paths: string[]): string[] {
   return [...new Set(paths.filter(Boolean))];
 }
 
+type SourceOrigin = "endpoint" | "field" | "entity" | "pattern_key";
+
 function suggestSources(opts: {
   entity?: string | null;
   field?: string | null;
   endpoint?: string | null;
-}): string[] {
-  return dedupe([
-    ...mapEndpoint(opts.endpoint),
-    ...mapField(opts.field),
-    ...mapEntity(opts.entity),
-  ]);
+}): { paths: string[]; origins: SourceOrigin[] } {
+  const ep = mapEndpoint(opts.endpoint);
+  const fl = mapField(opts.field);
+  const en = mapEntity(opts.entity);
+  const origins: SourceOrigin[] = [];
+  if (ep.length) origins.push("endpoint");
+  if (fl.length) origins.push("field");
+  if (en.length) origins.push("entity");
+  return { paths: dedupe([...ep, ...fl, ...en]), origins };
 }
 
 // Parse "entity.field" or "entity::field" → { entity, field }
@@ -120,23 +125,22 @@ function splitFieldPath(path: string): { entity: string; field: string } {
 }
 
 // Parse pattern_key heuristically: usually contains entity/field/endpoint tokens.
-function suggestFromPatternKey(key: string): string[] {
+function suggestFromPatternKey(key: string): { paths: string[]; origins: SourceOrigin[] } {
   const tokens = key.split(/[^a-zA-Z0-9_]+/).filter(Boolean);
   const out: string[] = [];
   for (const t of tokens) {
     out.push(...mapEntity(t));
     out.push(...mapField(t));
   }
-  // If pattern looks like an endpoint, include endpoint mapping too.
   if (key.includes("/")) out.push(...mapEndpoint(key));
-  return dedupe(out);
+  return { paths: dedupe(out), origins: ["pattern_key"] };
 }
 
 // ---------------------------------------------------------------------------
 // View Source button
 // ---------------------------------------------------------------------------
 
-function ViewSourceButton({ paths }: { paths: string[] }) {
+function ViewSourceButton({ paths, origins }: { paths: string[]; origins?: SourceOrigin[] }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
 
@@ -164,6 +168,11 @@ function ViewSourceButton({ paths }: { paths: string[] }) {
       >
         View Source ({paths.length})
       </Button>
+      {origins && origins.length > 0 && (
+        <span className="text-[10px] text-muted-foreground">
+          via {origins.join(" + ")}
+        </span>
+      )}
       {open && (
         <ul className="text-[11px] bg-muted/40 rounded-md p-2 space-y-1 max-w-[320px]">
           {paths.map((p) => (
@@ -298,7 +307,7 @@ export default function ScannerOverview() {
                         {e.number_of_flags} flag(s)
                       </div>
                     </div>
-                    <ViewSourceButton paths={sources} />
+                    <ViewSourceButton paths={sources.paths} origins={sources.origins} />
                   </li>
                 );
               })}
@@ -339,7 +348,7 @@ export default function ScannerOverview() {
                         className="flex items-center justify-between gap-3"
                       >
                         <span className="font-mono text-xs">{f}</span>
-                        <ViewSourceButton paths={sources} />
+                        <ViewSourceButton paths={sources.paths} origins={sources.origins} />
                       </li>
                     );
                   })}
@@ -396,7 +405,7 @@ export default function ScannerOverview() {
                               {isMostFrequent ? " ★" : ""}
                             </div>
                           </div>
-                          <ViewSourceButton paths={sources} />
+                          <ViewSourceButton paths={sources.paths} origins={sources.origins} />
                         </li>
                       );
                     })}
@@ -432,7 +441,7 @@ export default function ScannerOverview() {
                         {p.persistent ? " · persistent" : ""}
                       </div>
                     </div>
-                    <ViewSourceButton paths={sources} />
+                    <ViewSourceButton paths={sources.paths} origins={sources.origins} />
                   </li>
                 );
               })}
