@@ -140,7 +140,7 @@ function suggestFromPatternKey(key: string): { paths: string[]; origins: SourceO
 // View Source button
 // ---------------------------------------------------------------------------
 
-function ViewSourceButton({ paths }: { paths: string[] }) {
+function ViewSourceButton({ paths, origins }: { paths: string[]; origins?: SourceOrigin[] }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
 
