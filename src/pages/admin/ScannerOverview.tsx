@@ -146,6 +146,7 @@ function suggestFromPatternKey(key: string): { paths: string[]; origins: SourceO
 function ViewSourceButton({ paths, origins }: { paths: string[]; origins?: SourceOrigin[] }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+  const [filter, setFilter] = useState("");
 
   const onCopy = async (p: string) => {
     try {
@@ -176,33 +177,50 @@ function ViewSourceButton({ paths, origins }: { paths: string[]; origins?: Sourc
           via {origins.join(" + ")}
         </span>
       )}
-      {open && (
-        <ul className="text-[11px] bg-muted/40 rounded-md p-2 space-y-1 max-w-[320px]">
-          {paths.map((p) => (
-            <li key={p} className="flex items-center justify-between gap-2">
-              <span className="font-mono break-all">{p}</span>
-              <button
-                type="button"
-                className="text-[10px] underline text-muted-foreground hover:text-foreground"
-                onClick={() => onCopy(p)}
-              >
-                {copied === p ? "copied" : "copy"}
-              </button>
-            </li>
-          ))}
-          {paths.length > 1 && (
-            <li className="pt-1 border-t flex justify-end">
-              <button
-                type="button"
-                className="text-[10px] underline text-muted-foreground hover:text-foreground"
-                onClick={() => onCopy(paths.join("\n"))}
-              >
-                {copied === paths.join("\n") ? "copied all" : "copy all"}
-              </button>
-            </li>
-          )}
-        </ul>
-      )}
+      {open && (() => {
+        const q = filter.trim().toLowerCase();
+        const filtered = q ? paths.filter((p) => p.toLowerCase().includes(q)) : paths;
+        return (
+          <div className="text-[11px] bg-muted/40 rounded-md p-2 space-y-1 max-w-[320px] w-[280px]">
+            <input
+              type="text"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              placeholder="Filter paths…"
+              className="w-full h-6 px-2 text-[11px] rounded border bg-background"
+            />
+            {filtered.length === 0 ? (
+              <div className="text-muted-foreground italic px-1">No matches</div>
+            ) : (
+              <ul className="space-y-1">
+                {filtered.map((p) => (
+                  <li key={p} className="flex items-center justify-between gap-2">
+                    <span className="font-mono break-all">{p}</span>
+                    <button
+                      type="button"
+                      className="text-[10px] underline text-muted-foreground hover:text-foreground"
+                      onClick={() => onCopy(p)}
+                    >
+                      {copied === p ? "copied" : "copy"}
+                    </button>
+                  </li>
+                ))}
+                {filtered.length > 1 && (
+                  <li className="pt-1 border-t flex justify-end">
+                    <button
+                      type="button"
+                      className="text-[10px] underline text-muted-foreground hover:text-foreground"
+                      onClick={() => onCopy(filtered.join("\n"))}
+                    >
+                      {copied === filtered.join("\n") ? "copied all" : "copy all"}
+                    </button>
+                  </li>
+                )}
+              </ul>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }
