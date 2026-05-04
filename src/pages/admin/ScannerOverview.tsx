@@ -168,6 +168,11 @@ function ViewSourceButton({ paths, origins }: { paths: string[]; origins?: Sourc
       >
         View Source ({paths.length})
       </Button>
+      {origins && origins.length > 0 && (
+        <span className="text-[10px] text-muted-foreground">
+          via {origins.join(" + ")}
+        </span>
+      )}
       {open && (
         <ul className="text-[11px] bg-muted/40 rounded-md p-2 space-y-1 max-w-[320px]">
           {paths.map((p) => (
