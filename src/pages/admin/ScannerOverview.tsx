@@ -116,12 +116,15 @@ function suggestSources(opts: {
   return { paths: dedupe([...ep, ...fl, ...en]), origins };
 }
 
-// Parse "entity.field" or "entity::field" → { entity, field }
+// Parse "entity.field", "entity::field", "entity:field", or nested
+// "entity.sub.field" → { entity, field }. Trims whitespace, handles
+// leading separators, falls back to treating the whole string as field.
 function splitFieldPath(path: string): { entity: string; field: string } {
-  const sep = path.includes("::") ? "::" : ".";
-  const idx = path.indexOf(sep);
-  if (idx === -1) return { entity: path, field: "" };
-  return { entity: path.slice(0, idx), field: path.slice(idx + sep.length) };
+  const raw = (path ?? "").trim().replace(/^[.:]+|[.:]+$/g, "");
+  if (!raw) return { entity: "", field: "" };
+  const m = raw.match(/^([^.:]+)(?:::|\.|:)(.+)$/);
+  if (!m) return { entity: "", field: raw };
+  return { entity: m[1].trim(), field: m[2].trim() };
 }
 
 // Parse pattern_key heuristically: usually contains entity/field/endpoint tokens.
