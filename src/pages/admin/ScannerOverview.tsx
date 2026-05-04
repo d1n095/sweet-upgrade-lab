@@ -190,6 +190,17 @@ function ViewSourceButton({ paths, origins }: { paths: string[]; origins?: Sourc
               </button>
             </li>
           ))}
+          {paths.length > 1 && (
+            <li className="pt-1 border-t flex justify-end">
+              <button
+                type="button"
+                className="text-[10px] underline text-muted-foreground hover:text-foreground"
+                onClick={() => onCopy(paths.join("\n"))}
+              >
+                {copied === paths.join("\n") ? "copied all" : "copy all"}
+              </button>
+            </li>
+          )}
         </ul>
       )}
     </div>
