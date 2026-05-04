@@ -475,8 +475,25 @@ export default function ScannerOverview() {
           ) : (
             <ul className="divide-y">
               {clusters.map((c) => {
-                const entitySources = c.affected_entities.flatMap((e) => mapEntity(e));
-                const sources = dedupe(entitySources);
+                const clusterTrace = getFieldTransitionTrace(c.breakpoint_cluster_id);
+                const entityOrigins: SourceOrigin[] = [];
+                const entityPaths = c.affected_entities.flatMap((e) => mapEntity(e));
+                if (entityPaths.length) entityOrigins.push("entity");
+
+                const fieldPathsList: string[] = [];
+                if (clusterTrace) {
+                  const sortedFields = Object.entries(clusterTrace.frequency)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 5)
+                    .map(([fp]) => fp);
+                  for (const fp of sortedFields) {
+                    const { field } = splitFieldPath(fp);
+                    fieldPathsList.push(...mapField(field));
+                  }
+                }
+                if (fieldPathsList.length) entityOrigins.push("field");
+
+                const sources = dedupe([...entityPaths, ...fieldPathsList]);
                 return (
                   <li key={c.breakpoint_cluster_id} className="py-2 space-y-1">
                     <div className="flex items-start justify-between gap-3">
@@ -489,7 +506,7 @@ export default function ScannerOverview() {
                           {c.affected_entities.join(", ") || "—"}
                         </div>
                       </div>
-                      <ViewSourceButton paths={sources} />
+                      <ViewSourceButton paths={sources} origins={entityOrigins} />
                     </div>
                   </li>
                 );
