@@ -99,16 +99,21 @@ function dedupe(paths: string[]): string[] {
   return [...new Set(paths.filter(Boolean))];
 }
 
+type SourceOrigin = "endpoint" | "field" | "entity" | "pattern_key";
+
 function suggestSources(opts: {
   entity?: string | null;
   field?: string | null;
   endpoint?: string | null;
-}): string[] {
-  return dedupe([
-    ...mapEndpoint(opts.endpoint),
-    ...mapField(opts.field),
-    ...mapEntity(opts.entity),
-  ]);
+}): { paths: string[]; origins: SourceOrigin[] } {
+  const ep = mapEndpoint(opts.endpoint);
+  const fl = mapField(opts.field);
+  const en = mapEntity(opts.entity);
+  const origins: SourceOrigin[] = [];
+  if (ep.length) origins.push("endpoint");
+  if (fl.length) origins.push("field");
+  if (en.length) origins.push("entity");
+  return { paths: dedupe([...ep, ...fl, ...en]), origins };
 }
 
 // Parse "entity.field" or "entity::field" → { entity, field }
