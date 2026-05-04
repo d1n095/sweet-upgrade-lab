@@ -125,16 +125,15 @@ function splitFieldPath(path: string): { entity: string; field: string } {
 }
 
 // Parse pattern_key heuristically: usually contains entity/field/endpoint tokens.
-function suggestFromPatternKey(key: string): string[] {
+function suggestFromPatternKey(key: string): { paths: string[]; origins: SourceOrigin[] } {
   const tokens = key.split(/[^a-zA-Z0-9_]+/).filter(Boolean);
   const out: string[] = [];
   for (const t of tokens) {
     out.push(...mapEntity(t));
     out.push(...mapField(t));
   }
-  // If pattern looks like an endpoint, include endpoint mapping too.
   if (key.includes("/")) out.push(...mapEndpoint(key));
-  return dedupe(out);
+  return { paths: dedupe(out), origins: ["pattern_key"] };
 }
 
 // ---------------------------------------------------------------------------
