@@ -253,6 +253,15 @@ function ViewSourceButton({ paths, origins }: { paths: string[]; origins?: Sourc
                       {filtered.every((p) => selected.has(p)) ? "Avmarkera alla" : "Välj alla"}
                     </button>
                     {selected.size > 0 && (
+                      <button
+                        type="button"
+                        className="text-[10px] underline text-muted-foreground hover:text-foreground"
+                        onClick={() => setSelected(new Set())}
+                      >
+                        Avmarkera valda
+                      </button>
+                    )}
+                    {selected.size > 0 && (
                       <span className="text-[10px] text-muted-foreground">
                         {selected.size} valda
                       </span>
