@@ -150,7 +150,15 @@ function suggestFromPatternKey(key: string): { paths: string[]; origins: SourceO
 // View Source button
 // ---------------------------------------------------------------------------
 
-function ViewSourceButton({ paths, origins }: { paths: string[]; origins?: SourceOrigin[] }) {
+function ViewSourceButton({
+  paths,
+  origins,
+  originCounts,
+}: {
+  paths: string[];
+  origins?: SourceOrigin[];
+  originCounts?: OriginCounts;
+}) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
@@ -197,13 +205,21 @@ function ViewSourceButton({ paths, origins }: { paths: string[]; origins?: Sourc
               entity: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30",
               pattern_key: "bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30",
             };
+            const count = originCounts?.[o];
             return (
               <span
                 key={o}
                 className={`text-[9px] uppercase tracking-wide font-semibold px-1.5 py-0.5 rounded border ${styles[o]}`}
-                title={`Source mapped via ${o}`}
+                title={
+                  count != null
+                    ? `${count} path(s) mapped via ${o}`
+                    : `Source mapped via ${o}`
+                }
               >
                 {o}
+                {count != null && (
+                  <span className="ml-1 font-mono normal-case opacity-80">×{count}</span>
+                )}
               </span>
             );
           })}
