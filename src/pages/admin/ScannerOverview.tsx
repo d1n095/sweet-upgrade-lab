@@ -101,11 +101,13 @@ function dedupe(paths: string[]): string[] {
 
 type SourceOrigin = "endpoint" | "field" | "entity" | "pattern_key";
 
+type OriginCounts = Partial<Record<SourceOrigin, number>>;
+
 function suggestSources(opts: {
   entity?: string | null;
   field?: string | null;
   endpoint?: string | null;
-}): { paths: string[]; origins: SourceOrigin[] } {
+}): { paths: string[]; origins: SourceOrigin[]; originCounts: OriginCounts } {
   const ep = mapEndpoint(opts.endpoint);
   const fl = mapField(opts.field);
   const en = mapEntity(opts.entity);
@@ -113,7 +115,11 @@ function suggestSources(opts: {
   if (ep.length) origins.push("endpoint");
   if (fl.length) origins.push("field");
   if (en.length) origins.push("entity");
-  return { paths: dedupe([...ep, ...fl, ...en]), origins };
+  const originCounts: OriginCounts = {};
+  if (ep.length) originCounts.endpoint = dedupe(ep).length;
+  if (fl.length) originCounts.field = dedupe(fl).length;
+  if (en.length) originCounts.entity = dedupe(en).length;
+  return { paths: dedupe([...ep, ...fl, ...en]), origins, originCounts };
 }
 
 // Parse "entity.field", "entity::field", "entity:field", or nested
@@ -128,7 +134,7 @@ function splitFieldPath(path: string): { entity: string; field: string } {
 }
 
 // Parse pattern_key heuristically: usually contains entity/field/endpoint tokens.
-function suggestFromPatternKey(key: string): { paths: string[]; origins: SourceOrigin[] } {
+function suggestFromPatternKey(key: string): { paths: string[]; origins: SourceOrigin[]; originCounts: OriginCounts } {
   const tokens = key.split(/[^a-zA-Z0-9_]+/).filter(Boolean);
   const out: string[] = [];
   for (const t of tokens) {
@@ -136,7 +142,8 @@ function suggestFromPatternKey(key: string): { paths: string[]; origins: SourceO
     out.push(...mapField(t));
   }
   if (key.includes("/")) out.push(...mapEndpoint(key));
-  return { paths: dedupe(out), origins: ["pattern_key"] };
+  const deduped = dedupe(out);
+  return { paths: deduped, origins: ["pattern_key"], originCounts: { pattern_key: deduped.length } };
 }
 
 // ---------------------------------------------------------------------------
