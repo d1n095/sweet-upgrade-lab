@@ -623,6 +623,9 @@ export default function ScannerOverview() {
                 if (fieldPathsList.length) entityOrigins.push("field");
 
                 const sources = dedupe([...entityPaths, ...fieldPathsList]);
+                const clusterCounts: OriginCounts = {};
+                if (entityPaths.length) clusterCounts.entity = dedupe(entityPaths).length;
+                if (fieldPathsList.length) clusterCounts.field = dedupe(fieldPathsList).length;
                 return (
                   <li key={c.breakpoint_cluster_id} className="py-2 space-y-1">
                     <div className="flex items-start justify-between gap-3">
@@ -635,7 +638,7 @@ export default function ScannerOverview() {
                           {c.affected_entities.join(", ") || "—"}
                         </div>
                       </div>
-                      <ViewSourceButton paths={sources} origins={entityOrigins} />
+                      <ViewSourceButton paths={sources} origins={entityOrigins} originCounts={clusterCounts} />
                     </div>
                   </li>
                 );
