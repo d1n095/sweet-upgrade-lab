@@ -450,7 +450,7 @@ export default function ScannerOverview() {
                         {e.number_of_flags} flag(s)
                       </div>
                     </div>
-                    <ViewSourceButton paths={sources.paths} origins={sources.origins} />
+                    <ViewSourceButton paths={sources.paths} origins={sources.origins} originCounts={sources.originCounts} />
                   </li>
                 );
               })}
@@ -491,7 +491,7 @@ export default function ScannerOverview() {
                         className="flex items-center justify-between gap-3"
                       >
                         <span className="font-mono text-xs">{f}</span>
-                        <ViewSourceButton paths={sources.paths} origins={sources.origins} />
+                        <ViewSourceButton paths={sources.paths} origins={sources.origins} originCounts={sources.originCounts} />
                       </li>
                     );
                   })}
@@ -548,7 +548,7 @@ export default function ScannerOverview() {
                               {isMostFrequent ? " ★" : ""}
                             </div>
                           </div>
-                          <ViewSourceButton paths={sources.paths} origins={sources.origins} />
+                          <ViewSourceButton paths={sources.paths} origins={sources.origins} originCounts={sources.originCounts} />
                         </li>
                       );
                     })}
@@ -584,7 +584,7 @@ export default function ScannerOverview() {
                         {p.persistent ? " · persistent" : ""}
                       </div>
                     </div>
-                    <ViewSourceButton paths={sources.paths} origins={sources.origins} />
+                    <ViewSourceButton paths={sources.paths} origins={sources.origins} originCounts={sources.originCounts} />
                   </li>
                 );
               })}
