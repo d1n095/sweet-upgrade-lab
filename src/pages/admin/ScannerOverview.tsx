@@ -182,9 +182,25 @@ function ViewSourceButton({ paths, origins }: { paths: string[]; origins?: Sourc
         View Source ({paths.length})
       </Button>
       {origins && origins.length > 0 && (
-        <span className="text-[10px] text-muted-foreground">
-          via {origins.join(" + ")}
-        </span>
+        <div className="flex flex-wrap gap-1 justify-end">
+          {origins.map((o) => {
+            const styles: Record<SourceOrigin, string> = {
+              endpoint: "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30",
+              field: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
+              entity: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30",
+              pattern_key: "bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30",
+            };
+            return (
+              <span
+                key={o}
+                className={`text-[9px] uppercase tracking-wide font-semibold px-1.5 py-0.5 rounded border ${styles[o]}`}
+                title={`Source mapped via ${o}`}
+              >
+                {o}
+              </span>
+            );
+          })}
+        </div>
       )}
       {open && (() => {
         const q = filter.trim().toLowerCase();
