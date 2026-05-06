@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { patternMemory, type PatternMemoryState } from "@/core/scanner/patternMemory";
 import {
   getLikelyRootCause,
@@ -196,35 +197,74 @@ function ViewSourceButton({
       >
         View Source ({paths.length})
       </Button>
-      {origins && origins.length > 0 && (
-        <div className="flex flex-wrap gap-1 justify-end">
-          {origins.map((o) => {
-            const styles: Record<SourceOrigin, string> = {
-              endpoint: "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30",
-              field: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
-              entity: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30",
-              pattern_key: "bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30",
-            };
-            const count = originCounts?.[o];
-            return (
-              <span
-                key={o}
-                className={`text-[9px] uppercase tracking-wide font-semibold px-1.5 py-0.5 rounded border ${styles[o]}`}
-                title={
-                  count != null
-                    ? `${count} path(s) mapped via ${o}`
-                    : `Source mapped via ${o}`
-                }
-              >
-                {o}
-                {count != null && (
-                  <span className="ml-1 font-mono normal-case opacity-80">×{count}</span>
-                )}
-              </span>
-            );
-          })}
-        </div>
-      )}
+      {origins && origins.length > 0 && (() => {
+        const styles: Record<SourceOrigin, string> = {
+          endpoint: "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30",
+          field: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
+          entity: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30",
+          pattern_key: "bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30",
+        };
+        const descriptions: Record<SourceOrigin, string> = {
+          endpoint:
+            "Härlett från endpoint-strängen → matchar /functions/v1/<name>, /api/<resource> och /admin/<page>.",
+          field:
+            "Härlett från fältnamn (t.ex. payment_intent_id, order_number) via FIELD_PATHS-mappningen.",
+          entity:
+            "Härlett från entitetsnamn (t.ex. order, user, payment) via ENTITY_PATHS-mappningen.",
+          pattern_key:
+            "Härlett genom att splittra pattern_key i tokens och matcha mot både entitets- och fältmappningar.",
+        };
+        return (
+          <TooltipProvider delayDuration={150}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex flex-wrap gap-1 justify-end cursor-help">
+                  {origins.map((o) => {
+                    const count = originCounts?.[o];
+                    return (
+                      <span
+                        key={o}
+                        className={`text-[9px] uppercase tracking-wide font-semibold px-1.5 py-0.5 rounded border ${styles[o]}`}
+                      >
+                        {o}
+                        {count != null && (
+                          <span className="ml-1 font-mono normal-case opacity-80">×{count}</span>
+                        )}
+                      </span>
+                    );
+                  })}
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="left" className="max-w-xs text-xs space-y-2">
+                <div className="font-semibold">
+                  Källa: via {origins.join(" + ")}
+                </div>
+                <div className="text-muted-foreground">
+                  Sökvägarna nedan är härledda från {origins.length} typ(er) av
+                  heuristisk mappning. Inget filsystem skannas — endast statiska regler.
+                </div>
+                <ul className="space-y-1.5">
+                  {origins.map((o) => (
+                    <li key={o} className="flex gap-1.5">
+                      <span
+                        className={`shrink-0 text-[9px] uppercase tracking-wide font-semibold px-1.5 py-0.5 rounded border h-fit ${styles[o]}`}
+                      >
+                        {o}
+                        {originCounts?.[o] != null && (
+                          <span className="ml-1 font-mono normal-case opacity-80">
+                            ×{originCounts[o]}
+                          </span>
+                        )}
+                      </span>
+                      <span className="text-muted-foreground">{descriptions[o]}</span>
+                    </li>
+                  ))}
+                </ul>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        );
+      })()}
       {open && (() => {
         const q = filter.trim().toLowerCase();
         const filtered = q ? paths.filter((p) => p.toLowerCase().includes(q)) : paths;
