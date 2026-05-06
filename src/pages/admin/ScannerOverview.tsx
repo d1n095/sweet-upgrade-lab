@@ -101,11 +101,13 @@ function dedupe(paths: string[]): string[] {
 
 type SourceOrigin = "endpoint" | "field" | "entity" | "pattern_key";
 
+type OriginCounts = Partial<Record<SourceOrigin, number>>;
+
 function suggestSources(opts: {
   entity?: string | null;
   field?: string | null;
   endpoint?: string | null;
-}): { paths: string[]; origins: SourceOrigin[] } {
+}): { paths: string[]; origins: SourceOrigin[]; originCounts: OriginCounts } {
   const ep = mapEndpoint(opts.endpoint);
   const fl = mapField(opts.field);
   const en = mapEntity(opts.entity);
@@ -113,7 +115,11 @@ function suggestSources(opts: {
   if (ep.length) origins.push("endpoint");
   if (fl.length) origins.push("field");
   if (en.length) origins.push("entity");
-  return { paths: dedupe([...ep, ...fl, ...en]), origins };
+  const originCounts: OriginCounts = {};
+  if (ep.length) originCounts.endpoint = dedupe(ep).length;
+  if (fl.length) originCounts.field = dedupe(fl).length;
+  if (en.length) originCounts.entity = dedupe(en).length;
+  return { paths: dedupe([...ep, ...fl, ...en]), origins, originCounts };
 }
 
 // Parse "entity.field", "entity::field", "entity:field", or nested
@@ -128,7 +134,7 @@ function splitFieldPath(path: string): { entity: string; field: string } {
 }
 
 // Parse pattern_key heuristically: usually contains entity/field/endpoint tokens.
-function suggestFromPatternKey(key: string): { paths: string[]; origins: SourceOrigin[] } {
+function suggestFromPatternKey(key: string): { paths: string[]; origins: SourceOrigin[]; originCounts: OriginCounts } {
   const tokens = key.split(/[^a-zA-Z0-9_]+/).filter(Boolean);
   const out: string[] = [];
   for (const t of tokens) {
@@ -136,14 +142,23 @@ function suggestFromPatternKey(key: string): { paths: string[]; origins: SourceO
     out.push(...mapField(t));
   }
   if (key.includes("/")) out.push(...mapEndpoint(key));
-  return { paths: dedupe(out), origins: ["pattern_key"] };
+  const deduped = dedupe(out);
+  return { paths: deduped, origins: ["pattern_key"], originCounts: { pattern_key: deduped.length } };
 }
 
 // ---------------------------------------------------------------------------
 // View Source button
 // ---------------------------------------------------------------------------
 
-function ViewSourceButton({ paths, origins }: { paths: string[]; origins?: SourceOrigin[] }) {
+function ViewSourceButton({
+  paths,
+  origins,
+  originCounts,
+}: {
+  paths: string[];
+  origins?: SourceOrigin[];
+  originCounts?: OriginCounts;
+}) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
@@ -190,13 +205,21 @@ function ViewSourceButton({ paths, origins }: { paths: string[]; origins?: Sourc
               entity: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30",
               pattern_key: "bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30",
             };
+            const count = originCounts?.[o];
             return (
               <span
                 key={o}
                 className={`text-[9px] uppercase tracking-wide font-semibold px-1.5 py-0.5 rounded border ${styles[o]}`}
-                title={`Source mapped via ${o}`}
+                title={
+                  count != null
+                    ? `${count} path(s) mapped via ${o}`
+                    : `Source mapped via ${o}`
+                }
               >
                 {o}
+                {count != null && (
+                  <span className="ml-1 font-mono normal-case opacity-80">×{count}</span>
+                )}
               </span>
             );
           })}
@@ -427,7 +450,7 @@ export default function ScannerOverview() {
                         {e.number_of_flags} flag(s)
                       </div>
                     </div>
-                    <ViewSourceButton paths={sources.paths} origins={sources.origins} />
+                    <ViewSourceButton paths={sources.paths} origins={sources.origins} originCounts={sources.originCounts} />
                   </li>
                 );
               })}
@@ -468,7 +491,7 @@ export default function ScannerOverview() {
                         className="flex items-center justify-between gap-3"
                       >
                         <span className="font-mono text-xs">{f}</span>
-                        <ViewSourceButton paths={sources.paths} origins={sources.origins} />
+                        <ViewSourceButton paths={sources.paths} origins={sources.origins} originCounts={sources.originCounts} />
                       </li>
                     );
                   })}
@@ -525,7 +548,7 @@ export default function ScannerOverview() {
                               {isMostFrequent ? " ★" : ""}
                             </div>
                           </div>
-                          <ViewSourceButton paths={sources.paths} origins={sources.origins} />
+                          <ViewSourceButton paths={sources.paths} origins={sources.origins} originCounts={sources.originCounts} />
                         </li>
                       );
                     })}
@@ -561,7 +584,7 @@ export default function ScannerOverview() {
                         {p.persistent ? " · persistent" : ""}
                       </div>
                     </div>
-                    <ViewSourceButton paths={sources.paths} origins={sources.origins} />
+                    <ViewSourceButton paths={sources.paths} origins={sources.origins} originCounts={sources.originCounts} />
                   </li>
                 );
               })}
@@ -600,6 +623,9 @@ export default function ScannerOverview() {
                 if (fieldPathsList.length) entityOrigins.push("field");
 
                 const sources = dedupe([...entityPaths, ...fieldPathsList]);
+                const clusterCounts: OriginCounts = {};
+                if (entityPaths.length) clusterCounts.entity = dedupe(entityPaths).length;
+                if (fieldPathsList.length) clusterCounts.field = dedupe(fieldPathsList).length;
                 return (
                   <li key={c.breakpoint_cluster_id} className="py-2 space-y-1">
                     <div className="flex items-start justify-between gap-3">
@@ -612,7 +638,7 @@ export default function ScannerOverview() {
                           {c.affected_entities.join(", ") || "—"}
                         </div>
                       </div>
-                      <ViewSourceButton paths={sources} origins={entityOrigins} />
+                      <ViewSourceButton paths={sources} origins={entityOrigins} originCounts={clusterCounts} />
                     </div>
                   </li>
                 );
