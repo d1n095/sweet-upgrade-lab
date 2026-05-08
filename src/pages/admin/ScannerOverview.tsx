@@ -171,7 +171,7 @@ function ViewSourceButton({
   const [filter, setFilter] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  const sortedOrigins = origins && origins.length > 0 ? sortOrigins(origins) : [];
+  const sortedOrigins = origins && origins.length > 0 ? sortOrigins([...new Set(origins)]) : [];
 
   const toggleOne = (p: string) =>
     setSelected((prev) => {
