@@ -245,9 +245,7 @@ function ViewSourceButton({
               </TooltipTrigger>
               <TooltipContent side="left" className="max-w-xs text-xs space-y-2">
                 <div className="text-muted-foreground">
-                  {sortedOrigins.length} heuristisk{m
-                    sortedOrigins.length > 1 ? "a" : ""
-                  } källa{sortedOrigins.length > 1 ? "or" : ""} — inget filsystem skannas.
+                  {sortedOrigins.length} heuristisk{sortedOrigins.length > 1 ? "a" : ""} källa{sortedOrigins.length > 1 ? "or" : ""} — inget filsystem skannas.
                 </div>
                 <ul className="space-y-1.5">
                   {sortedOrigins.map((o) => (
