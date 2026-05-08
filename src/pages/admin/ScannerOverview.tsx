@@ -171,7 +171,7 @@ function ViewSourceButton({
   const [filter, setFilter] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  const sortedOrigins = origins && origins.length > 0 ? sortOrigins(origins) : [];
+  const sortedOrigins = origins && origins.length > 0 ? sortOrigins([...new Set(origins)]) : [];
 
   const toggleOne = (p: string) =>
     setSelected((prev) => {
@@ -244,12 +244,8 @@ function ViewSourceButton({
                 </div>
               </TooltipTrigger>
               <TooltipContent side="left" className="max-w-xs text-xs space-y-2">
-                <div className="font-semibold">
-                  Källa: via {sortedOrigins.join(" + ")}
-                </div>
                 <div className="text-muted-foreground">
-                  Sökvägarna nedan är härledda från {sortedOrigins.length} typ(er) av
-                  heuristisk mappning. Inget filsystem skannas — endast statiska regler.
+                  {sortedOrigins.length} heuristisk{sortedOrigins.length > 1 ? "a" : ""} källa{sortedOrigins.length > 1 ? "or" : ""} — inget filsystem skannas.
                 </div>
                 <ul className="space-y-1.5">
                   {sortedOrigins.map((o) => (
