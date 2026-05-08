@@ -96,8 +96,29 @@ function mapEndpoint(endpoint: string | null | undefined): string[] {
   return out;
 }
 
+// Normalize a path for dedupe comparison: trim, collapse repeated slashes,
+// strip leading "./", drop trailing slashes, and lowercase. Two paths that
+// resolve to the same file (e.g. "src/api//orders/", "SRC/api/orders") are
+// then collapsed into a single entry. The first-seen original casing wins
+// for display so output stays readable.
+function normalizePathKey(p: string): string {
+  return p
+    .trim()
+    .replace(/^\.\/+/, "")
+    .replace(/\/{2,}/g, "/")
+    .replace(/\/+$/, "")
+    .toLowerCase();
+}
+
 function dedupe(paths: string[]): string[] {
-  return [...new Set(paths.filter(Boolean))];
+  const seen = new Map<string, string>();
+  for (const raw of paths) {
+    if (!raw) continue;
+    const key = normalizePathKey(raw);
+    if (!key) continue;
+    if (!seen.has(key)) seen.set(key, raw.trim());
+  }
+  return [...seen.values()];
 }
 
 type SourceOrigin = "endpoint" | "field" | "entity" | "pattern_key";
