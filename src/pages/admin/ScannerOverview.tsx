@@ -102,6 +102,12 @@ function dedupe(paths: string[]): string[] {
 
 type SourceOrigin = "endpoint" | "field" | "entity" | "pattern_key";
 
+const ORIGIN_PRIORITY: SourceOrigin[] = ["endpoint", "field", "entity", "pattern_key"];
+
+function sortOrigins(origins: SourceOrigin[]): SourceOrigin[] {
+  return [...origins].sort((a, b) => ORIGIN_PRIORITY.indexOf(a) - ORIGIN_PRIORITY.indexOf(b));
+}
+
 type OriginCounts = Partial<Record<SourceOrigin, number>>;
 
 function suggestSources(opts: {
