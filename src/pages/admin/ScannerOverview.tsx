@@ -102,6 +102,12 @@ function dedupe(paths: string[]): string[] {
 
 type SourceOrigin = "endpoint" | "field" | "entity" | "pattern_key";
 
+const ORIGIN_PRIORITY: SourceOrigin[] = ["endpoint", "field", "entity", "pattern_key"];
+
+function sortOrigins(origins: SourceOrigin[]): SourceOrigin[] {
+  return [...origins].sort((a, b) => ORIGIN_PRIORITY.indexOf(a) - ORIGIN_PRIORITY.indexOf(b));
+}
+
 type OriginCounts = Partial<Record<SourceOrigin, number>>;
 
 function suggestSources(opts: {
@@ -165,6 +171,8 @@ function ViewSourceButton({
   const [filter, setFilter] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
+  const sortedOrigins = origins && origins.length > 0 ? sortOrigins(origins) : [];
+
   const toggleOne = (p: string) =>
     setSelected((prev) => {
       const next = new Set(prev);
@@ -197,7 +205,7 @@ function ViewSourceButton({
       >
         View Source ({paths.length})
       </Button>
-      {origins && origins.length > 0 && (() => {
+      {sortedOrigins.length > 0 && (() => {
         const styles: Record<SourceOrigin, string> = {
           endpoint: "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30",
           field: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
@@ -219,7 +227,7 @@ function ViewSourceButton({
             <Tooltip>
               <TooltipTrigger asChild>
                 <div className="flex flex-wrap gap-1 justify-end cursor-help">
-                  {origins.map((o) => {
+                  {sortedOrigins.map((o) => {
                     const count = originCounts?.[o];
                     return (
                       <span
@@ -237,14 +245,14 @@ function ViewSourceButton({
               </TooltipTrigger>
               <TooltipContent side="left" className="max-w-xs text-xs space-y-2">
                 <div className="font-semibold">
-                  Källa: via {origins.join(" + ")}
+                  Källa: via {sortedOrigins.join(" + ")}
                 </div>
                 <div className="text-muted-foreground">
-                  Sökvägarna nedan är härledda från {origins.length} typ(er) av
+                  Sökvägarna nedan är härledda från {sortedOrigins.length} typ(er) av
                   heuristisk mappning. Inget filsystem skannas — endast statiska regler.
                 </div>
                 <ul className="space-y-1.5">
-                  {origins.map((o) => (
+                  {sortedOrigins.map((o) => (
                     <li key={o} className="flex gap-1.5">
                       <span
                         className={`shrink-0 text-[9px] uppercase tracking-wide font-semibold px-1.5 py-0.5 rounded border h-fit ${styles[o]}`}
