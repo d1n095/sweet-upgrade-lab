@@ -368,7 +368,12 @@ function ViewSourceButton({
               )}
             </div>
             {filtered.length === 0 ? (
-              <div className="text-muted-foreground italic px-1">No matches</div>
+              <div className="text-muted-foreground italic px-1 py-2 space-y-1">
+                <div>Inga paths matchar "{filter}".</div>
+                <div className="text-[10px] not-italic">
+                  Prova att rensa filtret eller skriva en kortare term (t.ex. mappnamn).
+                </div>
+              </div>
             ) : (
               <>
                 <ul className="space-y-1">
