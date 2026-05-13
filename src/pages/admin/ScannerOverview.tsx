@@ -727,7 +727,7 @@ export default function ScannerOverview() {
                 }
                 if (fieldPathsList.length) entityOrigins.push("field");
 
-                const sources = dedupe([...entityPaths, ...fieldPathsList]);
+                const sources = rankPaths({ entity: entityPaths, field: fieldPathsList });
                 const clusterCounts: OriginCounts = {};
                 if (entityPaths.length) clusterCounts.entity = dedupe(entityPaths).length;
                 if (fieldPathsList.length) clusterCounts.field = dedupe(fieldPathsList).length;
