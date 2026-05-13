@@ -131,6 +131,42 @@ function sortOrigins(origins: SourceOrigin[]): SourceOrigin[] {
 
 type OriginCounts = Partial<Record<SourceOrigin, number>>;
 
+// Relevance ranking for suggested source paths. A path that comes from an
+// entity-mapping is more specific (and thus more useful as a starting point)
+// than one inferred from a field, which in turn beats endpoint/pattern_key
+// matches. Ties are broken by frequency: a path that surfaced from multiple
+// mapping rules ranks above one that surfaced once.
+const RELEVANCE_PRIORITY: SourceOrigin[] = ["entity", "field", "endpoint", "pattern_key"];
+
+function rankPaths(
+  groups: Partial<Record<SourceOrigin, string[]>>,
+): string[] {
+  const meta = new Map<
+    string,
+    { display: string; bestRank: number; frequency: number }
+  >();
+  for (const origin of RELEVANCE_PRIORITY) {
+    const list = groups[origin];
+    if (!list || !list.length) continue;
+    const rank = RELEVANCE_PRIORITY.indexOf(origin);
+    for (const raw of list) {
+      if (!raw) continue;
+      const key = normalizePathKey(raw);
+      if (!key) continue;
+      const existing = meta.get(key);
+      if (existing) {
+        existing.frequency += 1;
+        if (rank < existing.bestRank) existing.bestRank = rank;
+      } else {
+        meta.set(key, { display: raw.trim(), bestRank: rank, frequency: 1 });
+      }
+    }
+  }
+  return [...meta.values()]
+    .sort((a, b) => a.bestRank - b.bestRank || b.frequency - a.frequency)
+    .map((v) => v.display);
+}
+
 function suggestSources(opts: {
   entity?: string | null;
   field?: string | null;
@@ -147,7 +183,11 @@ function suggestSources(opts: {
   if (ep.length) originCounts.endpoint = dedupe(ep).length;
   if (fl.length) originCounts.field = dedupe(fl).length;
   if (en.length) originCounts.entity = dedupe(en).length;
-  return { paths: dedupe([...ep, ...fl, ...en]), origins, originCounts };
+  return {
+    paths: rankPaths({ endpoint: ep, field: fl, entity: en }),
+    origins,
+    originCounts,
+  };
 }
 
 // Parse "entity.field", "entity::field", "entity:field", or nested
