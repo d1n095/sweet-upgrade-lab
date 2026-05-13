@@ -253,7 +253,21 @@ function ViewSourceButton({
   };
 
   if (paths.length === 0) {
-    return <span className="text-[10px] text-muted-foreground italic">source unknown</span>;
+    return (
+      <div className="inline-flex flex-col items-end gap-1 max-w-[260px]">
+        <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide font-semibold px-1.5 py-0.5 rounded border bg-muted text-muted-foreground border-border">
+          Inga källvägar
+        </span>
+        <div className="text-[10px] text-muted-foreground leading-snug text-right space-y-0.5">
+          <div className="font-medium text-foreground/80">Nästa steg:</div>
+          <ul className="list-disc list-inside space-y-0.5 text-left">
+            <li>Kontrollera att entity, field eller endpoint är ifyllt på posten.</li>
+            <li>Lägg till mappning i ENTITY_PATHS / FIELD_PATHS om termen är ny.</li>
+            <li>Sök manuellt i kodbasen efter nyckelordet via global sökning.</li>
+          </ul>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -354,7 +368,12 @@ function ViewSourceButton({
               )}
             </div>
             {filtered.length === 0 ? (
-              <div className="text-muted-foreground italic px-1">No matches</div>
+              <div className="text-muted-foreground italic px-1 py-2 space-y-1">
+                <div>Inga paths matchar "{filter}".</div>
+                <div className="text-[10px] not-italic">
+                  Prova att rensa filtret eller skriva en kortare term (t.ex. mappnamn).
+                </div>
+              </div>
             ) : (
               <>
                 <ul className="space-y-1">
