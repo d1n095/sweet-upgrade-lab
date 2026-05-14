@@ -140,10 +140,10 @@ const RELEVANCE_PRIORITY: SourceOrigin[] = ["entity", "field", "endpoint", "patt
 
 function rankPaths(
   groups: Partial<Record<SourceOrigin, string[]>>,
-): string[] {
+): { paths: string[]; pathOrigins: Record<string, SourceOrigin[]> } {
   const meta = new Map<
     string,
-    { display: string; bestRank: number; frequency: number }
+    { display: string; bestRank: number; frequency: number; origins: Set<SourceOrigin> }
   >();
   for (const origin of RELEVANCE_PRIORITY) {
     const list = groups[origin];
@@ -156,22 +156,27 @@ function rankPaths(
       const existing = meta.get(key);
       if (existing) {
         existing.frequency += 1;
+        existing.origins.add(origin);
         if (rank < existing.bestRank) existing.bestRank = rank;
       } else {
-        meta.set(key, { display: raw.trim(), bestRank: rank, frequency: 1 });
+        meta.set(key, { display: raw.trim(), bestRank: rank, frequency: 1, origins: new Set([origin]) });
       }
     }
   }
-  return [...meta.values()]
-    .sort((a, b) => a.bestRank - b.bestRank || b.frequency - a.frequency)
-    .map((v) => v.display);
+  const sorted = [...meta.values()].sort(
+    (a, b) => a.bestRank - b.bestRank || b.frequency - a.frequency,
+  );
+  const paths = sorted.map((v) => v.display);
+  const pathOrigins: Record<string, SourceOrigin[]> = {};
+  for (const v of sorted) pathOrigins[v.display] = sortOrigins([...v.origins]);
+  return { paths, pathOrigins };
 }
 
 function suggestSources(opts: {
   entity?: string | null;
   field?: string | null;
   endpoint?: string | null;
-}): { paths: string[]; origins: SourceOrigin[]; originCounts: OriginCounts } {
+}): { paths: string[]; origins: SourceOrigin[]; originCounts: OriginCounts; pathOrigins: Record<string, SourceOrigin[]> } {
   const ep = mapEndpoint(opts.endpoint);
   const fl = mapField(opts.field);
   const en = mapEntity(opts.entity);
@@ -183,8 +188,10 @@ function suggestSources(opts: {
   if (ep.length) originCounts.endpoint = dedupe(ep).length;
   if (fl.length) originCounts.field = dedupe(fl).length;
   if (en.length) originCounts.entity = dedupe(en).length;
+  const ranked = rankPaths({ endpoint: ep, field: fl, entity: en });
   return {
-    paths: rankPaths({ endpoint: ep, field: fl, entity: en }),
+    paths: ranked.paths,
+    pathOrigins: ranked.pathOrigins,
     origins,
     originCounts,
   };
@@ -202,7 +209,7 @@ function splitFieldPath(path: string): { entity: string; field: string } {
 }
 
 // Parse pattern_key heuristically: usually contains entity/field/endpoint tokens.
-function suggestFromPatternKey(key: string): { paths: string[]; origins: SourceOrigin[]; originCounts: OriginCounts } {
+function suggestFromPatternKey(key: string): { paths: string[]; origins: SourceOrigin[]; originCounts: OriginCounts; pathOrigins: Record<string, SourceOrigin[]> } {
   const tokens = key.split(/[^a-zA-Z0-9_]+/).filter(Boolean);
   const out: string[] = [];
   for (const t of tokens) {
@@ -211,7 +218,9 @@ function suggestFromPatternKey(key: string): { paths: string[]; origins: SourceO
   }
   if (key.includes("/")) out.push(...mapEndpoint(key));
   const deduped = dedupe(out);
-  return { paths: deduped, origins: ["pattern_key"], originCounts: { pattern_key: deduped.length } };
+  const pathOrigins: Record<string, SourceOrigin[]> = {};
+  for (const p of deduped) pathOrigins[p] = ["pattern_key"];
+  return { paths: deduped, origins: ["pattern_key"], originCounts: { pattern_key: deduped.length }, pathOrigins };
 }
 
 // ---------------------------------------------------------------------------
