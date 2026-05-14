@@ -378,7 +378,18 @@ function ViewSourceButton({
                 type="text"
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                placeholder="Filter paths…"
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") {
+                    e.preventDefault();
+                    if (filter) setFilter("");
+                    else setOpen(false);
+                  } else if (e.key === "Enter") {
+                    e.preventDefault();
+                    if (filtered.length > 0) onCopy(filtered[0]);
+                  }
+                }}
+                autoFocus
+                placeholder="Filter paths… (Enter = kopiera första, Esc = stäng)"
                 className="flex-1 h-6 px-2 text-[11px] rounded border bg-background"
               />
               {filter && (
