@@ -382,7 +382,29 @@ function ViewSourceButton({
       })()}
       {open && (() => {
         const q = filter.trim().toLowerCase();
-        const filtered = q ? paths.filter((p) => p.toLowerCase().includes(q)) : paths;
+        const availableOriginTypes = sortOrigins([
+          ...new Set(
+            paths.flatMap((p) => pathOrigins?.[p] ?? []),
+          ),
+        ]);
+        const activeOriginFilter = new Set(
+          [...originFilter].filter((o) => availableOriginTypes.includes(o)),
+        );
+        const matchesOrigin = (p: string) => {
+          if (activeOriginFilter.size === 0) return true;
+          const po = pathOrigins?.[p] ?? [];
+          return po.some((o) => activeOriginFilter.has(o));
+        };
+        const filtered = paths
+          .filter(matchesOrigin)
+          .filter((p) => (q ? p.toLowerCase().includes(q) : true));
+        const toggleOrigin = (o: SourceOrigin) =>
+          setOriginFilter((prev) => {
+            const next = new Set(prev);
+            if (next.has(o)) next.delete(o);
+            else next.add(o);
+            return next;
+          });
         return (
           <div className="text-[11px] bg-muted/40 rounded-md p-2 space-y-1 max-w-[320px] w-[280px]">
             <div className="flex items-center gap-1">
@@ -414,6 +436,44 @@ function ViewSourceButton({
                 </button>
               )}
             </div>
+            {availableOriginTypes.length > 1 && (
+              <div className="flex flex-wrap items-center gap-1 pt-0.5">
+                <span className="text-[9px] uppercase tracking-wide text-muted-foreground mr-0.5">
+                  Källtyp:
+                </span>
+                {availableOriginTypes.map((o) => {
+                  const isActive = activeOriginFilter.has(o);
+                  const count = paths.filter((p) =>
+                    (pathOrigins?.[p] ?? []).includes(o),
+                  ).length;
+                  return (
+                    <button
+                      key={o}
+                      type="button"
+                      onClick={() => toggleOrigin(o)}
+                      className={
+                        "inline-flex items-center gap-0.5 text-[9px] uppercase tracking-wide px-1.5 py-0.5 rounded border transition-colors " +
+                        (isActive
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-background text-muted-foreground border-border hover:text-foreground")
+                      }
+                    >
+                      {o}
+                      <span className="font-mono opacity-70">×{count}</span>
+                    </button>
+                  );
+                })}
+                {activeOriginFilter.size > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setOriginFilter(new Set())}
+                    className="text-[10px] underline text-muted-foreground hover:text-foreground px-1"
+                  >
+                    Rensa
+                  </button>
+                )}
+              </div>
+            )}
             {filtered.length === 0 ? (
               <div className="text-muted-foreground italic px-1 py-2 space-y-1">
                 <div>Inga paths matchar "{filter}".</div>
