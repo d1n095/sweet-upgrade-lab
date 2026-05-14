@@ -218,6 +218,30 @@ function suggestFromPatternKey(key: string): { paths: string[]; origins: SourceO
 // View Source button
 // ---------------------------------------------------------------------------
 
+function highlightMatch(text: string, query: string): React.ReactNode {
+  const q = query.trim().toLowerCase();
+  if (!q) return text;
+  const lower = text.toLowerCase();
+  const parts: React.ReactNode[] = [];
+  let i = 0;
+  let key = 0;
+  while (i < text.length) {
+    const idx = lower.indexOf(q, i);
+    if (idx === -1) {
+      parts.push(text.slice(i));
+      break;
+    }
+    if (idx > i) parts.push(text.slice(i, idx));
+    parts.push(
+      <mark key={key++} className="bg-primary/20 text-primary font-semibold rounded px-0.5">
+        {text.slice(idx, idx + q.length)}
+      </mark>
+    );
+    i = idx + q.length;
+  }
+  return <>{parts}</>;
+}
+
 function ViewSourceButton({
   paths,
   origins,
@@ -386,7 +410,7 @@ function ViewSourceButton({
                           checked={selected.has(p)}
                           onChange={() => toggleOne(p)}
                         />
-                        <span className="font-mono break-all">{p}</span>
+                        <span className="font-mono break-all">{highlightMatch(p, q)}</span>
                       </label>
                       <button
                         type="button"
