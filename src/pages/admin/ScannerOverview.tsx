@@ -386,7 +386,7 @@ function ViewSourceButton({
                           checked={selected.has(p)}
                           onChange={() => toggleOne(p)}
                         />
-                        <span className="font-mono break-all">{p}</span>
+                        <span className="font-mono break-all">{highlightMatch(p, q)}</span>
                       </label>
                       <button
                         type="button"
