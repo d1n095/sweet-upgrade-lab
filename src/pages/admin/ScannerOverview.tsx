@@ -255,15 +255,18 @@ function ViewSourceButton({
   paths,
   origins,
   originCounts,
+  pathOrigins,
 }: {
   paths: string[];
   origins?: SourceOrigin[];
   originCounts?: OriginCounts;
+  pathOrigins?: Record<string, SourceOrigin[]>;
 }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [originFilter, setOriginFilter] = useState<Set<SourceOrigin>>(new Set());
 
   const sortedOrigins = origins && origins.length > 0 ? sortOrigins([...new Set(origins)]) : [];
 
