@@ -806,7 +806,7 @@ export default function ScannerOverview() {
                           {c.affected_entities.join(", ") || "—"}
                         </div>
                       </div>
-                      <ViewSourceButton paths={sources} origins={entityOrigins} originCounts={clusterCounts} />
+                      <ViewSourceButton paths={sources.paths} pathOrigins={sources.pathOrigins} origins={entityOrigins} originCounts={clusterCounts} />
                     </div>
                   </li>
                 );
