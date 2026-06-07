@@ -560,17 +560,29 @@ const Checkout = () => {
                       {renderFieldError('phone')}
                     </div>
 
-                    <div>
-                      <Label htmlFor="company">{t.company}</Label>
-                      <Input id="company" autoComplete="organization"
-                        value={form.company} onChange={(e) => updateField('company', e.target.value)} />
-                    </div>
+                    {showExtraFields ? (
+                      <>
+                        <div>
+                          <Label htmlFor="company">{t.company}</Label>
+                          <Input id="company" autoComplete="organization"
+                            value={form.company} onChange={(e) => updateField('company', e.target.value)} />
+                        </div>
 
-                    <div>
-                      <Label htmlFor="careOf">{t.careOf} ({isSv ? 'valfritt' : 'optional'})</Label>
-                      <Input id="careOf" value={form.careOf} onChange={(e) => updateField('careOf', e.target.value)}
-                        placeholder={isSv ? 'c/o Namn' : 'c/o Name'} />
-                    </div>
+                        <div>
+                          <Label htmlFor="careOf">{t.careOf} ({isSv ? 'valfritt' : 'optional'})</Label>
+                          <Input id="careOf" value={form.careOf} onChange={(e) => updateField('careOf', e.target.value)}
+                            placeholder={isSv ? 'c/o Namn' : 'c/o Name'} />
+                        </div>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setShowExtraFields(true)}
+                        className="text-xs text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2"
+                      >
+                        + {isSv ? 'Lägg till företag eller c/o' : 'Add company or c/o'}
+                      </button>
+                    )}
                   </div>
 
                   {/* Shipping method */}
