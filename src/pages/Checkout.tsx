@@ -90,6 +90,7 @@ const Checkout = () => {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [profileLoaded, setProfileLoaded] = useState(false);
+  const [showExtraFields, setShowExtraFields] = useState(false);
   const [form, setForm] = useState({
     email: '', name: '', careOf: '', company: '', address: '', apartment: '',
     zip: '', city: '', country: 'SE', phone: '',
