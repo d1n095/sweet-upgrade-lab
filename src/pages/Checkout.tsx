@@ -387,6 +387,25 @@ const Checkout = () => {
       <main className="pt-16 pb-36 lg:pb-20">
         <div className="max-w-2xl mx-auto px-4">
 
+          {/* Progress indicator — Step 1 of 2 */}
+          <div className="mt-5 mb-4" aria-label={isSv ? 'Steg 1 av 2' : 'Step 1 of 2'}>
+            <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-wide mb-2">
+              <span className="text-foreground">
+                1. {isSv ? 'Leveransinformation' : 'Shipping details'}
+              </span>
+              <span className="text-muted-foreground">
+                2. {isSv ? 'Säker betalning' : 'Secure payment'}
+              </span>
+            </div>
+            <div className="h-1 w-full bg-secondary rounded-full overflow-hidden">
+              <div className="h-full w-1/2 bg-primary rounded-full transition-all" />
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-1.5 text-center">
+              {isSv ? 'Steg 1 av 2' : 'Step 1 of 2'}
+            </p>
+          </div>
+
+
           {/* Shipping info banner — MOVED UP for instant clarity */}
           <motion.div
             initial={{ opacity: 0, y: -10 }}
