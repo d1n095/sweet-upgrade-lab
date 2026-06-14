@@ -392,10 +392,10 @@ const Checkout = () => {
           <div className="mt-5 mb-4" aria-label={isSv ? 'Steg 1 av 2' : 'Step 1 of 2'}>
             <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-wide mb-2">
               <span className="text-foreground">
-                1. {isSv ? 'Leveransinformation' : 'Shipping details'}
+                1. {isSv ? 'Din adress' : 'Your address'}
               </span>
               <span className="text-muted-foreground">
-                2. {isSv ? 'Säker betalning' : 'Secure payment'}
+                2. {isSv ? 'Betalning hos Stripe' : 'Payment at Stripe'}
               </span>
             </div>
             <div className="h-1 w-full bg-secondary rounded-full overflow-hidden">
