@@ -479,6 +479,10 @@ const Checkout = () => {
                 <span className="font-bold">{t.total}</span>
                 <span className="text-xl font-bold">{formatPrice(total)}</span>
               </div>
+              <div className="flex justify-between">
+                <span className="text-xs text-muted-foreground">{t.vatIncluded}</span>
+                <span className="text-xs text-muted-foreground">{formatPrice(total * 0.2)}</span>
+              </div>
             </div>
           </motion.section>
 
