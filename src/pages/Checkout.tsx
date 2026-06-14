@@ -161,13 +161,13 @@ const Checkout = () => {
     shipping: isSv ? 'Frakt' : 'Shipping',
     freeShipping: isSv ? 'Fri frakt' : 'Free shipping',
     total: isSv ? 'Totalt' : 'Total',
-    payNow: isSv ? 'SLUTFÖR KÖP' : 'COMPLETE PURCHASE',
+    payNow: isSv ? 'BETALA SÄKERT' : 'PAY SECURELY',
     paySecurely: isSv ? 'Betala säkert' : 'Pay securely',
-    backToCart: isSv ? 'Tillbaka' : 'Back',
+    backToCart: isSv ? 'Tillbaka till varukorgen' : 'Back to cart',
     emptyCart: isSv ? 'Din kundvagn är tom' : 'Your cart is empty',
     goToShop: isSv ? 'Gå till butiken' : 'Go to shop',
     securePayment: isSv ? 'Säker betalning via Stripe' : 'Secure payment via Stripe',
-    fastDelivery: isSv ? 'Snabb leverans (1–3 dagar)' : 'Fast delivery (1–3 days)',
+    fastDelivery: isSv ? 'Leverans 3–5 vardagar' : 'Delivery 3–5 business days',
     easyReturns: isSv ? 'Enkel retur inom 30 dagar' : 'Easy returns within 30 days',
     noHiddenFees: isSv ? 'Inga dolda avgifter' : 'No hidden fees',
     freeShippingOver: isSv
@@ -176,19 +176,20 @@ const Checkout = () => {
     addMoreForFree: isSv
       ? `Handla för ${Math.ceil(amountToFreeShipping)} kr till för fri frakt`
       : `Add ${Math.ceil(amountToFreeShipping)} SEK more for free shipping`,
-    deliveryEstimate: isSv ? 'Leverans: 7–10 arbetsdagar' : 'Delivery: 7–10 business days',
-    encrypted: isSv ? 'Din betalning är krypterad och säker' : 'Your payment is encrypted and secure',
+    deliveryEstimate: isSv ? 'Leverans: 3–5 vardagar' : 'Delivery: 3–5 business days',
+    encrypted: isSv ? 'Inget debiteras än — du går vidare till Stripe' : 'Nothing is charged yet — you will continue to Stripe',
     errorEmail: isSv ? 'Ange en giltig e-postadress' : 'Enter a valid email',
     errorName: isSv ? 'Ange för- och efternamn' : 'Enter first and last name',
     errorAddress: isSv ? 'Ange din gatuadress' : 'Enter your street address',
     errorZip: isSv ? 'Ange giltigt postnummer (t.ex. 123 45)' : 'Enter valid postal code',
     errorCity: isSv ? 'Ange stad' : 'Enter city',
     errorPhone: isSv ? 'Ange giltigt telefonnummer' : 'Enter valid phone number',
-    checkoutFailed: isSv ? 'Betalningen kunde inte genomföras. Försök igen.' : 'Payment could not be processed. Please try again.',
-    checkoutTimeout: isSv ? 'Checkout tog för lång tid. Försök igen.' : 'Checkout timed out. Please retry.',
+    checkoutFailed: isSv ? 'Något gick fel — inget har debiterats. Försök igen eller kontakta support@4thepeople.se' : 'Something went wrong — nothing was charged. Please try again or contact support@4thepeople.se',
+    checkoutTimeout: isSv ? 'Det tog för lång tid. Försök igen.' : 'That took too long. Please try again.',
     retry: isSv ? 'Försök igen' : 'Retry',
     qty: isSv ? 'Antal' : 'Qty',
-    standardShipping: isSv ? 'Standardleverans (7–10 dagar)' : 'Standard delivery (7–10 days)',
+    standardShipping: isSv ? 'Standardleverans 3–5 vardagar' : 'Standard delivery 3–5 business days',
+    vatIncluded: isSv ? 'Inkl. moms (25%)' : 'Incl. VAT (25%)',
   }), [isSv, shippingConfig.freeThreshold, amountToFreeShipping]);
 
   const formatPrice = (amount: number) =>
