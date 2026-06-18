@@ -249,7 +249,7 @@ function TagSelect({
 }
 
 // ─── Image Upload Section ───
-function ImageUploadSection({
+export function ImageUploadSection({
   imageUrls, setFormData,
 }: {
   imageUrls: string[];
