@@ -123,6 +123,7 @@ const AdminLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(() => localStorage.getItem('admin_show_advanced') === '1');
   const [recentErrorCount, setRecentErrorCount] = useState(0);
 
   // Centralized realtime sync for all admin queries
@@ -153,8 +154,14 @@ const AdminLayout = () => {
   const visibleGroups = navGroups.map(g => ({
     ...g,
     items: g.items.filter(filterItem),
-  })).filter(g => g.items.length > 0);
+  })).filter(g => g.items.length > 0 && (showAdvanced || g.label !== 'AVANCERAT'));
   const visibleNavItems = allNavItems.filter(filterItem);
+
+  const toggleAdvanced = () => {
+    const next = !showAdvanced;
+    setShowAdvanced(next);
+    localStorage.setItem('admin_show_advanced', next ? '1' : '0');
+  };
 
   useEffect(() => { setMobileNavOpen(false); }, [location.pathname]);
 
@@ -340,6 +347,10 @@ const AdminLayout = () => {
                 </ScrollArea>
 
                 <div className="p-3 border-t border-border space-y-0.5">
+                  <Button variant="ghost" size="sm" className="w-full justify-start gap-3 text-muted-foreground hover:text-foreground min-h-[44px]" onClick={toggleAdvanced}>
+                    <Terminal className="w-4 h-4" />
+                    {showAdvanced ? 'Dölj avancerat' : 'Visa avancerat'}
+                  </Button>
                   <Button variant="ghost" size="sm" className="w-full justify-start gap-3 text-muted-foreground hover:text-foreground min-h-[44px]" onClick={() => navigate('/')}>
                     <Home className="w-4 h-4" />
                     Tillbaka till butiken
