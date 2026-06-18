@@ -33,6 +33,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AdminProductForm, ProductFormData, DEFAULT_PRODUCT_FORM_DATA
 } from '@/components/admin/AdminProductForm';
+import QuickProductForm from '@/components/admin/QuickProductForm';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Zap, Settings2 } from 'lucide-react';
 
 const productCategories = [
   { value: 'Kroppsvård', label: { sv: 'Kroppsvård', en: 'Body Care' } },
