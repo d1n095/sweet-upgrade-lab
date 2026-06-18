@@ -154,8 +154,14 @@ const AdminLayout = () => {
   const visibleGroups = navGroups.map(g => ({
     ...g,
     items: g.items.filter(filterItem),
-  })).filter(g => g.items.length > 0);
+  })).filter(g => g.items.length > 0 && (showAdvanced || g.label !== 'AVANCERAT'));
   const visibleNavItems = allNavItems.filter(filterItem);
+
+  const toggleAdvanced = () => {
+    const next = !showAdvanced;
+    setShowAdvanced(next);
+    localStorage.setItem('admin_show_advanced', next ? '1' : '0');
+  };
 
   useEffect(() => { setMobileNavOpen(false); }, [location.pathname]);
 
