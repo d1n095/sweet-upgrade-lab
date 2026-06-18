@@ -797,16 +797,36 @@ const AdminDbProductManager = () => {
               <span className="hidden sm:inline">{t.addProduct}</span>
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[95vh]">
+          <DialogContent className="max-w-2xl max-h-[95vh] overflow-y-auto">
             <DialogHeader><DialogTitle>{t.addProduct}</DialogTitle></DialogHeader>
-            <AdminProductForm
-              t={t} language={language}
-              productCategories={productCategories} suggestedTags={suggestedTags}
-              formData={formData} setFormData={setFormData}
-              isEdit={false} isSubmitting={isSubmitting}
-              onCancel={() => { setIsAddOpen(false); resetForm(); }}
-              onSubmit={handleAdd}
-            />
+            <Tabs defaultValue="quick" className="space-y-3">
+              <TabsList className="grid grid-cols-2 w-full">
+                <TabsTrigger value="quick" className="gap-1.5 text-xs">
+                  <Zap className="w-3.5 h-3.5" /> Snabbläge
+                </TabsTrigger>
+                <TabsTrigger value="advanced" className="gap-1.5 text-xs">
+                  <Settings2 className="w-3.5 h-3.5" /> Avancerat
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="quick" className="mt-0">
+                <QuickProductForm
+                  formData={formData} setFormData={setFormData}
+                  isSubmitting={isSubmitting}
+                  onCancel={() => { setIsAddOpen(false); resetForm(); }}
+                  onSubmit={handleAdd}
+                />
+              </TabsContent>
+              <TabsContent value="advanced" className="mt-0">
+                <AdminProductForm
+                  t={t} language={language}
+                  productCategories={productCategories} suggestedTags={suggestedTags}
+                  formData={formData} setFormData={setFormData}
+                  isEdit={false} isSubmitting={isSubmitting}
+                  onCancel={() => { setIsAddOpen(false); resetForm(); }}
+                  onSubmit={handleAdd}
+                />
+              </TabsContent>
+            </Tabs>
           </DialogContent>
         </Dialog>
       </div>
