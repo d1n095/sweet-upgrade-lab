@@ -123,6 +123,7 @@ const AdminLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(() => localStorage.getItem('admin_show_advanced') === '1');
   const [recentErrorCount, setRecentErrorCount] = useState(0);
 
   // Centralized realtime sync for all admin queries
