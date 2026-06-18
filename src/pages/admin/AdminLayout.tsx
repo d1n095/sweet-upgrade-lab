@@ -347,6 +347,10 @@ const AdminLayout = () => {
                 </ScrollArea>
 
                 <div className="p-3 border-t border-border space-y-0.5">
+                  <Button variant="ghost" size="sm" className="w-full justify-start gap-3 text-muted-foreground hover:text-foreground min-h-[44px]" onClick={toggleAdvanced}>
+                    <Terminal className="w-4 h-4" />
+                    {showAdvanced ? 'Dölj avancerat' : 'Visa avancerat'}
+                  </Button>
                   <Button variant="ghost" size="sm" className="w-full justify-start gap-3 text-muted-foreground hover:text-foreground min-h-[44px]" onClick={() => navigate('/')}>
                     <Home className="w-4 h-4" />
                     Tillbaka till butiken
