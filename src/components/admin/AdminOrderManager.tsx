@@ -982,7 +982,7 @@ const AdminOrderManager = () => {
                           }
                         }}
                       >
-                        <CheckCircle2 className="w-4 h-4" />
+                        <CheckCircle className="w-4 h-4" />
                       </Button>
                     )}
                     {/* "Köpt på plats" – only for unpaid orders */}
