@@ -3,6 +3,7 @@ import {
   Package, ClipboardList, Users, Star, TrendingUp, AlertTriangle,
   DollarSign, ShoppingCart, Plus, Power, ArrowRight, Clock,
   Zap, CheckCircle2, ChevronRight, Loader2, Flame,
+  ScanLine, Store, Truck,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
