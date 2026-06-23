@@ -964,6 +964,27 @@ const AdminOrderManager = () => {
                     </p>
                   </div>
                    <div className="flex items-center gap-2 flex-wrap">
+                    {/* Inline ✓ snabb-bekräfta – 1 klick för nästa logiska steg */}
+                    {order.payment_status === 'paid' && !['shipped', 'delivered'].includes(order.fulfillment_status) && (
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        className="h-8 w-8 shrink-0 border-green-400/60 text-green-600 hover:bg-green-500/10 hover:text-green-700 dark:text-green-400"
+                        title={['packed', 'ready_to_ship'].includes(order.fulfillment_status)
+                          ? (language === 'sv' ? 'Välj leveransmetod' : 'Choose delivery method')
+                          : (language === 'sv' ? 'Markera som packad' : 'Mark as packed')}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (['packed', 'ready_to_ship'].includes(order.fulfillment_status)) {
+                            setShippingOrder(order);
+                          } else {
+                            handleMarkPacked(order);
+                          }
+                        }}
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                      </Button>
+                    )}
                     {/* "Köpt på plats" – only for unpaid orders */}
                     {order.payment_status !== 'paid' && order.status !== 'cancelled' && (
                       <Button
