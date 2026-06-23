@@ -3,6 +3,7 @@ import {
   Package, ClipboardList, Users, Star, TrendingUp, AlertTriangle,
   DollarSign, ShoppingCart, Plus, Power, ArrowRight, Clock,
   Zap, CheckCircle2, ChevronRight, Loader2, Flame,
+  ScanLine, Store, Truck,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -181,6 +182,32 @@ const AdminOverview = () => {
           </Button>
         </div>
       </div>
+
+      {/* Snabb-genvägar */}
+      <Card className="border-border">
+        <CardContent className="pt-4 pb-3">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Snabb-genvägar</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {[
+              { label: 'Packa order', icon: Package, href: '/admin/orders', color: 'text-blue-600', bg: 'bg-blue-500/10' },
+              { label: 'POS / Kassa', icon: Store, href: '/admin/pos', color: 'text-green-600', bg: 'bg-green-500/10' },
+              { label: 'Ny produkt', icon: Plus, href: '/admin/products', color: 'text-purple-600', bg: 'bg-purple-500/10' },
+              { label: 'Skanna', icon: ScanLine, href: '/admin/orders?scan=1', color: 'text-amber-600', bg: 'bg-amber-500/10' },
+            ].map((s) => (
+              <button
+                key={s.label}
+                onClick={() => navigate(s.href)}
+                className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg border border-border hover:border-primary/40 hover:bg-secondary/50 transition-all active:scale-[0.97]"
+              >
+                <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center', s.bg)}>
+                  <s.icon className={cn('w-4.5 h-4.5', s.color)} />
+                </div>
+                <span className="text-xs font-medium text-center">{s.label}</span>
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Recommended Actions Panel */}
       <Card className="border-border">
