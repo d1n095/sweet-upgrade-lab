@@ -87,7 +87,22 @@ import AdminControlCenter from "./pages/admin/AdminControlCenter";
 const SystemExplorer = lazy(() => import("./pages/admin/SystemExplorer"));
 const DevOS = lazy(() => import("./pages/admin/DevOS"));
 
-const queryClient = new QueryClient();
+// Defaults tuned to reduce backend traffic (and therefore Cloud credits):
+// - staleTime 60s: avoid re-fetching the same data on every component mount
+// - refetchOnWindowFocus off: don't re-hit Supabase every time the tab regains focus
+// - refetchOnReconnect off: avoid bursts after brief network blips
+// - retry 1: don't hammer the backend on persistent errors
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60_000,
+      gcTime: 5 * 60_000,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      retry: 1,
+    },
+  },
+});
 
 // Guard component for toggleable pages — admins can always preview
 const PageGuard = ({ pageId, children }: { pageId: ToggleablePage; children: React.ReactNode }) => {
