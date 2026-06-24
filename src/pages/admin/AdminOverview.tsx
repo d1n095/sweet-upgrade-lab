@@ -69,7 +69,12 @@ const fulfillmentBadge: Record<string, string> = {
 const AdminOverview = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { siteActive, setSiteActive } = useStoreSettings();
+  const {
+    siteActive, setSiteActive,
+    checkoutEnabled, setCheckoutEnabled,
+    registrationEnabled, setRegistrationEnabled,
+    guestCheckout, setProfileSetting,
+  } = useStoreSettings();
   const queryClient = useQueryClient();
 
   // Central data hooks — single source of truth
