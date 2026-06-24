@@ -8,7 +8,7 @@ import {
   Plus, Package, Edit, Trash2, Loader2, AlertTriangle,
   Copy, EyeOff, Eye, CheckSquare, Square, Trash, MoreHorizontal,
   Archive, FileText, RotateCcw, Search, X, SlidersHorizontal,
-  ArrowUpDown, LayoutGrid, LayoutList, ChevronDown, Check,
+  ArrowUpDown, LayoutGrid, LayoutList, ChevronDown, Check, Minus,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -620,7 +620,37 @@ const AdminDbProductManager = () => {
                         </Button>
                       </div>
                     ) : (
-                      stockBadge(product)
+                      <div className="flex items-center gap-1">
+                        {stockBadge(product)}
+                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6"
+                            disabled={product.stock <= 0}
+                            onClick={async () => {
+                              const next = Math.max(0, product.stock - 1);
+                              await updateDbProduct(product.id, { stock: next });
+                              queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });
+                            }}
+                            title={sv ? 'Minska lager' : 'Decrease stock'}
+                          >
+                            <Minus className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6"
+                            onClick={async () => {
+                              await updateDbProduct(product.id, { stock: product.stock + 1 });
+                              queryClient.invalidateQueries({ queryKey: ['admin-db-products'] });
+                            }}
+                            title={sv ? 'Öka lager' : 'Increase stock'}
+                          >
+                            <Plus className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </div>
                     )}
                   </td>
                   <td className="p-3 hidden md:table-cell">
