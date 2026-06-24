@@ -6,6 +6,7 @@ import {
   ScanLine, Store, Truck,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
@@ -68,7 +69,12 @@ const fulfillmentBadge: Record<string, string> = {
 const AdminOverview = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { siteActive, setSiteActive } = useStoreSettings();
+  const {
+    siteActive, setSiteActive,
+    checkoutEnabled, setCheckoutEnabled,
+    registrationEnabled, setRegistrationEnabled,
+    guestCheckout, setProfileSetting,
+  } = useStoreSettings();
   const queryClient = useQueryClient();
 
   // Central data hooks — single source of truth
@@ -204,6 +210,37 @@ const AdminOverview = () => {
                 </div>
                 <span className="text-xs font-medium text-center">{s.label}</span>
               </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Snabbinställningar */}
+      <Card className="border-border">
+        <CardContent className="pt-4 pb-3">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Snabbinställningar</p>
+            <Link to="/admin/settings" className="text-xs text-primary hover:underline flex items-center gap-1">
+              Alla inställningar <ArrowRight className="w-3 h-3" />
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {[
+              { label: 'Sajten aktiv', desc: 'Stäng av för underhållsläge', checked: siteActive, onChange: setSiteActive, badge: !siteActive ? 'Inaktiv' : null, badgeVariant: 'destructive' as const },
+              { label: 'Kassan öppen', desc: 'Tillåt nya beställningar', checked: checkoutEnabled, onChange: setCheckoutEnabled, badge: !checkoutEnabled ? 'Stängd' : null, badgeVariant: 'secondary' as const },
+              { label: 'Registrering', desc: 'Tillåt nya medlemmar', checked: registrationEnabled, onChange: setRegistrationEnabled, badge: !registrationEnabled ? 'Av' : null, badgeVariant: 'secondary' as const },
+              { label: 'Gästcheckout', desc: 'Köp utan konto', checked: guestCheckout, onChange: (v: boolean) => setProfileSetting('guest_checkout', v), badge: !guestCheckout ? 'Av' : null, badgeVariant: 'secondary' as const },
+            ].map((s) => (
+              <div key={s.label} className="flex items-center justify-between gap-3 p-3 rounded-lg border border-border bg-card">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium truncate">{s.label}</p>
+                    {s.badge && <Badge variant={s.badgeVariant} className="text-[9px] px-1.5 py-0">{s.badge}</Badge>}
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate">{s.desc}</p>
+                </div>
+                <Switch checked={s.checked} onCheckedChange={s.onChange} />
+              </div>
             ))}
           </div>
         </CardContent>
