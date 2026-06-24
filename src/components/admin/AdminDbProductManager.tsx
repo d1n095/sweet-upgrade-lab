@@ -8,7 +8,7 @@ import {
   Plus, Package, Edit, Trash2, Loader2, AlertTriangle,
   Copy, EyeOff, Eye, CheckSquare, Square, Trash, MoreHorizontal,
   Archive, FileText, RotateCcw, Search, X, SlidersHorizontal,
-  ArrowUpDown, LayoutGrid, LayoutList, ChevronDown, Check,
+  ArrowUpDown, LayoutGrid, LayoutList, ChevronDown, Check, Minus,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
