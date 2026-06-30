@@ -1,20 +1,26 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { checkRateLimit } from "../_shared/rateLimit.ts";
+import { buildCorsHeaders, handleCorsPreflight, originIsTrusted } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-// Simple in-memory rate limit per IP
+// Simple in-memory rate limit per IP (per-isolate; not distributed).
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const RATE_LIMIT = 30; // max requests per window
 const RATE_WINDOW_MS = 60_000; // 1 minute
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+  const corsHeaders = buildCorsHeaders(req);
+  const preflight = handleCorsPreflight(req, corsHeaders);
+  if (preflight) return preflight;
+
+  // Origin allowlist — block third-party sites from using our Google quota.
+  // Browser requests always send Origin; missing Origin means server-to-server
+  // (still allowed for cron-style integrations).
+  if (!originIsTrusted(req)) {
+    return new Response(JSON.stringify({ error: "Forbidden origin" }), {
+      status: 403,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   // Security event logging via shared limiter (10 req / 10s)
@@ -27,7 +33,7 @@ serve(async (req) => {
     }
   } catch (_) { /* non-blocking */ }
 
-  // Rate limiting
+  // Per-IP burst limiter
   const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
   const now = Date.now();
   const entry = rateLimitMap.get(clientIp);
@@ -42,7 +48,8 @@ serve(async (req) => {
     rateLimitMap.set(clientIp, { count: 1, resetAt: now + RATE_WINDOW_MS });
   }
 
-  // Require at least anon key
+  // Require at least anon key. Guest checkout still works because the anon
+  // key is part of the public client SDK.
   const authHeader = req.headers.get("Authorization") || "";
   const apiKey = req.headers.get("apikey") || "";
   if (!authHeader && !apiKey) {
