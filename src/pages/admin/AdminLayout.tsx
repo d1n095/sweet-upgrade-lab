@@ -260,9 +260,21 @@ const AdminLayout = () => {
     navigate('/');
   };
 
+  const currentGroup = navGroups.find(g =>
+    g.items.some(item =>
+      item.end ? location.pathname === item.to : location.pathname.startsWith(item.to + '/') || location.pathname === item.to
+    )
+  );
   const currentPage = visibleNavItems.find(item =>
     item.end ? location.pathname === item.to : location.pathname.startsWith(item.to + '/')
   ) || (location.pathname === '/admin' ? visibleNavItems[0] : undefined);
+
+  const isAdminRoot = location.pathname === '/admin';
+  const breadcrumbs: { label: string; to?: string }[] = [
+    { label: 'Admin', to: '/admin' },
+    ...(currentGroup && !isAdminRoot ? [{ label: currentGroup.label.charAt(0) + currentGroup.label.slice(1).toLowerCase() }] : []),
+    ...(currentPage && !isAdminRoot ? [{ label: currentPage.label }] : []),
+  ];
 
   return (
     <div className="h-screen bg-background overflow-hidden">
