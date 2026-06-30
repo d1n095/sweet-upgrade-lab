@@ -297,6 +297,28 @@ const AdminLayout = () => {
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <AdminGlobalSearch />
+            <nav aria-label="Breadcrumb" className="hidden lg:flex items-center gap-1.5 text-xs text-muted-foreground ml-2 min-w-0">
+              {breadcrumbs.map((crumb, i) => {
+                const isLast = i === breadcrumbs.length - 1;
+                return (
+                  <span key={i} className="flex items-center gap-1.5 min-w-0">
+                    {i > 0 && <span className="text-muted-foreground/40">/</span>}
+                    {crumb.to && !isLast ? (
+                      <Link
+                        to={crumb.to}
+                        className="hover:text-foreground transition-colors truncate"
+                      >
+                        {crumb.label}
+                      </Link>
+                    ) : (
+                      <span className={cn('truncate', isLast && 'text-foreground font-medium')}>
+                        {crumb.label}
+                      </span>
+                    )}
+                  </span>
+                );
+              })}
+            </nav>
           </div>
           <div className="flex items-center gap-2">
             <BugReportButton />
