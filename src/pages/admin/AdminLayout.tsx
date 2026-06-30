@@ -260,9 +260,21 @@ const AdminLayout = () => {
     navigate('/');
   };
 
+  const currentGroup = navGroups.find(g =>
+    g.items.some(item =>
+      item.end ? location.pathname === item.to : location.pathname.startsWith(item.to + '/') || location.pathname === item.to
+    )
+  );
   const currentPage = visibleNavItems.find(item =>
     item.end ? location.pathname === item.to : location.pathname.startsWith(item.to + '/')
   ) || (location.pathname === '/admin' ? visibleNavItems[0] : undefined);
+
+  const isAdminRoot = location.pathname === '/admin';
+  const breadcrumbs: { label: string; to?: string }[] = [
+    { label: 'Admin', to: '/admin' },
+    ...(currentGroup && !isAdminRoot ? [{ label: currentGroup.label.charAt(0) + currentGroup.label.slice(1).toLowerCase() }] : []),
+    ...(currentPage && !isAdminRoot ? [{ label: currentPage.label }] : []),
+  ];
 
   return (
     <div className="h-screen bg-background overflow-hidden">
@@ -285,6 +297,28 @@ const AdminLayout = () => {
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <AdminGlobalSearch />
+            <nav aria-label="Breadcrumb" className="hidden lg:flex items-center gap-1.5 text-xs text-muted-foreground ml-2 min-w-0">
+              {breadcrumbs.map((crumb, i) => {
+                const isLast = i === breadcrumbs.length - 1;
+                return (
+                  <span key={i} className="flex items-center gap-1.5 min-w-0">
+                    {i > 0 && <span className="text-muted-foreground/40">/</span>}
+                    {crumb.to && !isLast ? (
+                      <Link
+                        to={crumb.to}
+                        className="hover:text-foreground transition-colors truncate"
+                      >
+                        {crumb.label}
+                      </Link>
+                    ) : (
+                      <span className={cn('truncate', isLast && 'text-foreground font-medium')}>
+                        {crumb.label}
+                      </span>
+                    )}
+                  </span>
+                );
+              })}
+            </nav>
           </div>
           <div className="flex items-center gap-2">
             <BugReportButton />
@@ -327,7 +361,14 @@ const AdminLayout = () => {
               <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                 <Shield className="w-3.5 h-3.5 text-primary" />
               </div>
-              <span className="font-display font-semibold text-sm truncate">{currentPage?.label || 'Admin'}</span>
+              <div className="flex flex-col min-w-0 leading-tight">
+                {currentGroup && !isAdminRoot && (
+                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground truncate">
+                    {currentGroup.label}
+                  </span>
+                )}
+                <span className="font-display font-semibold text-sm truncate">{currentPage?.label || 'Admin'}</span>
+              </div>
             </div>
             <div className="ml-auto flex items-center gap-1 shrink-0">
               {!siteActive && (
