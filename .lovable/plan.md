@@ -1,156 +1,137 @@
-## 4thepeople — Master Elite Plan (granskning klar)
+## Mål
 
-Tre djupgranskningar gjorda: **filstruktur**, **admin/automation**, **säkerhet/prestanda**. Här är hela hit-listan, prioriterad efter ROI. Kör vi i ordning får du en triljardär-snabb, säker, lyxig sajt.
-
----
-
-### 🔥 FAS 0 — Akut kritiskt (gör först, läcker pengar/säkerhet)
-
-**0.1 Lazy-loada alla 39 admin-sidor** (`src/App.tsx:14–86`)
-Idag laddar varje besökare hela admin-bundlen. Mål: -60–70% JS för publika besökare. Wrappa alla `/admin/*` i `lazy()` + `<Suspense>`.
-
-**0.2 Lås CORS på alla edge functions** till `4thepeople.se` + localhost. Idag `*`.
-
-**0.3 Skydda `google-places`** — kräv JWT, inte bara anon-key (annars gratis Google Maps-proxy för hackers).
-
-**0.4 Distribuerad rate-limit** för `submit-contact`, `lookup-order`, `google-places` via Postgres-tabell istället för in-memory (som inte funkar).
-
-**0.5 Gate `MiniWorkbench` + `GodModeOverlay`** bakom `pathname.startsWith('/admin')` — idag kör de DB-query på varje sidladdning för varje besökare.
+1. Göra donationssystemet **juridiskt korrekt** för svensk handel (Marknadsföringslagen, Konsumentverket/EU Dark Patterns, GDPR, Bokföringslagen).
+2. Samla **all donationskontroll** i admin under låst behörighet (founder/finance — inte generic admin).
+3. Rensa upp hela **behörighetskapitlet** så det är en professionell, central matris istället för ad-hoc rollistor utspridda i koden.
 
 ---
 
-### 🤖 FAS 1 — Automatisering (sparar tid varje dag)
+## Del A — Donationer: lagar, transparens, kontroll
 
-**1.1 Schemalägg 3 färdigbyggda edge-functions via `pg_cron`**:
-- `automation-engine` (varje timme) — SLA-bevakning
-- `send-review-reminder` (dagligen 09:00) — review-mail med 10% rabatt
-- `send-retention-email` (dagligen 10:00) — påfyllnadspåminnelser
+### A1. Lagliga brister som måste fixas
 
-**1.2 DB-trigger: order → 'delivered' → auto-skicka review-mail**
-Fältet `review_reminder_sent` finns redan. Ingen trigger kopplad.
+| Brist idag | Risk | Åtgärd |
+|---|---|---|
+| `roundUpEnabled = true` som default i `RoundUpDonation.tsx:19` | EU Digital Services Act + Konsumentverket: förkryssade donationer = mörkt mönster, kan tolkas som vilseledande marknadsföring | Default `false`. Användaren måste aktivt kryssa i. |
+| Ingen tydlig text om vad pengarna används till vid kassan | Marknadsföringslagen §10 (transparenskrav) | Lägg in kort, obligatorisk disclosure ("Din gåva går till projekt X, hanteras av 4ThePeople AB, ej avdragsgill") + länk till `/donations-policy` |
+| `donations` saknar `project_id` FK | Omöjligt att verifiera vart pengarna gick → bryter mot transparenskravet | Migration: lägg till `project_id uuid REFERENCES donation_projects` |
+| `donation_projects.current_amount` redigeras manuellt | Admin kan fejka insamlingsstatus → konsumentbedrägeri | Gör fältet read-only i UI. Automatisk uppräkning via DB-trigger när `donations` insert/delete. |
+| Anonyma donationer lagrar fortfarande `user_id` | GDPR-konflikt: "anonym" är inte anonym | Trigger: om `is_anonymous = true` → tvinga `user_id = NULL` vid insert |
+| Ingen retention / radering | GDPR art. 5(1)(e) — datalagring längre än nödvändigt | Lägg till retention-rutin: anonymisera donationer äldre än 7 år (BFL kräver 7 år för bokföring) |
+| Ingen bokföringsexport | Bokföringslagen §5 — verifikationer måste kunna återskapas | "Exportera till bokföring" knapp (CSV) per period + per projekt |
+| Ingen audit-logg på projektändringar | Internkontroll-krav | Trigger: logga alla `donation_projects`-UPDATE till `activity_logs` |
 
-**1.3 DB-trigger: stock ≤ threshold → notification-bell**
-Auto-larm istället för manuell koll i AdminStockIntelligence.
+### A2. Admin-konsolidering
 
-**1.4 Wire `suggest-product-metadata` AI till produktformuläret**
-Knapp "✨ Auto-fyll med AI" i `AdminProductForm` — fyller meta/SEO/beskrivning från titel.
-
-**1.5 Fixa trasiga batch-ship-knappen** (`AdminOrderManager.tsx:629`)
-Idag visar bara toast. Bygg riktig BatchShipDialog för bulk-frakt.
-
----
-
-### 🧹 FAS 2 — Städning av kodbas (15+ döda filer)
-
-**Radera direkt** (0 referenser, bevisat):
-```
-src/pages/Shop.tsx                       (importerad men aldrig renderad)
-src/pages/Donations.tsx                  (route är Navigate→/)
-src/pages/DonationsPanel.tsx             (route är Navigate→/)
-src/pages/admin/AdminFinance.tsx         (importerad men aldrig renderad)
-src/pages/admin/AdminAudit.tsx           (helt orphan)
-src/pages/admin/AdminUpdates.tsx         (redirected, ej importerad)
-src/pages/admin/AdminCommunication.tsx   (redirected, ej importerad)
-src/pages/admin/system/                  (hela mappen, 5 filer, 0 imports)
-src/lib/criticalEscalation.ts            (0 imports)
-src/lib/criticalPathProtection.ts        (0 imports)
-src/lib/safeFetch.ts                     (0 imports, monkey-patchar fetch)
-src/core/scanner/snapshotResolver.ts     (0 imports)
-src/components/sections/TrustBadges.tsx  (0 imports, dubblett)
-```
-
-**Sammanfoga**:
-- `AdminControl` + `AdminControlCenter` → behåll Center, en route
-- `AdminScans` + `AdminIssues` → en flikad sida
-- `AdminHistory` + `AdminChangeHistory` → `AdminAuditHistory` med tabs
-- `PaymentIcons` + `PaymentMethods` → en komponent med `size` prop
-
-**Rensa App.tsx**: ta bort 4 döda imports + duplicerade `/admin/finance`-route.
-
----
-
-### ⚡ FAS 3 — Prestanda & credit-svinn
-
-**3.1 Vite manual chunks** (`vite.config.ts`):
-```ts
-manualChunks: { vendor: [...], supabase: [...], charts: [...], motion: [...] }
-```
-
-**3.2 Ersätt `useUiStateSync` polling (var 15s)** med Supabase Realtime (redan wired).
-
-**3.3 Ersätt `scanEngine` 2s-poll** med Realtime-subscription filtrerat på scan-ID.
-
-**3.4 Ta bort dubbel realtime-channel** i `AdminNotificationBell` (overlappar `useAdminRealtime`).
-
-**3.5 Cacha `useStaffAccess`/`useAdminRole`/`useFounderRole`** via React Query — idag fyrdubblade DB-queries utan cache.
-
-**3.6 Flytta `StealthScheduler.register()`** från modul-load till admin-only `useEffect`.
-
-**3.7 Gate `LiveDonationFeed` Realtime** — öppen websocket för anonyma besökare idag.
-
----
-
-### 🎨 FAS 4 — Visuell identitet (svart + guld lyx)
-
-**4.1 Designsystem omskrivning** (`src/index.css` + `tailwind.config.ts`):
-- Bakgrund: ren svart `#0A0A0A`, surfaces `#111`/`#1A1A1A`
-- Accent: guld `#C9A24B` / `#E8C77A` / `#8B6F2A`
-- Text: varm off-white `#F5F1E8`
-- Typografi: **Cormorant Garamond** (display serif) + **Inter** (body)
-- Border-radius ner till `0.5rem`, shadows med varm guld-glöd
-
-**4.2 Logo-integration** när du skickar bilden — Header, Footer, favicon, OG-bild.
-
-**4.3 Intro-animation** "4thepeople" — svart skärm → guldtext fade-in, 1.5s, en gång per session.
-
-**4.4 Hero & komponentpass** — editorial layout, guldlinje-dividers, guld-kantvarianter.
-
----
-
-### 💰 FAS 5 — Konvertering & prebuy
-
-**5.1 Waitlist/notify-me** — ny tabell `waitlist_signups` (RLS), knapp på slutsåld/kommande produkter, edge function för bekräftelsemail.
-
-**5.2 Exit-intent popup** — 10% mot email, en gång per session.
-
-**5.3 Global trust-rad** — säker betalning · fri frakt 500+ · 14 dgr ångerrätt.
-
-**5.4 POS-förbättringar**: `autoFocus`, Enter-to-add, discount-fält.
-
-**5.5 Keyboard shortcuts** för packning/frakt (P, S, Esc i AdminOrderManager).
-
-**5.6 Ersätt native `confirm()`** i refund med AlertDialog.
-
----
-
-### 🔒 FAS 6 — Säkerhet & SEO (resten)
-
-**6.1 Admin route guard** — redirecta non-admins före AdminLayout mountar.
-
-**6.2 `sitemap` edge function** — använd anon-key, inte service-role.
-
-**6.3 Static OG-fallback i `index.html`** för bots utan JS (Slack/Twitter/FB).
-
-**6.4 JSON-LD strukturerad data** för Product, Organization, BreadcrumbList.
-
-**6.5 Fortsätt minska security-warnings** (110 → mål <20).
-
-**6.6 Fixa hårdkodade fraktvärden** i AdminSettingsPage (visar 499 men riktig är 500).
-
----
-
-### 🗂️ Exekveringsordning (1 fas i taget, du godkänner mellan varje)
+Allt finns redan utspritt — flytta till **/admin/donations** som blir den enda kontrollpunkten med flikar:
 
 ```text
-FAS 0 (akut)  →  FAS 1 (automation)  →  FAS 2 (städning)
-   →  FAS 3 (prestanda)  →  FAS 4 (design)  →  FAS 5 (konvertering)  →  FAS 6 (säkerhet/SEO)
+/admin/donations
+├── Översikt        (totaler, projekt-progress, senaste 30 dgr)
+├── Projekt         (CRUD, aktivera/inaktivera, current_amount read-only)
+├── Donationer      (lista, filter, sök, anonymisera-knapp per rad)
+├── Bokföring       (CSV-export per period, månadsrapport)
+└── Compliance      (disclosure-text, retention-policy, GDPR-radering)
 ```
 
-Inom varje fas tar vi ett steg åt gången så du kan verifiera.
+### A3. Behörighetslås på donationer
 
-### Frågor innan vi börjar
+Idag: `is_admin()` räcker (12 personer kan komma åt). Ska bli:
+- **Visa**: `founder` eller `finance`
+- **Redigera projekt**: `founder` eller `finance`
+- **Radera/anonymisera donation**: **endast `founder`**
+- **Bokföringsexport**: `founder` eller `finance`
 
-1. **Börja med FAS 0?** (akut, störst impact, ingen visuell förändring)
-2. **Display-font** för lyx-känslan: Cormorant Garamond, Playfair Display, eller Italiana?
-3. **Intro-animation**: en gång per session eller bara första besök någonsin?
-4. När får jag logo-bilden (svart bg + guld text)?
+Route-guard på `/admin/donations` + RLS-policies uppdateras till `is_founder() OR has_role(_, 'finance')`.
+
+---
+
+## Del B — Behörighetskapitlet: städning
+
+### B1. Problem idag
+
+- 12 roller i `app_role`-enum, men ingen central översikt vem som har vad
+- `is_admin`/`is_staff` har hårdkodade listor (admin/founder/it/moderator/support/...) — ändrar man en roll måste man redigera SQL
+- `role_module_permissions`-tabellen finns (8 kolumner, 2 policies) men används knappt i koden — alla checkar gör direkta rollistor
+- Ingen UI för att se "vad får roll X göra"
+- Privilege-escalation-risk: admin kan tilldela `founder` till sig själv via `user_roles`-tabellen (även om policy säger `is_founder()` kontrollera)
+
+### B2. Åtgärder
+
+1. **Central permissionsmatris i admin** (`/admin/security`, ny flik "Roller & moduler"):
+   - Tabell: rader = roller, kolumner = moduler (orders, products, donations, users, finance, system, ...)
+   - Checkboxar: read / create / update / delete
+   - Spara → uppdaterar `role_module_permissions`
+   - Endast `founder` kan ändra
+2. **Använd `has_module_permission()` i koden** istället för rollistor — den finns redan, används bara inte
+3. **Stärk `user_roles` RLS**: tillägg av roller `admin`/`founder`/`finance` får endast göras av founder (verifierat via WITH CHECK)
+4. **Audit-trigger på `user_roles`**: varje role-ändring loggas till `activity_logs` med `before/after` + vem som gjorde det
+5. **Visning av "Mina behörigheter"** i admin-headern (debug-vy så användaren ser vad hen kan)
+
+### B3. RLS-genomgång (donations + user_roles)
+
+Konkreta policy-uppdateringar i migrationen:
+
+```sql
+-- donations: only founder/finance
+DROP POLICY "Admins can view all donations" ON donations;
+CREATE POLICY "Finance & founder can view donations"
+  ON donations FOR SELECT
+  USING (is_founder(auth.uid()) OR has_role(auth.uid(), 'finance'));
+
+-- donation_projects: write locked to founder/finance
+DROP POLICY "Admins can manage donation projects" ON donation_projects;
+CREATE POLICY "Finance & founder can manage projects"
+  ON donation_projects FOR ALL
+  USING (is_founder(auth.uid()) OR has_role(auth.uid(), 'finance'))
+  WITH CHECK (is_founder(auth.uid()) OR has_role(auth.uid(), 'finance'));
+
+-- user_roles INSERT/UPDATE: only founder can grant privileged roles
+CREATE POLICY "Only founder can grant privileged roles"
+  ON user_roles FOR INSERT
+  WITH CHECK (
+    is_founder(auth.uid())
+    OR role NOT IN ('admin','founder','finance','it')
+  );
+```
+
+---
+
+## Tekniska detaljer
+
+### Filer som skapas/ändras
+
+**Nytt:**
+- `src/pages/admin/AdminDonations.tsx` — byggs om till flikbaserad container
+- `src/components/admin/donations/DonationOverview.tsx`
+- `src/components/admin/donations/DonationBookkeeping.tsx` (CSV-export)
+- `src/components/admin/donations/DonationCompliance.tsx` (disclosure-text + retention-knapp)
+- `src/components/admin/security/PermissionMatrix.tsx`
+- `src/components/checkout/DonationDisclosure.tsx` (visas vid round-up)
+
+**Ändras:**
+- `src/components/cart/RoundUpDonation.tsx` — `roundUpEnabled` default `false`, disclosure inline
+- `src/components/admin/AdminDonationManager.tsx` — splittas, `current_amount` read-only
+- `src/pages/admin/AdminSecurity.tsx` — ny flik "Roller & moduler"
+- `src/pages/admin/AdminLayout.tsx` — donationsmenypost kräver finance/founder, ej admin
+
+**Migration (en SQL-batch):**
+- `donations`: lägg till `project_id`, trigger för anonymisering, trigger för current_amount auto-uppdatering
+- `donation_projects`: RLS-uppdatering, audit-trigger
+- `user_roles`: tillägg av WITH CHECK för privilege escalation, audit-trigger
+- Helper: `is_finance_or_founder(uuid)` security-definer för clean policies
+
+### Det jag INTE rör
+
+- Stripe/checkout-flödet (donationer går via befintlig orderlinje, ingen ny betalintegration)
+- 90-konto-ansökan (det är en juridisk process som kräver att 4ThePeople ansöker hos Svensk Insamlingskontroll — jag flaggar bara att texten "ej avdragsgill, ej 90-konto" måste finnas tills ni ansökt)
+- Hela `app_role`-enumet — för stort scope att rensa just nu, men jag dokumenterar vilka som faktiskt används
+
+---
+
+## Frågor innan jag bygger
+
+1. **Är ni registrerade hos Svensk Insamlingskontroll (90-konto)?** Påverkar disclosure-texten. Om nej → vi skriver "voluntary contribution, not tax-deductible".
+2. **Vill ni att donationsbeloppet ska vara en separat orderrad eller bakas in i totalsumman?** (Bokföringsmässigt är separat rad korrekt.)
+3. **Ska `admin`-rollen behålla någon insyn i donationer (read-only) eller helt utelåst?** Mitt förslag: helt utelåst, endast `founder`+`finance`.
+4. **Retention 7 år (BFL-krav)** — OK att jag implementerar automatisk anonymisering efter 7 år, eller vill ni hantera det manuellt?
