@@ -116,7 +116,8 @@ const navGroups: NavGroup[] = [
 // Flatten for lookups
 const allNavItems = navGroups.flatMap(g => g.items);
 
-const AdminLayout = () => {
+const AdminLayoutInner = () => {
+  const { guard } = useUnsavedChangesGuard();
   const { isAdmin, isLoading } = useAdminRole();
   const { isEmployee, isLoading: employeeLoading } = useEmployeeRole();
   const { isFounder, isLoading: founderLoading } = useFounderRole();
