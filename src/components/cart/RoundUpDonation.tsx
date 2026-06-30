@@ -16,23 +16,26 @@ const RoundUpDonation = ({ cartTotal, currencyCode, onDonationChange }: RoundUpD
   const { language } = useLanguage();
   const cl = getContentLang(language);
 
-  const [roundUpEnabled, setRoundUpEnabled] = useState(true);
+  // Default OFF — donation must be active opt-in (EU DSA / Konsumentverket)
+  const [roundUpEnabled, setRoundUpEnabled] = useState(false);
   const [customAmount, setCustomAmount] = useState<number | null>(null);
 
   const content = {
     sv: {
-      title: 'Donera till miljön',
+      title: 'Frivillig gåva till miljön',
       roundUp: 'Avrunda till närmaste 10-tal',
       addExtra: 'Eller lägg till ett eget belopp:',
       thanks: 'Tack för ditt bidrag!',
       remove: 'Ta bort',
+      disclosure: 'Frivillig gåva som vidareförmedlas till aktivt insamlingsprojekt hos 4ThePeople. Ej avdragsgill. Beloppet redovisas separat på kvittot.',
     },
     en: {
-      title: 'Donate to the environment',
+      title: 'Voluntary environmental donation',
       roundUp: 'Round up to nearest 10',
       addExtra: 'Or add a custom amount:',
       thanks: 'Thank you for your contribution!',
       remove: 'Remove',
+      disclosure: 'Voluntary contribution passed to an active 4ThePeople fundraising project. Not tax-deductible. Shown as a separate line on your receipt.',
     },
   };
 
