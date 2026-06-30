@@ -26,6 +26,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useAdminRealtime } from '@/hooks/useAdminRealtime';
 import { SystemHealthAlert } from '@/components/admin/SystemHealthAlert';
+import { UnsavedChangesProvider, useUnsavedChangesGuard } from '@/hooks/useUnsavedChanges';
 
 
 // role: 'all' = everyone with admin/employee access, 'admin' = admin only, 'founder' = founder only
@@ -115,7 +116,8 @@ const navGroups: NavGroup[] = [
 // Flatten for lookups
 const allNavItems = navGroups.flatMap(g => g.items);
 
-const AdminLayout = () => {
+const AdminLayoutInner = () => {
+  const { guard } = useUnsavedChangesGuard();
   const { isAdmin, isLoading } = useAdminRole();
   const { isEmployee, isLoading: employeeLoading } = useEmployeeRole();
   const { isFounder, isLoading: founderLoading } = useFounderRole();
@@ -178,11 +180,13 @@ const AdminLayout = () => {
   // Real browser-history back. Falls back to /admin only when there is no prior
   // entry to return to (e.g. admin opened in a fresh tab).
   const goBack = () => {
-    if (window.history.length > 1) {
-      window.history.back();
-    } else {
-      navigate('/admin');
-    }
+    guard(() => {
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        navigate('/admin');
+      }
+    });
   };
 
   // Admin session timeout (30 min inactivity)
@@ -253,11 +257,13 @@ const AdminLayout = () => {
 
   if (!hasAccess) return null;
 
-  const handleSignOut = async () => {
-    logAuthEvent('logout', user?.email || undefined);
-    await signOut();
-    toast.success('Utloggad');
-    navigate('/');
+  const handleSignOut = () => {
+    guard(async () => {
+      logAuthEvent('logout', user?.email || undefined);
+      await signOut();
+      toast.success('Utloggad');
+      navigate('/');
+    });
   };
 
   const currentGroup = navGroups.find(g =>
@@ -306,6 +312,7 @@ const AdminLayout = () => {
                     {crumb.to && !isLast ? (
                       <Link
                         to={crumb.to}
+                        onClick={(e) => { e.preventDefault(); guard(() => navigate(crumb.to!)); }}
                         className="hover:text-foreground transition-colors truncate"
                       >
                         {crumb.label}
@@ -374,7 +381,7 @@ const AdminLayout = () => {
               {!siteActive && (
                 <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" title="Underhållsläge" />
               )}
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate('/')}>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => guard(() => navigate('/'))}>
                 <Home className="w-4 h-4" />
               </Button>
             </div>
@@ -440,6 +447,10 @@ const AdminLayout = () => {
                               key={item.to}
                               to={item.to}
                               end={item.end}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                guard(() => navigate(item.to));
+                              }}
                               className={({ isActive }) =>
                                 cn(
                                   'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors min-h-[44px]',
@@ -464,7 +475,7 @@ const AdminLayout = () => {
                     <Terminal className="w-4 h-4" />
                     {showAdvanced ? 'Dölj avancerat' : 'Visa avancerat'}
                   </Button>
-                  <Button variant="ghost" size="sm" className="w-full justify-start gap-3 text-muted-foreground hover:text-foreground min-h-[44px]" onClick={() => navigate('/')}>
+                  <Button variant="ghost" size="sm" className="w-full justify-start gap-3 text-muted-foreground hover:text-foreground min-h-[44px]" onClick={() => guard(() => navigate('/'))}>
                     <Home className="w-4 h-4" />
                     Tillbaka till butiken
                   </Button>
@@ -504,5 +515,11 @@ const AdminLayout = () => {
     </div>
   );
 };
+
+const AdminLayout = () => (
+  <UnsavedChangesProvider>
+    <AdminLayoutInner />
+  </UnsavedChangesProvider>
+);
 
 export default AdminLayout;
