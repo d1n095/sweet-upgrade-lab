@@ -163,6 +163,7 @@ export default function AdminSecurity() {
       <Tabs defaultValue="roles" className="flex-1 min-h-0 flex flex-col">
         <TabsList className="w-full justify-start">
           <TabsTrigger value="roles">Roller ({userRoles.length})</TabsTrigger>
+          <TabsTrigger value="permissions">Behörighetsmatris</TabsTrigger>
           <TabsTrigger value="audit">Audit-logg ({auditLog.length})</TabsTrigger>
           <TabsTrigger value="security-events">Säkerhetshändelser ({securityLogs.length})</TabsTrigger>
         </TabsList>
