@@ -203,6 +203,12 @@ export default function AdminSecurity() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="permissions" className="flex-1 min-h-0 overflow-auto">
+          <PermissionMatrix />
+        </TabsContent>
+
+
+
         <TabsContent value="audit" className="flex-1 min-h-0 overflow-auto">
           <Card>
             <CardContent className="pt-4">
