@@ -278,7 +278,7 @@ const AdminLayout = () => {
               variant="ghost"
               size="icon"
               className="h-9 w-9 rounded-lg shrink-0"
-              onClick={() => navigate(-1)}
+              onClick={goBack}
               title="Tillbaka"
               aria-label="Tillbaka"
             >
@@ -318,7 +318,7 @@ const AdminLayout = () => {
               variant="ghost"
               size="icon"
               className="h-9 w-9 rounded-lg shrink-0"
-              onClick={() => navigate(-1)}
+              onClick={goBack}
               aria-label="Tillbaka"
             >
               <ArrowLeft className="w-5 h-5" />
