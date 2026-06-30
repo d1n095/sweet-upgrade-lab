@@ -257,11 +257,13 @@ const AdminLayoutInner = () => {
 
   if (!hasAccess) return null;
 
-  const handleSignOut = async () => {
-    logAuthEvent('logout', user?.email || undefined);
-    await signOut();
-    toast.success('Utloggad');
-    navigate('/');
+  const handleSignOut = () => {
+    guard(async () => {
+      logAuthEvent('logout', user?.email || undefined);
+      await signOut();
+      toast.success('Utloggad');
+      navigate('/');
+    });
   };
 
   const currentGroup = navGroups.find(g =>
