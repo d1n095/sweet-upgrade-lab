@@ -1202,6 +1202,7 @@ export type Database = {
           id: string
           is_anonymous: boolean
           order_id: string | null
+          project_id: string | null
           purpose: string
           source: string
           user_id: string | null
@@ -1213,6 +1214,7 @@ export type Database = {
           id?: string
           is_anonymous?: boolean
           order_id?: string | null
+          project_id?: string | null
           purpose?: string
           source?: string
           user_id?: string | null
@@ -1224,6 +1226,7 @@ export type Database = {
           id?: string
           is_anonymous?: boolean
           order_id?: string | null
+          project_id?: string | null
           purpose?: string
           source?: string
           user_id?: string | null
@@ -1234,6 +1237,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "donations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "donation_projects"
             referencedColumns: ["id"]
           },
         ]
@@ -4648,6 +4658,7 @@ export type Database = {
           username: string
         }[]
       }
+      anonymise_old_donations: { Args: never; Returns: number }
       auto_assign_task: { Args: { p_task_type: string }; Returns: string }
       auto_assign_work_item: { Args: { p_item_type: string }; Returns: string }
       calculate_affiliate_commission: {
@@ -4801,6 +4812,7 @@ export type Database = {
         Returns: undefined
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_finance_or_founder: { Args: { _user_id: string }; Returns: boolean }
       is_founder: { Args: { _user_id: string }; Returns: boolean }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
       log_activity: {

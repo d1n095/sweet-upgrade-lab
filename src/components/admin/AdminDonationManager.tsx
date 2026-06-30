@@ -167,9 +167,11 @@ const AdminDonationManager = () => {
   const handleSaveProject = async (projectId: string) => {
     setIsSaving(true);
     try {
+      // current_amount is computed by DB trigger — strip it
+      const { current_amount, ...safe } = editData as any;
       const { error } = await supabase
         .from('donation_projects')
-        .update(editData)
+        .update(safe)
         .eq('id', projectId);
 
       if (error) throw error;
@@ -356,12 +358,11 @@ const AdminDonationManager = () => {
                       type="number"
                       value={editData.goal_amount || 0}
                       onChange={(e) => setEditData(prev => ({ ...prev, goal_amount: Number(e.target.value) }))}
+                      placeholder="Målbelopp"
                     />
-                    <Input
-                      type="number"
-                      value={editData.current_amount || 0}
-                      onChange={(e) => setEditData(prev => ({ ...prev, current_amount: Number(e.target.value) }))}
-                    />
+                    <div className="flex items-center px-3 text-xs text-muted-foreground bg-muted/40 rounded-md border">
+                      Insamlat: {formatPrice(project.current_amount)} (auto)
+                    </div>
                   </div>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" onClick={() => setEditingProject(null)}>

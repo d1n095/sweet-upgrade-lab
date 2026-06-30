@@ -72,7 +72,7 @@ const navGroups: NavGroup[] = [
     items: [
       { to: '/admin/members', label: 'Användare', icon: Users, role: 'admin' },
       { to: '/admin/partners', label: 'Partners & Referrals', icon: Handshake, role: 'admin' },
-      { to: '/admin/donations', label: 'Donationer', icon: Heart, role: 'admin' },
+      { to: '/admin/donations', label: 'Donationer', icon: Heart, role: 'founder' },
       { to: '/admin/security', label: 'Säkerhet & Roller', icon: Shield, role: 'admin' },
       { to: '/admin/staff', label: 'Workbench', icon: Crown, role: 'founder' },
     ],

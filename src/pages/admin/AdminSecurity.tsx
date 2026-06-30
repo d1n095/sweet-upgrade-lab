@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Shield, ShieldCheck, ShieldAlert, Lock, Users, Eye, RefreshCw, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import PermissionMatrix from '@/components/admin/security/PermissionMatrix';
 
 export default function AdminSecurity() {
   const [auditLog, setAuditLog] = useState<any[]>([]);
@@ -163,6 +164,7 @@ export default function AdminSecurity() {
       <Tabs defaultValue="roles" className="flex-1 min-h-0 flex flex-col">
         <TabsList className="w-full justify-start">
           <TabsTrigger value="roles">Roller ({userRoles.length})</TabsTrigger>
+          <TabsTrigger value="permissions">Behörighetsmatris</TabsTrigger>
           <TabsTrigger value="audit">Audit-logg ({auditLog.length})</TabsTrigger>
           <TabsTrigger value="security-events">Säkerhetshändelser ({securityLogs.length})</TabsTrigger>
         </TabsList>
@@ -201,6 +203,12 @@ export default function AdminSecurity() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="permissions" className="flex-1 min-h-0 overflow-auto">
+          <PermissionMatrix />
+        </TabsContent>
+
+
 
         <TabsContent value="audit" className="flex-1 min-h-0 overflow-auto">
           <Card>
