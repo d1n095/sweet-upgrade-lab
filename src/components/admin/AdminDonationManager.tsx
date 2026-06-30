@@ -167,9 +167,11 @@ const AdminDonationManager = () => {
   const handleSaveProject = async (projectId: string) => {
     setIsSaving(true);
     try {
+      // current_amount is computed by DB trigger — strip it
+      const { current_amount, ...safe } = editData as any;
       const { error } = await supabase
         .from('donation_projects')
-        .update(editData)
+        .update(safe)
         .eq('id', projectId);
 
       if (error) throw error;
