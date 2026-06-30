@@ -127,14 +127,47 @@ const AdminLayout = () => {
   const [showAdvanced, setShowAdvanced] = useState(() => localStorage.getItem('admin_show_advanced') === '1');
   const [recentErrorCount, setRecentErrorCount] = useState(0);
   const mainRef = useRef<HTMLElement | null>(null);
+  const scrollPositions = useRef<Map<string, number>>(new Map());
+  const prevPathRef = useRef<string>(location.pathname);
 
-  // Reset admin content scroll position when navigating between admin pages.
-  // The admin layout uses an internal scroll container so the global
-  // window-level ScrollToTop doesn't reach it.
+  // Save scroll for the page we're leaving, restore scroll for the page we entered.
+  // The admin layout uses an internal scroll container, so window-level ScrollToTop
+  // doesn't reach it — we manage it explicitly per pathname.
   useEffect(() => {
-    if (mainRef.current) mainRef.current.scrollTo({ top: 0, left: 0 });
-    window.scrollTo({ top: 0, left: 0 });
+    const el = mainRef.current;
+    const prev = prevPathRef.current;
+    const next = location.pathname;
+    if (prev !== next && el) {
+      scrollPositions.current.set(prev, el.scrollTop);
+    }
+    const restoreTo = scrollPositions.current.get(next) ?? 0;
+    // Wait one frame so the new route has rendered before scrolling.
+    requestAnimationFrame(() => {
+      if (mainRef.current) mainRef.current.scrollTo({ top: restoreTo, left: 0 });
+      if (restoreTo === 0) window.scrollTo({ top: 0, left: 0 });
+    });
+    prevPathRef.current = next;
   }, [location.pathname]);
+
+  // Continuously track the current page's scroll so a refresh/back returns to it.
+  useEffect(() => {
+    const el = mainRef.current;
+    if (!el) return;
+    let frame = 0;
+    const onScroll = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        scrollPositions.current.set(location.pathname, el.scrollTop);
+      });
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      el.removeEventListener('scroll', onScroll);
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, [location.pathname]);
+
 
   // Centralized realtime sync for all admin queries
   useAdminRealtime();
