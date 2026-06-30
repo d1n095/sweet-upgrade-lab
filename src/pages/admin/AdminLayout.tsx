@@ -126,6 +126,15 @@ const AdminLayout = () => {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(() => localStorage.getItem('admin_show_advanced') === '1');
   const [recentErrorCount, setRecentErrorCount] = useState(0);
+  const mainRef = useRef<HTMLElement | null>(null);
+
+  // Reset admin content scroll position when navigating between admin pages.
+  // The admin layout uses an internal scroll container so the global
+  // window-level ScrollToTop doesn't reach it.
+  useEffect(() => {
+    if (mainRef.current) mainRef.current.scrollTo({ top: 0, left: 0 });
+    window.scrollTo({ top: 0, left: 0 });
+  }, [location.pathname]);
 
   // Centralized realtime sync for all admin queries
   useAdminRealtime();
