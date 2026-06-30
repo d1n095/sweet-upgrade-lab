@@ -515,4 +515,10 @@ const AdminLayoutInner = () => {
   );
 };
 
+const AdminLayout = () => (
+  <UnsavedChangesProvider>
+    <AdminLayoutInner />
+  </UnsavedChangesProvider>
+);
+
 export default AdminLayout;
