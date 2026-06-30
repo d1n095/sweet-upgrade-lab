@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Outlet, useNavigate, NavLink, useLocation, Link } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import { useAdminRole } from '@/hooks/useAdminRole';
 import { useAuth } from '@/hooks/useAuth';
 import { useStoreSettings } from '@/stores/storeSettingsStore';
@@ -125,6 +126,15 @@ const AdminLayout = () => {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(() => localStorage.getItem('admin_show_advanced') === '1');
   const [recentErrorCount, setRecentErrorCount] = useState(0);
+  const mainRef = useRef<HTMLElement | null>(null);
+
+  // Reset admin content scroll position when navigating between admin pages.
+  // The admin layout uses an internal scroll container so the global
+  // window-level ScrollToTop doesn't reach it.
+  useEffect(() => {
+    if (mainRef.current) mainRef.current.scrollTo({ top: 0, left: 0 });
+    window.scrollTo({ top: 0, left: 0 });
+  }, [location.pathname]);
 
   // Centralized realtime sync for all admin queries
   useAdminRealtime();
@@ -221,6 +231,16 @@ const AdminLayout = () => {
             <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg shrink-0" onClick={() => setMobileNavOpen(true)}>
               <Menu className="w-5 h-5" />
             </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 rounded-lg shrink-0"
+              onClick={() => navigate(-1)}
+              title="Tillbaka"
+              aria-label="Tillbaka"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
             <AdminGlobalSearch />
           </div>
           <div className="flex items-center gap-2">
@@ -247,9 +267,18 @@ const AdminLayout = () => {
 
         {/* Mobile header */}
         <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-card border-b border-border px-4">
-          <div className="h-14 flex items-center gap-3">
+          <div className="h-14 flex items-center gap-2">
             <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg shrink-0" onClick={() => setMobileNavOpen(true)}>
               <Menu className="w-5 h-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 rounded-lg shrink-0"
+              onClick={() => navigate(-1)}
+              aria-label="Tillbaka"
+            >
+              <ArrowLeft className="w-5 h-5" />
             </Button>
             <div className="flex items-center gap-2 min-w-0">
               <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
@@ -380,7 +409,7 @@ const AdminLayout = () => {
         )}
 
         {/* Content */}
-        <main className="flex-1 min-h-0 overflow-x-hidden overflow-y-auto">
+        <main ref={mainRef} className="flex-1 min-h-0 overflow-x-hidden overflow-y-auto">
           <div className="md:px-6 md:py-6 p-4 pt-24 pb-8 md:pt-6 md:pb-8 h-full">
             <SystemHealthAlert />
             <Outlet />
