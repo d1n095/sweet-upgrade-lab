@@ -312,6 +312,7 @@ const AdminLayoutInner = () => {
                     {crumb.to && !isLast ? (
                       <Link
                         to={crumb.to}
+                        onClick={(e) => { e.preventDefault(); guard(() => navigate(crumb.to!)); }}
                         className="hover:text-foreground transition-colors truncate"
                       >
                         {crumb.label}
