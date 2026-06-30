@@ -231,6 +231,16 @@ const AdminLayout = () => {
             <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg shrink-0" onClick={() => setMobileNavOpen(true)}>
               <Menu className="w-5 h-5" />
             </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 rounded-lg shrink-0"
+              onClick={() => navigate(-1)}
+              title="Tillbaka"
+              aria-label="Tillbaka"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
             <AdminGlobalSearch />
           </div>
           <div className="flex items-center gap-2">
