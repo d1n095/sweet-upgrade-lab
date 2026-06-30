@@ -380,7 +380,7 @@ const AdminLayoutInner = () => {
               {!siteActive && (
                 <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" title="Underhållsläge" />
               )}
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate('/')}>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => guard(() => navigate('/'))}>
                 <Home className="w-4 h-4" />
               </Button>
             </div>
