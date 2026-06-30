@@ -121,6 +121,12 @@ const RoundUpDonation = ({ cartTotal, currencyCode, onDonationChange }: RoundUpD
           </div>
         </div>
 
+        {/* Legal disclosure (Marknadsföringslagen / Konsumentverket) */}
+        <p className="text-[10px] leading-tight text-muted-foreground border-t border-border/40 pt-2">
+          {t.disclosure}
+        </p>
+
+
         {/* Total donation feedback */}
         <AnimatePresence>
           {totalDonation > 0 && (
