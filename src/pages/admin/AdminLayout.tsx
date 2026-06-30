@@ -361,7 +361,14 @@ const AdminLayout = () => {
               <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                 <Shield className="w-3.5 h-3.5 text-primary" />
               </div>
-              <span className="font-display font-semibold text-sm truncate">{currentPage?.label || 'Admin'}</span>
+              <div className="flex flex-col min-w-0 leading-tight">
+                {currentGroup && !isAdminRoot && (
+                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground truncate">
+                    {currentGroup.label}
+                  </span>
+                )}
+                <span className="font-display font-semibold text-sm truncate">{currentPage?.label || 'Admin'}</span>
+              </div>
             </div>
             <div className="ml-auto flex items-center gap-1 shrink-0">
               {!siteActive && (
