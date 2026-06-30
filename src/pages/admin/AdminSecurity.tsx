@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Shield, ShieldCheck, ShieldAlert, Lock, Users, Eye, RefreshCw, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import PermissionMatrix from '@/components/admin/security/PermissionMatrix';
 
 export default function AdminSecurity() {
   const [auditLog, setAuditLog] = useState<any[]>([]);
