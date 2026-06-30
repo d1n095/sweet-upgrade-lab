@@ -409,7 +409,7 @@ const AdminLayout = () => {
         )}
 
         {/* Content */}
-        <main className="flex-1 min-h-0 overflow-x-hidden overflow-y-auto">
+        <main ref={mainRef} className="flex-1 min-h-0 overflow-x-hidden overflow-y-auto">
           <div className="md:px-6 md:py-6 p-4 pt-24 pb-8 md:pt-6 md:pb-8 h-full">
             <SystemHealthAlert />
             <Outlet />
