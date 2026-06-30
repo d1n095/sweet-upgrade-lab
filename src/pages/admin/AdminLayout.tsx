@@ -474,7 +474,7 @@ const AdminLayoutInner = () => {
                     <Terminal className="w-4 h-4" />
                     {showAdvanced ? 'Dölj avancerat' : 'Visa avancerat'}
                   </Button>
-                  <Button variant="ghost" size="sm" className="w-full justify-start gap-3 text-muted-foreground hover:text-foreground min-h-[44px]" onClick={() => navigate('/')}>
+                  <Button variant="ghost" size="sm" className="w-full justify-start gap-3 text-muted-foreground hover:text-foreground min-h-[44px]" onClick={() => guard(() => navigate('/'))}>
                     <Home className="w-4 h-4" />
                     Tillbaka till butiken
                   </Button>
