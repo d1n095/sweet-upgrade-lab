@@ -175,6 +175,16 @@ const AdminLayout = () => {
   const hasAccess = isAdmin || isEmployee;
   const combinedLoading = isLoading || employeeLoading || founderLoading;
 
+  // Real browser-history back. Falls back to /admin only when there is no prior
+  // entry to return to (e.g. admin opened in a fresh tab).
+  const goBack = () => {
+    if (window.history.length > 1) {
+      window.history.back();
+    } else {
+      navigate('/admin');
+    }
+  };
+
   // Admin session timeout (30 min inactivity)
   useAdminSession();
 
