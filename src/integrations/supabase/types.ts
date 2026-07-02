@@ -4681,6 +4681,7 @@ export type Database = {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
       }
+      email_queue_dispatch: { Args: never; Returns: undefined }
       emit_ecommerce_event: {
         Args: {
           p_event_type: Database["public"]["Enums"]["ecommerce_event_type"]
