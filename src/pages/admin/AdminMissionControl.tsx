@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import { Helmet } from "react-helmet-async";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useStaffAccess } from "@/hooks/useStaffAccess";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { CheckCircle2, AlertTriangle, TrendingDown } from "lucide-react";
+import PremiumPageShell, { StatCard, SectionCard } from "@/components/premium/PremiumPageShell";
 
 export default function AdminMissionControl() {
   const { hasAccess: isStaff, isLoading } = useStaffAccess();
@@ -19,11 +19,8 @@ export default function AdminMissionControl() {
       supabase.from("recommended_actions").select("*").eq("status", "pending").order("priority").limit(50),
       supabase.from("anomaly_events").select("*").eq("resolved", false).order("created_at", { ascending: false }).limit(50),
     ]);
-    setInsights(i.data ?? []);
-    setActions(a.data ?? []);
-    setAnomalies(an.data ?? []);
+    setInsights(i.data ?? []); setActions(a.data ?? []); setAnomalies(an.data ?? []);
   };
-
   useEffect(() => { if (isStaff) load(); }, [isStaff]);
 
   const ack = async (id: string) => {
@@ -32,68 +29,78 @@ export default function AdminMissionControl() {
     if (error) toast.error(error.message); else load();
   };
 
-  if (isLoading) return <div className="p-8">Laddar…</div>;
-  if (!isStaff) return <div className="p-8">Endast personal.</div>;
+  if (isLoading) return <PremiumPageShell title="Mission Control"><div>Laddar…</div></PremiumPageShell>;
+  if (!isStaff) return <PremiumPageShell title="Mission Control"><div className="premium-card">Endast personal.</div></PremiumPageShell>;
 
   return (
-    <div className="p-4 md:p-8 space-y-6">
-      <Helmet><title>Mission Control – Business OS</title><meta name="description" content="Vad hände, varför, och vad du bör göra." /></Helmet>
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Mission Control</h1>
-        <p className="text-muted-foreground mt-1">Vad hände · Varför · Vad göra · Vad inte göra.</p>
+    <PremiumPageShell
+      eyebrow="Sprint 04 · Del 11+12"
+      title="Mission Control"
+      description="Vad hände · Varför · Vad göra · Vad inte göra."
+      breadcrumbs={[{ to: "/admin", label: "Admin" }, { to: "/admin/business-os", label: "Business OS" }, { label: "Mission Control" }]}
+    >
+      <div className="grid gap-3 grid-cols-3 mb-8">
+        <StatCard label="Insikter" value={insights.length} hint="totalt" />
+        <StatCard label="Öppna åtgärder" value={actions.length} tone="gold" />
+        <StatCard label="Aktiva avvikelser" value={anomalies.length} tone={anomalies.length > 0 ? "warning" : "success"} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card>
-          <CardHeader><CardTitle>Insikter ({insights.length})</CardTitle></CardHeader>
-          <CardContent className="space-y-3 max-h-[600px] overflow-y-auto">
+        <SectionCard title="Insikter" subtitle="Automatgenererade observationer">
+          <div className="space-y-3 max-h-[600px] overflow-y-auto">
             {insights.length === 0 ? <p className="text-sm text-muted-foreground">Inga insikter ännu.</p> :
-              insights.map(i => (
-                <div key={i.id} className="p-3 border rounded-lg">
-                  <div className="flex justify-between items-start gap-2">
-                    <div>
-                      <div className="font-medium text-sm">{i.title}</div>
-                      <div className="text-xs text-muted-foreground">{i.summary}</div>
-                    </div>
-                    <Badge variant={i.severity === "critical" ? "destructive" : "secondary"}>{i.severity}</Badge>
+              insights.map((i: any) => (
+                <div key={i.id} className="p-4 rounded-xl border border-border bg-secondary/30 hover:border-gold/40 transition">
+                  <div className="flex justify-between items-start gap-2 mb-2">
+                    <div className="font-medium text-sm">{i.title}</div>
+                    <Badge variant={i.severity === "critical" ? "destructive" : i.severity === "warning" ? "outline" : "secondary"}>{i.severity}</Badge>
                   </div>
-                  {i.status === "new" && <Button size="sm" variant="outline" className="mt-2" onClick={() => ack(i.id)}>Bekräfta</Button>}
+                  <p className="text-xs text-muted-foreground">{i.summary}</p>
+                  {i.status === "new" && <Button size="sm" variant="ghost" className="mt-2 h-7 text-xs" onClick={() => ack(i.id)}><CheckCircle2 className="w-3 h-3 mr-1" /> Bekräfta</Button>}
                 </div>
               ))
             }
-          </CardContent>
-        </Card>
+          </div>
+        </SectionCard>
 
-        <Card>
-          <CardHeader><CardTitle>Rekommenderade åtgärder ({actions.length})</CardTitle></CardHeader>
-          <CardContent className="space-y-2 max-h-[600px] overflow-y-auto">
+        <SectionCard title="Rekommenderade åtgärder">
+          <div className="space-y-2 max-h-[600px] overflow-y-auto">
             {actions.length === 0 ? <p className="text-sm text-muted-foreground">Inga öppna åtgärder.</p> :
-              actions.map(a => (
-                <div key={a.id} className="p-3 border rounded-lg">
-                  <div className="font-medium text-sm">{a.title}</div>
-                  {a.description && <div className="text-xs text-muted-foreground">{a.description}</div>}
-                  <Badge variant="outline" className="mt-2">Prio {a.priority}</Badge>
+              actions.map((a: any) => (
+                <div key={a.id} className="p-4 rounded-xl border border-border bg-secondary/30">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="font-medium text-sm">{a.title}</div>
+                      {a.description && <div className="text-xs text-muted-foreground mt-1">{a.description}</div>}
+                    </div>
+                    <span className="chip-gold text-[10px]">P{a.priority}</span>
+                  </div>
                 </div>
               ))
             }
-          </CardContent>
-        </Card>
+          </div>
+        </SectionCard>
 
-        <Card>
-          <CardHeader><CardTitle>Avvikelser ({anomalies.length})</CardTitle></CardHeader>
-          <CardContent className="space-y-2 max-h-[600px] overflow-y-auto">
-            {anomalies.length === 0 ? <p className="text-sm text-muted-foreground">Inga aktiva avvikelser.</p> :
-              anomalies.map(a => (
-                <div key={a.id} className="p-3 border rounded-lg">
-                  <div className="font-medium text-sm">{a.event_type} · {a.metric_key}</div>
-                  <div className="text-xs text-muted-foreground">Förväntat {a.expected} · Faktisk {a.actual}</div>
-                  <Badge variant={a.severity === "high" ? "destructive" : "secondary"}>{a.severity}</Badge>
+        <SectionCard title="Avvikelser">
+          <div className="space-y-2 max-h-[600px] overflow-y-auto">
+            {anomalies.length === 0 ? <p className="text-sm text-muted-foreground flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-success" /> Inga aktiva avvikelser.</p> :
+              anomalies.map((a: any) => (
+                <div key={a.id} className="p-4 rounded-xl border border-border bg-secondary/30">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-warning/15 flex items-center justify-center shrink-0"><AlertTriangle className="w-4 h-4 text-warning" /></div>
+                    <div className="flex-1">
+                      <div className="font-medium text-sm">{a.event_type} · {a.metric_key}</div>
+                      <div className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
+                        <TrendingDown className="w-3 h-3" /> Förväntat <span className="tabular-nums">{a.expected}</span> · Faktisk <span className="tabular-nums">{a.actual}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               ))
             }
-          </CardContent>
-        </Card>
+          </div>
+        </SectionCard>
       </div>
-    </div>
+    </PremiumPageShell>
   );
 }

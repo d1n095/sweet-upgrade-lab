@@ -1,12 +1,10 @@
 import { useEffect, useState } from "react";
-import { Helmet } from "react-helmet-async";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useStaffAccess } from "@/hooks/useStaffAccess";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import PremiumPageShell, { SectionCard, StatCard } from "@/components/premium/PremiumPageShell";
 
 export default function AdminAutomation() {
   const { hasAccess: isStaff, isLoading } = useStaffAccess();
@@ -18,8 +16,7 @@ export default function AdminAutomation() {
       supabase.from("automation_workflows").select("*").order("created_at", { ascending: false }),
       supabase.from("workflow_runs").select("*").order("started_at", { ascending: false }).limit(30),
     ]);
-    setWorkflows(w.data ?? []);
-    setRuns(r.data ?? []);
+    setWorkflows(w.data ?? []); setRuns(r.data ?? []);
   };
   useEffect(() => { if (isStaff) load(); }, [isStaff]);
 
@@ -28,52 +25,57 @@ export default function AdminAutomation() {
     if (error) toast.error(error.message); else load();
   };
 
-  if (isLoading) return <div className="p-8">Laddar…</div>;
-  if (!isStaff) return <div className="p-8">Endast personal.</div>;
+  if (isLoading) return <PremiumPageShell title="Automation"><div>Laddar…</div></PremiumPageShell>;
+  if (!isStaff) return <PremiumPageShell title="Automation"><div className="premium-card">Endast personal.</div></PremiumPageShell>;
+
+  const active = workflows.filter(w => w.is_active).length;
 
   return (
-    <div className="p-4 md:p-8 space-y-6">
-      <Helmet><title>Automation – Admin</title><meta name="description" content="Arbetsflöden och autonomi-nivåer." /></Helmet>
-      <div><h1 className="text-3xl font-bold tracking-tight">Automation</h1><p className="text-muted-foreground">Nivå 1–3 autonomi. Nivå 4 kräver aktivering av founder.</p></div>
+    <PremiumPageShell
+      eyebrow="Sprint 05 · Del 13+14"
+      title="Automation"
+      description="Arbetsflöden med nivå 1–3 autonomi. Nivå 4 kräver founder-frisläppning."
+      breadcrumbs={[{ to: "/admin", label: "Admin" }, { to: "/admin/business-os", label: "Business OS" }, { label: "Automation" }]}
+    >
+      <div className="grid gap-3 grid-cols-3 mb-8">
+        <StatCard label="Arbetsflöden" value={workflows.length} />
+        <StatCard label="Aktiva" value={active} tone="gold" />
+        <StatCard label="Körningar (30d)" value={runs.length} />
+      </div>
 
-      <Card>
-        <CardHeader><CardTitle>Arbetsflöden ({workflows.length})</CardTitle></CardHeader>
-        <CardContent>
-          {workflows.length === 0 ? <p className="text-sm text-muted-foreground">Inga arbetsflöden ännu. Skapa via API/backend.</p> : (
-            <ul className="divide-y">
-              {workflows.map(w => (
-                <li key={w.id} className="py-3 flex justify-between items-center">
-                  <div>
+      <div className="grid gap-4 lg:grid-cols-3">
+        <SectionCard title="Arbetsflöden" className="lg:col-span-2">
+          {workflows.length === 0 ? <p className="text-sm text-muted-foreground">Inga arbetsflöden ännu.</p> : (
+            <ul className="divide-y divide-border">
+              {workflows.map((w: any) => (
+                <li key={w.id} className="py-4 flex justify-between items-center gap-4">
+                  <div className="min-w-0">
                     <div className="font-medium">{w.name}</div>
-                    <div className="text-xs text-muted-foreground">Trigger: {w.trigger_type} · Autonomi nivå {w.autonomy_level}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">Trigger: <span className="font-mono">{w.trigger_type}</span> · Autonomi nivå {w.autonomy_level}</div>
                   </div>
-                  <div className="flex gap-2 items-center">
-                    {w.requires_approval && <Badge variant="secondary">Kräver godkännande</Badge>}
+                  <div className="flex gap-2 items-center shrink-0">
+                    {w.requires_approval && <Badge variant="secondary">Godkännande</Badge>}
                     <Switch checked={w.is_active} onCheckedChange={() => toggle(w.id, w.is_active)} disabled={w.autonomy_level >= 4} />
                   </div>
                 </li>
               ))}
             </ul>
           )}
-        </CardContent>
-      </Card>
+        </SectionCard>
 
-      <Card>
-        <CardHeader><CardTitle>Senaste körningar</CardTitle></CardHeader>
-        <CardContent>
+        <SectionCard title="Senaste körningar">
           {runs.length === 0 ? <p className="text-sm text-muted-foreground">Inga körningar ännu.</p> : (
-            <ul className="divide-y">
-              {runs.map(r => (
-                <li key={r.id} className="py-2 flex justify-between text-sm">
-                  <span className="font-mono text-xs">{r.id.slice(0, 8)}</span>
-                  <Badge variant={r.status === "completed" ? "default" : r.status === "failed" ? "destructive" : "secondary"}>{r.status}</Badge>
-                  <span className="text-muted-foreground">{new Date(r.started_at).toLocaleString("sv-SE")}</span>
+            <ul className="space-y-2">
+              {runs.map((r: any) => (
+                <li key={r.id} className="flex items-center justify-between text-sm p-2.5 rounded-lg bg-secondary/40">
+                  <span className="font-mono text-xs text-muted-foreground">{r.id.slice(0, 8)}</span>
+                  <Badge variant={r.status === "completed" ? "default" : r.status === "failed" ? "destructive" : "secondary"} className={r.status === "completed" ? "bg-success text-success-foreground" : ""}>{r.status}</Badge>
                 </li>
               ))}
             </ul>
           )}
-        </CardContent>
-      </Card>
-    </div>
+        </SectionCard>
+      </div>
+    </PremiumPageShell>
   );
 }
