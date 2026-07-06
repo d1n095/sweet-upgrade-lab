@@ -81,6 +81,14 @@ const AdminScans = lazy(() => import("./pages/admin/AdminScans"));
 const AdminControl = lazy(() => import("./pages/admin/AdminControl"));
 const AdminControlCenter = lazy(() => import("./pages/admin/AdminControlCenter"));
 const AdminERP = lazy(() => import("./pages/admin/AdminERP"));
+const AdminCustomer360 = lazy(() => import("./pages/admin/AdminCustomer360"));
+const AdminMissionControl = lazy(() => import("./pages/admin/AdminMissionControl"));
+const AdminKunskap = lazy(() => import("./pages/admin/AdminKunskap"));
+const AdminAutomation = lazy(() => import("./pages/admin/AdminAutomation"));
+const AdminGDPR = lazy(() => import("./pages/admin/AdminGDPR"));
+const KunskapPublic = lazy(() => import("./pages/Kunskap"));
+const KunskapArticlePublic = lazy(() => import("./pages/KunskapArticle"));
+const MittLiv = lazy(() => import("./pages/MittLiv"));
 
 // Admin-only dev tools — lazy + only mounted from admin paths via PathGate below.
 const MiniWorkbench = lazy(() => import("./components/admin/MiniWorkbench"));
@@ -218,7 +226,15 @@ const App = () => {
                       <Route path="control" element={<AdminControl />} />
                       <Route path="control-center" element={<AdminControlCenter />} />
                       <Route path="erp" element={<AdminERP />} />
+                      <Route path="customers-360" element={<AdminCustomer360 />} />
+                      <Route path="mission-control" element={<AdminMissionControl />} />
+                      <Route path="kunskap" element={<AdminKunskap />} />
+                      <Route path="automation" element={<AdminAutomation />} />
+                      <Route path="gdpr" element={<AdminGDPR />} />
                     </Route>
+                    <Route path="/kunskap" element={<KunskapPublic />} />
+                    <Route path="/kunskap/:slug" element={<KunskapArticlePublic />} />
+                    <Route path="/mitt-liv" element={<MittLiv />} />
 
                     <Route path="*" element={<NotFound />} />
                   </Routes>
