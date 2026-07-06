@@ -1288,6 +1288,111 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_notes: {
+        Row: {
+          author_id: string | null
+          created_at: string
+          customer_id: string
+          id: string
+          note: string
+          pinned: boolean
+          updated_at: string
+        }
+        Insert: {
+          author_id?: string | null
+          created_at?: string
+          customer_id: string
+          id?: string
+          note: string
+          pinned?: boolean
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string | null
+          created_at?: string
+          customer_id?: string
+          id?: string
+          note?: string
+          pinned?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      customer_segments: {
+        Row: {
+          code: string
+          color: string | null
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          rules: Json
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          rules?: Json
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          rules?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      customer_touchpoints: {
+        Row: {
+          channel: string | null
+          created_at: string
+          created_by: string | null
+          customer_id: string
+          details: Json
+          id: string
+          occurred_at: string
+          reference_id: string | null
+          subject: string | null
+          touchpoint_type: string
+        }
+        Insert: {
+          channel?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id: string
+          details?: Json
+          id?: string
+          occurred_at?: string
+          reference_id?: string | null
+          subject?: string | null
+          touchpoint_type: string
+        }
+        Update: {
+          channel?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string
+          details?: Json
+          id?: string
+          occurred_at?: string
+          reference_id?: string | null
+          subject?: string | null
+          touchpoint_type?: string
+        }
+        Relationships: []
+      }
       donation_projects: {
         Row: {
           created_at: string
@@ -2238,6 +2343,54 @@ export type Database = {
           title_sv?: string
           updated_at?: string
           version?: number
+        }
+        Relationships: []
+      }
+      lifecycle_stages: {
+        Row: {
+          churn_risk: number | null
+          computed_at: string
+          customer_id: string
+          id: string
+          last_order_at: string | null
+          rfm_frequency: number | null
+          rfm_monetary: number | null
+          rfm_recency: number | null
+          segment_code: string | null
+          stage: string
+          total_orders: number
+          total_spent: number
+          updated_at: string
+        }
+        Insert: {
+          churn_risk?: number | null
+          computed_at?: string
+          customer_id: string
+          id?: string
+          last_order_at?: string | null
+          rfm_frequency?: number | null
+          rfm_monetary?: number | null
+          rfm_recency?: number | null
+          segment_code?: string | null
+          stage?: string
+          total_orders?: number
+          total_spent?: number
+          updated_at?: string
+        }
+        Update: {
+          churn_risk?: number | null
+          computed_at?: string
+          customer_id?: string
+          id?: string
+          last_order_at?: string | null
+          rfm_frequency?: number | null
+          rfm_monetary?: number | null
+          rfm_recency?: number | null
+          segment_code?: string | null
+          stage?: string
+          total_orders?: number
+          total_spent?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -5517,6 +5670,10 @@ export type Database = {
           msg_id: number
           read_ct: number
         }[]
+      }
+      recompute_lifecycle_stage: {
+        Args: { _customer_id: string }
+        Returns: undefined
       }
       run_campaign_scheduler: { Args: never; Returns: Json }
       system_health_check: { Args: never; Returns: Json }
