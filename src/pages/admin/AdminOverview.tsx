@@ -167,6 +167,16 @@ const AdminOverview = () => {
 
   return (
     <div className="space-y-6">
+      {/* Business OS test hub banner */}
+      <Link to="/admin/business-os" className="block">
+        <div className="rounded-lg border border-primary/40 bg-primary/5 hover:bg-primary/10 transition p-4 flex items-center justify-between">
+          <div>
+            <div className="text-sm font-semibold flex items-center gap-2">★ Business OS – Sprint 8–17 testhub</div>
+            <div className="text-xs text-muted-foreground mt-0.5">ERP · Kunder 360 · Kunskap · Mission Control · Automation · GDPR · Mitt Liv</div>
+          </div>
+          <ChevronRight className="w-5 h-5 text-primary" />
+        </div>
+      </Link>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
