@@ -217,6 +217,7 @@ const App = () => {
                       <Route path="scans" element={<AdminScans />} />
                       <Route path="control" element={<AdminControl />} />
                       <Route path="control-center" element={<AdminControlCenter />} />
+                      <Route path="erp" element={<AdminERP />} />
                     </Route>
 
                     <Route path="*" element={<NotFound />} />
