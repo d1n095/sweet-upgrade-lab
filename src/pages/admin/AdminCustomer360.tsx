@@ -23,7 +23,7 @@ type Lifecycle = {
 type Segment = { id: string; code: string; name: string; color: string | null; description: string | null };
 
 export default function AdminCustomer360() {
-  const { isStaff, loading: staffLoading } = useStaffAccess();
+  const { hasAccess: isStaff, isLoading: staffLoading } = useStaffAccess();
   const [segments, setSegments] = useState<Segment[]>([]);
   const [customers, setCustomers] = useState<Lifecycle[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
