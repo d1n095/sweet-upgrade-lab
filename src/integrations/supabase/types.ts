@@ -1018,6 +1018,54 @@ export type Database = {
           },
         ]
       }
+      cash_positions: {
+        Row: {
+          account_name: string
+          available_cash: number
+          bank_balance: number
+          created_at: string
+          created_by: string | null
+          currency: string
+          id: string
+          notes: string | null
+          outstanding_incoming: number
+          outstanding_outgoing: number
+          position_date: string
+          source: string
+          updated_at: string
+        }
+        Insert: {
+          account_name: string
+          available_cash?: number
+          bank_balance?: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          notes?: string | null
+          outstanding_incoming?: number
+          outstanding_outgoing?: number
+          position_date: string
+          source?: string
+          updated_at?: string
+        }
+        Update: {
+          account_name?: string
+          available_cash?: number
+          bank_balance?: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          notes?: string | null
+          outstanding_incoming?: number
+          outstanding_outgoing?: number
+          position_date?: string
+          source?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           created_at: string
@@ -1448,6 +1496,77 @@ export type Database = {
         }
         Relationships: []
       }
+      expenses: {
+        Row: {
+          amount: number
+          booked_at: string | null
+          category: string
+          created_at: string
+          created_by: string | null
+          currency: string
+          description: string | null
+          expense_date: string
+          id: string
+          paid_at: string | null
+          payment_method: string | null
+          payment_status: string
+          receipt_url: string | null
+          reference: string | null
+          supplier_id: string | null
+          updated_at: string
+          vat_amount: number
+          vat_rate: number
+        }
+        Insert: {
+          amount: number
+          booked_at?: string | null
+          category: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          description?: string | null
+          expense_date?: string
+          id?: string
+          paid_at?: string | null
+          payment_method?: string | null
+          payment_status?: string
+          receipt_url?: string | null
+          reference?: string | null
+          supplier_id?: string | null
+          updated_at?: string
+          vat_amount?: number
+          vat_rate?: number
+        }
+        Update: {
+          amount?: number
+          booked_at?: string | null
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          description?: string | null
+          expense_date?: string
+          id?: string
+          paid_at?: string | null
+          payment_method?: string | null
+          payment_status?: string
+          receipt_url?: string | null
+          reference?: string | null
+          supplier_id?: string | null
+          updated_at?: string
+          vat_amount?: number
+          vat_rate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feedback_surveys: {
         Row: {
           comments: string | null
@@ -1668,6 +1787,172 @@ export type Database = {
           session_id?: string | null
         }
         Relationships: []
+      }
+      invoices: {
+        Row: {
+          amount_ex_vat: number
+          amount_total: number
+          counterparty_name: string
+          counterparty_org_number: string | null
+          created_at: string
+          created_by: string | null
+          currency: string
+          due_date: string
+          id: string
+          invoice_number: string
+          invoice_type: string
+          issue_date: string
+          notes: string | null
+          order_id: string | null
+          paid_at: string | null
+          pdf_url: string | null
+          status: string
+          supplier_id: string | null
+          updated_at: string
+          vat_amount: number
+        }
+        Insert: {
+          amount_ex_vat: number
+          amount_total: number
+          counterparty_name: string
+          counterparty_org_number?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          due_date: string
+          id?: string
+          invoice_number: string
+          invoice_type: string
+          issue_date?: string
+          notes?: string | null
+          order_id?: string | null
+          paid_at?: string | null
+          pdf_url?: string | null
+          status?: string
+          supplier_id?: string | null
+          updated_at?: string
+          vat_amount?: number
+        }
+        Update: {
+          amount_ex_vat?: number
+          amount_total?: number
+          counterparty_name?: string
+          counterparty_org_number?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          due_date?: string
+          id?: string
+          invoice_number?: string
+          invoice_type?: string
+          issue_date?: string
+          notes?: string | null
+          order_id?: string | null
+          paid_at?: string | null
+          pdf_url?: string | null
+          status?: string
+          supplier_id?: string | null
+          updated_at?: string
+          vat_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ledger_entries: {
+        Row: {
+          account: string
+          account_name: string | null
+          created_at: string
+          created_by: string | null
+          credit: number
+          currency: string
+          debit: number
+          description: string | null
+          entry_date: string
+          expense_id: string | null
+          fiscal_period: string | null
+          id: string
+          invoice_id: string | null
+          order_id: string | null
+          source_id: string | null
+          source_type: string
+          verification_number: string
+        }
+        Insert: {
+          account: string
+          account_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          credit?: number
+          currency?: string
+          debit?: number
+          description?: string | null
+          entry_date?: string
+          expense_id?: string | null
+          fiscal_period?: string | null
+          id?: string
+          invoice_id?: string | null
+          order_id?: string | null
+          source_id?: string | null
+          source_type: string
+          verification_number: string
+        }
+        Update: {
+          account?: string
+          account_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          credit?: number
+          currency?: string
+          debit?: number
+          description?: string | null
+          entry_date?: string
+          expense_id?: string | null
+          fiscal_period?: string | null
+          id?: string
+          invoice_id?: string | null
+          order_id?: string | null
+          source_id?: string | null
+          source_type?: string
+          verification_number?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ledger_entries_expense_id_fkey"
+            columns: ["expense_id"]
+            isOneToOne: false
+            referencedRelation: "expenses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ledger_entries_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ledger_entries_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       legal_document_versions: {
         Row: {
@@ -2724,6 +3009,71 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      purchase_orders: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          currency: string
+          expected_delivery: string | null
+          id: string
+          items: Json
+          notes: string | null
+          order_date: string
+          po_number: string
+          received_at: string | null
+          status: string
+          supplier_id: string
+          total_amount: number
+          total_ex_vat: number
+          updated_at: string
+          vat_amount: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          expected_delivery?: string | null
+          id?: string
+          items?: Json
+          notes?: string | null
+          order_date?: string
+          po_number: string
+          received_at?: string | null
+          status?: string
+          supplier_id: string
+          total_amount?: number
+          total_ex_vat?: number
+          updated_at?: string
+          vat_amount?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          expected_delivery?: string | null
+          id?: string
+          items?: Json
+          notes?: string | null
+          order_date?: string
+          po_number?: string
+          received_at?: string | null
+          status?: string
+          supplier_id?: string
+          total_amount?: number
+          total_ex_vat?: number
+          updated_at?: string
+          vat_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_orders_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       recipe_ingredients: {
         Row: {
@@ -3918,6 +4268,63 @@ export type Database = {
         }
         Relationships: []
       }
+      suppliers: {
+        Row: {
+          address: string | null
+          city: string | null
+          contact_email: string | null
+          contact_phone: string | null
+          country: string | null
+          created_at: string
+          created_by: string | null
+          currency: string
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          org_number: string | null
+          payment_terms_days: number
+          updated_at: string
+          zip: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          country?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          org_number?: string | null
+          payment_terms_days?: number
+          updated_at?: string
+          zip?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          country?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          org_number?: string | null
+          payment_terms_days?: number
+          updated_at?: string
+          zip?: string | null
+        }
+        Relationships: []
+      }
       suppressed_emails: {
         Row: {
           created_at: string
@@ -4843,6 +5250,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      next_verification_number: { Args: { p_year?: number }; Returns: string }
       normalize_phone: { Args: { p_phone: string }; Returns: string }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
