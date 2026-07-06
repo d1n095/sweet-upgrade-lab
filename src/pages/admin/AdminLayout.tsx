@@ -48,6 +48,7 @@ const navGroups: NavGroup[] = [
     label: 'ÖVERSIKT',
     items: [
       { to: '/admin', label: 'Översikt', icon: LayoutDashboard, end: true, role: 'all' },
+      { to: '/admin/business-os', label: '★ Business OS (Sprint 8–17)', icon: Sparkles, role: 'all' },
       { to: '/admin/stats', label: 'Statistik', icon: BarChart3, role: 'admin' },
       { to: '/admin/insights', label: 'Insights', icon: Activity, role: 'admin' },
     ],

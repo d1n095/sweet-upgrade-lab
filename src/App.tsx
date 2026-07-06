@@ -89,6 +89,7 @@ const AdminGDPR = lazy(() => import("./pages/admin/AdminGDPR"));
 const KunskapPublic = lazy(() => import("./pages/Kunskap"));
 const KunskapArticlePublic = lazy(() => import("./pages/KunskapArticle"));
 const MittLiv = lazy(() => import("./pages/MittLiv"));
+const AdminBusinessOS = lazy(() => import("./pages/admin/AdminBusinessOS"));
 
 // Admin-only dev tools — lazy + only mounted from admin paths via PathGate below.
 const MiniWorkbench = lazy(() => import("./components/admin/MiniWorkbench"));
@@ -231,6 +232,7 @@ const App = () => {
                       <Route path="kunskap" element={<AdminKunskap />} />
                       <Route path="automation" element={<AdminAutomation />} />
                       <Route path="gdpr" element={<AdminGDPR />} />
+                      <Route path="business-os" element={<AdminBusinessOS />} />
                     </Route>
                     <Route path="/kunskap" element={<KunskapPublic />} />
                     <Route path="/kunskap/:slug" element={<KunskapArticlePublic />} />
