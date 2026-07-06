@@ -1,125 +1,102 @@
-# Del 17 — Life Hub i Sprint 0
+# Implementation Plan: Del 8–17 (Business OS + Glow Up Life Hub)
 
-Del 17 introducerar **Life Hub** som ett nytt vertikalt lager ovanpå Business OS: användarens personliga kontrollcenter för mål, rutiner, framsteg och kunskapsresa. Del 16 fastställde Sprint 0–10 utan Life Hub — därför flaggas placering som konfliktbeslut.
+## Scope
+Bygg Del 8 (ERP/Ekonomi), Del 9 (Kunskap), Del 10 (Relationship OS), Del 11 (Analytics/Mission Control), Del 12 (Beslutsanalys), Del 13 (Automation), Del 14 (Multi-Company/Koncern), Del 15 (Polish), Del 16 (Security/GDPR/Audit), Del 17 (Life Hub) som ett sammanhängande system. Slå ihop överlappande system istället för att duplicera.
 
-Sprint 0-regeln gäller fortsatt: **inget byggs, ingen migration, inga user-privata data rörs.**
+## Guardrails (gäller allt)
+- Deterministiskt först, AI endast där explicit tillåtet (Life Insights, Trend Engine v2). Ingen AI i core beslutsflöde.
+- Behåll platform-agnostiskt schema, soft-delete på orders, Stripe SSOT, RLS + GRANT på alla nya publika tabeller, `has_role`/`is_staff` för policies.
+- Ingen ny personlig data-tabell utan GDPR-plan (export + radering).
+- Slå ihop `staff_tasks` + `work_items` → ETT task-system (behåll `work_items`, migrera `staff_tasks` in). Löser konflikt #2.
+- Endast SV i admin, monokrom design, Plus Jakarta Sans/Inter, 0.75rem radius.
+- Payment Isolation: analytics/automation läser aldrig direkt från Stripe-flödet, endast från `orders`.
 
-## Placeringsfråga (kräver ditt beslut)
+## Konfliktbeslut (låsta för denna implementation)
+1. **AI**: deterministisk baseline + AI-lager på topp där explicit angivet (Insights, Trends). Ingen AI i Core.
+2. **Tasks**: `work_items` behålls, `staff_tasks` migreras och tas bort.
+3. **Multi-tenant**: `business_accounts` blir root, alla nya tabeller får `business_account_id` + RLS via `has_business_access(uid, business_id)`.
+4. **Payment Isolation**: bibehålls; nya moduler läser aggregat, ej Stripe direkt.
+5. **GDPR**: löses i Sprint 6 innan Life Hub (Sprint 7) släpps live.
+6. **Life Hub placement**: egen Sprint 7 efter Relationship OS + GDPR.
 
-Del 16:s officiella sprint-karta har ingen Life Hub-sprint. Två alternativ eskaleras i rapporten:
+## Sprintordning
 
-- **Alternativ A — Ny Sprint 11 (efter Polish):** Life Hub byggs efter att Core+Commerce+Knowledge+Relationship+ERP+Automation+Analytics+Security+Multi-Company+Polish är klara. Klassisk lager-för-lager-approach.
-- **Alternativ B — Integrera i Sprint 3 + Sprint 4:** Life Hub Level 1 (Goal Engine, Routine Builder, Reminders, Life Library, Product Tracking, Life Dashboard) mappar naturligt mot Knowledge (Sprint 3) och Relationship OS (Sprint 4). Bygg Life Hub-koncept inbakat.
+### Sprint 1 — ERP & Ekonomi (Del 8)
+- Tabeller: `ledger_entries`, `invoices`, `expenses`, `suppliers`, `purchase_orders`, `cash_positions`.
+- Edge functions: `erp-book-order` (trigger vid Stripe paid), `erp-reconcile`, `erp-export-sie` (SIE4).
+- Admin UI: `/admin/erp` med Resultat, Balans, Kassaflöde, Leverantörer, Inköp.
+- Kopplar Stripe SSOT → automatisk bokföring via order events.
 
-**Inget val fattas i Sprint 0.** Både alternativen dokumenteras med for/against, och beslutet fattas när Sprint 3-planen skrivs.
+### Sprint 2 — Kunskap (Del 9)
+- Tabeller: `knowledge_articles`, `knowledge_categories`, `knowledge_tags`, `article_versions`, `article_translations`.
+- Reuse `product_tag_relations`-mönster.
+- Public routes `/kunskap/*` + admin `/admin/kunskap`.
+- SEO: JSON-LD Article, canonical, sitemap.
+- Koppling produkt ↔ artikel via `product_knowledge_links`.
 
-## Nytt Spår 18 — Life Hub Audit (mot Del 17)
+### Sprint 3 — Relationship OS (Del 10)
+- Konsolidera: `profiles`, `orders`, `reviews`, `referrals` → unified Customer 360.
+- Nya tabeller: `customer_segments`, `customer_notes`, `customer_touchpoints`, `lifecycle_stages`.
+- Edge: `relationship-recompute-segment` (nightly cron).
+- Admin UI: `/admin/kunder/:id` timeline (order, review, referral, touchpoint, support).
+- Deterministiska segment (RFM), ingen AI.
 
-Ingen personlig data läses på radnivå. Endast schema-check och aggregat.
+### Sprint 4 — Mission Control Analytics (Del 11 + 12)
+Slås ihop eftersom Del 12 är beslutslagret ovanpå Del 11.
+- Materialized views: `mv_daily_revenue`, `mv_product_velocity`, `mv_cohort_retention`, `mv_funnel_stages`.
+- Cron: `analytics-refresh-hourly`, `analytics-refresh-nightly`.
+- Tabeller: `insights`, `recommended_actions`, `anomaly_events`.
+- Admin UI: `/admin/mission-control` — svarar "Vad hände / Varför / Vad göra / Vad inte göra".
+- AI (Lovable AI Gateway `google/gemini-3-flash-preview`) endast för Insight-generering med deterministisk data som input. Fallback = deterministiska regler.
 
-### 18a. Personal Dashboard-status
-- Finns per-user-dashboard idag (utöver stats/orders)? Grep `/dashboard`, `/account`, `/profile`, `/mypage`
-- Vilka element av Del 17 (Mål/Rutiner/Produkter/Guider/Framsteg/Påminnelser/Favoriter/Anteckningar) finns?
+### Sprint 5 — Automation (Del 13) + Koncern (Del 14)
+- Bygg vidare på `automation_rules` + `automation_logs`.
+- Nya: `automation_workflows` (flerstegs), `workflow_runs`, `workflow_approvals`.
+- Trigger-typer: order.paid, stock.low, review.new, customer.at_risk, cron.
+- Actions: send_email (befintlig kö), create_task (work_items), adjust_stock, notify_staff, book_ledger.
+- Level 1–3 autonomi enligt Del 13. Level 4 flaggat men ej aktiverat.
+- Del 14: `business_accounts` blir root, `inter_company_transfers`, `shared_resources`, unified login-switcher. Alla nya tabeller från Sprint 1–4 backfillas med `business_account_id`.
 
-### 18b. Goal Engine-status
-- `goals`-tabell finns? Nej (bekräftat via Del 10-audit).
-- Custom goals: helt gap.
+### Sprint 6 — Security, GDPR, Audit, Polish (Del 15 + 16)
+- GDPR: `gdpr-export-user` + `gdpr-delete-user` edge functions, cookie-policy, samtyckesloggar.
+- Audit: utvidga `access_audit_log` till alla nya moduler; retention 12 mån.
+- RLS-sweep på alla Sprint 1–5-tabeller, linter clean.
+- HIBP + rate limiting på auth.
+- UI-polish: konsistent design tokens, tomma states, laddskelett, felmeddelanden på svenska.
 
-### 18c. Routine Builder-status
-- `routines`/`recipe_templates`/`recipe_ingredients` finns (schemat visar recipe-strukturer). Är dessa för produktrecept eller kundrutiner? Verifiera med read-only inspektion.
-- Del 17-koncept (Morgon/Kväll/Vecka/Månad + egna steg): gap.
+### Sprint 7 — Glow Up Life Hub (Del 17)
+- Tabeller: `life_goals`, `life_routines`, `life_reminders`, `journal_entries`, `product_usage_logs`, `life_dashboard_state`.
+- Alla `user_id`-scoped, RLS strikt ägar-only, ingen delning.
+- UI: `/mitt-liv` med Goal Engine, Routine Builder, Reminders, Journal, Product Tracking, Life Dashboard.
+- Knowledge Journey-koppling till Sprint 2.
+- Life Insights: AI valfri, deterministisk fallback default.
+- Gamification (streaks/levels) via befintligt mönster.
 
-### 18d. Reminder Engine-status
-- Customer Retention System-memory täcker refill-påminnelser ✓
-- Utökade Del 17-påminnelser (rutin/produkt/guide/prebuy/lager/prenumeration/egna): gap
-- Ingen ny cron ändras i Sprint 0.
+## Sammanslagningar (för att undvika duplicering)
+- `staff_tasks` → `work_items` (Sprint 1, migrering).
+- Del 11 + Del 12 → gemensam Mission Control (Sprint 4).
+- Del 13 automation återanvänder `automation_rules` (bygger ut, ersätter ej).
+- Del 14 multi-company retrofit på ALLA tabeller från Sprint 1–4 samtidigt (inte separata migreringar per del).
+- Del 15 polish sker inline i Sprint 6, inte separat.
+- Life Hub Product Tracking återanvänder `wishlists` + `orders`, ny tabell endast för dagligt bruk-loggning.
 
-### 18e. Progress Tracking + Streaks-status
-- Streak/progress-fält på `profiles` idag? Grep.
-- Ingen hälsodata krävs (Del 17-regel) — verifiera att befintlig data inte innehåller känsligt hälso-material.
+## Tekniska detaljer
+- Migrations: en per sprint, alla med CREATE TABLE + GRANT + RLS + POLICY i samma fil.
+- Edge functions: Deno, `npm:` imports, CORS, JWT-verifiering i kod, Zod-validering, korrekt felhantering.
+- AI: endast Lovable AI Gateway, model `google/gemini-3-flash-preview`, `LOVABLE_API_KEY` server-side, deterministisk fallback obligatorisk.
+- Ingen touch på `auth`, `storage`, `realtime`-scheman eller autogenererade filer.
+- Frontend: React 18 + Vite + Tailwind, semantiska tokens från `index.css`, shadcn-komponenter.
 
-### 18f. Life Journal (privata anteckningar)-status
-- `notes`/`journal_entries`-tabell finns? Nej.
-- Om beslutat framöver: kritiskt att RLS är strikt (endast ägare läser/skriver), krypterat vid vila om känsligt innehåll.
+## Stopp-kriterier (bara då jag pausar och frågar)
+1. Del 14 kräver att koncern-root vs single-tenant bekräftas: default = koncern-root, retrofit alla tabeller. Om detta är fel — säg till.
+2. Del 17 Life Hub — bekräfta att `google/gemini-3-flash-preview` via Lovable AI Gateway är ok för Life Insights (fallback deterministisk).
+3. Level 4 autonomi (Del 13) aktiveras EJ automatiskt — kräver ditt godkännande innan det slås på.
+4. Om en Stripe live-migrering krävs pausar jag.
 
-### 18g. Knowledge Journey-status
-- `ai_read_log`, `interest_logs`, `search_logs`, `wishlists` — täcker de "vad har användaren läst/sparat/följt"?
-- Del 17 kräver kontinuitet ("fortsätter där användaren slutade") — finns UI-element för detta? Troligen nej.
+Om inget av ovan triggas kör jag Sprint 1 → 7 sammanhängande utan att stanna.
 
-### 18h. Smart Recommendations-status
-Samma mönster som Del 10 (Recommendation Engine). Deterministisk fallback via kategori/tag/ingredient-relationer möjlig utan AI. Life Insights-avsnitt är AI-flaggat → konflikt-notering (samma som Del 9–14).
-
-### 18i. Product Tracking-status
-- Del 17 kräver markering: Har köpt / Använder / Testar / Slutat / Favorit / Vill prova
-- Idag: `wishlists` täcker "vill prova"; `orders` täcker "har köpt". Övriga states saknas.
-
-### 18j. Life Library-status
-- Sparade guider/checklistor/rutiner/artiklar/video/ordlista per user: alla saknar underliggande innehållsobjekt (Del 9-gap återspeglas här).
-
-### 18k. Calendar-status
-Level 2 — dokumentera enbart att kalender-vy inte finns.
-
-### 18l. Privacy First-status (KRITISKT)
-Del 17 är den mest privacy-känsliga modulen: journal, mål, rutiner, framsteg = mycket personlig data.
-
-Verifiera att GDPR-baseline från Spår 11 (Del 10) och Spår 17 (Del 15) täcker:
-- Export per user (per Del 17-krav)
-- Radera (rensa historik)
-- Stänga av rekommendationer (opt-out)
-- Ingen marknadsföringsanvändning utan samtycke (samtyckesfält på `profiles`?)
-
-Om GDPR-luckor finns → **blocker för Life Hub-sprinten oavsett placering.**
-
-### 18m. Gamification & Community (roadmap)
-Level 3. Dokumenteras enbart som ej-i-scope.
-
-## Rapport-sektion i AUDIT_REPORT.md
-
-Ny sektion **"Life Hub Gap Analysis (Del 17)"**:
-
-1. Placerings-alternativ A vs B (with pros/cons per alternativ)
-2. Dashboard/Goal/Routine/Reminder/Progress/Journal/Journey/Rec/Tracking/Library-mognadstabell
-3. **Privacy First-verifiering** (kritisk — måste vara grön innan Life Hub byggs)
-4. Deterministisk fallback för Smart Recommendations + Life Insights (No AI-linje)
-5. Konflikt-notering: **Del 16 vs Del 17-placering** — kräver ditt beslut
-6. Sprint-input (till antingen Sprint 3+4 eller ny Sprint 11 beroende på val)
-
-## Konsoliderade Konflikter — uppdaterad
-
-Från förra planen (5 konflikter) → nu **6 konflikter**:
-
-1. AI vs No AI (Core-memory) — påverkar Del 9, 10, 11, 12, 13, 14, **17**
-2. staff_tasks vs work_items — dubbelt task-system
-3. Multi-tenant arkitektur (Del 14)
-4. Payment Isolation-utökning (Del 11, 13, 15)
-5. GDPR-blockers (om upptäckta) — påverkar Sprint 4, 7, **och Life Hub-sprinten**
-6. **NYTT: Life Hub-placering** — ny Sprint 11 eller integrerad i Sprint 3+4
-
-## Uppdaterad vågkörning
-
-```text
-Våg A: (oförändrat) Health · Perf · Duplication · Auto-inventering · Identity/Perm/Audit
-Våg B: (+ Spår 18a–18e: Dashboard/Goal/Routine/Reminder/Progress-inventering)
-Våg C: (+ Spår 18f–18m: Journal/Journey/Rec/Tracking/Library/Calendar/Privacy/Gamification)
-Slut:  AUDIT_REPORT.md med Del 8–17-sektioner
-```
-
-Ingen ny våg, ingen extra tid.
-
-## Guardrails oförändrade + tillägg
-
-Alla G-S0-1..25 gäller. Tillägg:
-
-- **G-S0-26** Ingen läsning av `notifications`/`interest_logs`/`ai_read_log`/`search_logs` på radnivå. Endast aggregat. Life Hub-datakällor är extra privacy-känsliga.
-- **G-S0-27** Ingen ny personlig-data-tabell (goals/routines/journal/streaks) skapas eller migrerar under Sprint 0.
-- **G-S0-28** Om GDPR-lucka upptäcks som blockerar Life Hub — flagga som blocker även om Life Hub byggs sist. Åtgärd senast i Sprint 4 (Relationship OS) eller Sprint 8 (Security), beroende på var GDPR-fixet naturligt hör hemma.
-
-## Efter godkänd Sprint 0-rapport
-
-Din Life Hub-placering (Alt A eller Alt B) fattas när Sprint 3-planen skrivs, INTE nu. Sprint 0-rapporten levererar underlaget så beslutet blir informerat.
-
-Nivå 1 (Life Dashboard, Goal Engine, Routine Builder, Reminders, Life Library, Product Tracking) byggs bara efter din approval, konfliktbeslut om AI Insights, GDPR-verifiering och sprint-plan.
-
-## Godkännande
-
-Godkänner du denna uppdatering fortsätter Sprint 0 med Spår 18 tillagt. Life Hub är riktning, inte order. Inget byggs, ingen migration, ingen deploy — endast läs-only inventering, aggregerad statistik och rapport. Personlig data rörs inte.
+## Leverabler efter varje sprint
+- Migrationer godkända och körda.
+- Edge functions deployade.
+- Admin/publika routes länkade.
+- Kort statusrad i chatten innan nästa sprint startar.

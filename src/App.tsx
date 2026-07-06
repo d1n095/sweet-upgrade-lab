@@ -80,6 +80,7 @@ const AdminIssues = lazy(() => import("./pages/admin/AdminIssues"));
 const AdminScans = lazy(() => import("./pages/admin/AdminScans"));
 const AdminControl = lazy(() => import("./pages/admin/AdminControl"));
 const AdminControlCenter = lazy(() => import("./pages/admin/AdminControlCenter"));
+const AdminERP = lazy(() => import("./pages/admin/AdminERP"));
 
 // Admin-only dev tools — lazy + only mounted from admin paths via PathGate below.
 const MiniWorkbench = lazy(() => import("./components/admin/MiniWorkbench"));
@@ -216,6 +217,7 @@ const App = () => {
                       <Route path="scans" element={<AdminScans />} />
                       <Route path="control" element={<AdminControl />} />
                       <Route path="control-center" element={<AdminControlCenter />} />
+                      <Route path="erp" element={<AdminERP />} />
                     </Route>
 
                     <Route path="*" element={<NotFound />} />
