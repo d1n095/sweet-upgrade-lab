@@ -66,6 +66,12 @@ const navGroups: NavGroup[] = [
       { to: '/admin/incidents', label: 'Ärenden', icon: AlertTriangle, role: 'all' },
       { to: '/admin/payments', label: 'Betalningar', icon: Wallet, role: 'admin' },
       { to: '/admin/finance', label: 'Ekonomi', icon: Wallet, role: 'admin' },
+      { to: '/admin/erp', label: 'ERP & Bokföring', icon: Wallet, role: 'founder' },
+      { to: '/admin/customers-360', label: 'Kunder 360', icon: Users, role: 'admin' },
+      { to: '/admin/kunskap', label: 'Kunskap', icon: FileText, role: 'admin' },
+      { to: '/admin/mission-control', label: 'Mission Control', icon: Activity, role: 'admin' },
+      { to: '/admin/automation', label: 'Automation', icon: Zap, role: 'admin' },
+      { to: '/admin/gdpr', label: 'GDPR', icon: Shield, role: 'founder' },
     ],
   },
   {
