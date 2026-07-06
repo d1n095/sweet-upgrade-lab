@@ -75,9 +75,6 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    label: 'PLACEHOLDER_STRIP',
-    items: [
-  {
     label: 'ANVÄNDARE',
     items: [
       { to: '/admin/members', label: 'Användare', icon: Users, role: 'admin' },
