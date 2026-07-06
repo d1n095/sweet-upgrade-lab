@@ -7,8 +7,8 @@ import { Card, CardContent } from "@/components/ui/card";
 export default function Kunskap() {
   const [articles, setArticles] = useState<any[]>([]);
   useEffect(() => {
-    supabase.from("knowledge_articles").select("*").eq("status", "published").order("published_at", { ascending: false })
-      .then(({ data }) => setArticles(data ?? []));
+    (supabase.from("knowledge_articles" as any).select("*").eq("status", "published").order("published_at", { ascending: false }) as any)
+      .then(({ data }: any) => setArticles(data ?? []));
   }, []);
 
   return (

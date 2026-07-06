@@ -10,8 +10,8 @@ export default function KunskapArticle() {
 
   useEffect(() => {
     if (!slug) return;
-    supabase.from("knowledge_articles").select("*").eq("slug", slug).eq("status", "published").maybeSingle()
-      .then(({ data }) => { setArticle(data); setLoading(false); });
+    (supabase.from("knowledge_articles" as any).select("*").eq("slug", slug).eq("status", "published").maybeSingle() as any)
+      .then(({ data }: any) => { setArticle(data); setLoading(false); });
   }, [slug]);
 
   if (loading) return <div className="container mx-auto p-8">Laddar…</div>;
