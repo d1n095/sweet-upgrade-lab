@@ -572,6 +572,51 @@ export type Database = {
         }
         Relationships: []
       }
+      anomaly_events: {
+        Row: {
+          actual: number | null
+          created_at: string
+          details: Json
+          deviation: number | null
+          event_type: string
+          expected: number | null
+          id: string
+          metric_key: string
+          resolved: boolean
+          severity: string
+          window_end: string | null
+          window_start: string | null
+        }
+        Insert: {
+          actual?: number | null
+          created_at?: string
+          details?: Json
+          deviation?: number | null
+          event_type: string
+          expected?: number | null
+          id?: string
+          metric_key: string
+          resolved?: boolean
+          severity?: string
+          window_end?: string | null
+          window_start?: string | null
+        }
+        Update: {
+          actual?: number | null
+          created_at?: string
+          details?: Json
+          deviation?: number | null
+          event_type?: string
+          expected?: number | null
+          id?: string
+          metric_key?: string
+          resolved?: boolean
+          severity?: string
+          window_end?: string | null
+          window_start?: string | null
+        }
+        Relationships: []
+      }
       article_translations: {
         Row: {
           article_id: string
@@ -719,6 +764,51 @@ export type Database = {
           id?: string
           is_active?: boolean
           rule_key?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      automation_workflows: {
+        Row: {
+          autonomy_level: number
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          requires_approval: boolean
+          steps: Json
+          trigger_config: Json
+          trigger_type: string
+          updated_at: string
+        }
+        Insert: {
+          autonomy_level?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          requires_approval?: boolean
+          steps?: Json
+          trigger_config?: Json
+          trigger_type: string
+          updated_at?: string
+        }
+        Update: {
+          autonomy_level?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          requires_approval?: boolean
+          steps?: Json
+          trigger_config?: Json
+          trigger_type?: string
           updated_at?: string
         }
         Relationships: []
@@ -1954,6 +2044,60 @@ export type Database = {
         }
         Relationships: []
       }
+      insights: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          category: string
+          created_at: string
+          id: string
+          metadata: Json
+          metric_delta: number | null
+          metric_key: string | null
+          metric_value: number | null
+          severity: string
+          source: string
+          status: string
+          summary: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          category: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          metric_delta?: number | null
+          metric_key?: string | null
+          metric_value?: number | null
+          severity?: string
+          source?: string
+          status?: string
+          summary: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          category?: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          metric_delta?: number | null
+          metric_key?: string | null
+          metric_value?: number | null
+          severity?: string
+          source?: string
+          status?: string
+          summary?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       interest_logs: {
         Row: {
           category: string | null
@@ -2067,6 +2211,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      journal_entries: {
+        Row: {
+          content: string | null
+          created_at: string
+          energy: number | null
+          entry_date: string
+          id: string
+          mood: number | null
+          tags: string[] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          energy?: number | null
+          entry_date?: string
+          id?: string
+          mood?: number | null
+          tags?: string[] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          energy?: number | null
+          entry_date?: string
+          id?: string
+          mood?: number | null
+          tags?: string[] | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       knowledge_articles: {
         Row: {
@@ -2343,6 +2523,147 @@ export type Database = {
           title_sv?: string
           updated_at?: string
           version?: number
+        }
+        Relationships: []
+      }
+      life_dashboard_state: {
+        Row: {
+          layout: Json
+          preferences: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          layout?: Json
+          preferences?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          layout?: Json
+          preferences?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      life_goals: {
+        Row: {
+          category: string | null
+          created_at: string
+          current_value: number
+          description: string | null
+          id: string
+          status: string
+          streak_days: number
+          target_date: string | null
+          target_value: number | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          current_value?: number
+          description?: string | null
+          id?: string
+          status?: string
+          streak_days?: number
+          target_date?: string | null
+          target_value?: number | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          current_value?: number
+          description?: string | null
+          id?: string
+          status?: string
+          streak_days?: number
+          target_date?: string | null
+          target_value?: number | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      life_reminders: {
+        Row: {
+          created_at: string
+          id: string
+          is_completed: boolean
+          recurrence: string | null
+          related_product_id: string | null
+          remind_at: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_completed?: boolean
+          recurrence?: string | null
+          related_product_id?: string | null
+          remind_at: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_completed?: boolean
+          recurrence?: string | null
+          related_product_id?: string | null
+          remind_at?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      life_routines: {
+        Row: {
+          cadence: string
+          created_at: string
+          id: string
+          is_active: boolean
+          last_completed_at: string | null
+          name: string
+          steps: Json
+          streak_days: number
+          time_of_day: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cadence?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_completed_at?: string | null
+          name: string
+          steps?: Json
+          streak_days?: number
+          time_of_day?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cadence?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_completed_at?: string | null
+          name?: string
+          steps?: Json
+          streak_days?: number
+          time_of_day?: string | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -3062,6 +3383,39 @@ export type Database = {
         }
         Relationships: []
       }
+      product_usage_logs: {
+        Row: {
+          created_at: string
+          dose: string | null
+          id: string
+          notes: string | null
+          product_id: string
+          rating: number | null
+          used_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dose?: string | null
+          id?: string
+          notes?: string | null
+          product_id: string
+          rating?: number | null
+          used_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dose?: string | null
+          id?: string
+          notes?: string | null
+          product_id?: string
+          rating?: number | null
+          used_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       product_variants: {
         Row: {
           created_at: string
@@ -3623,6 +3977,59 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      recommended_actions: {
+        Row: {
+          action_payload: Json
+          action_type: string
+          created_at: string
+          description: string | null
+          executed_at: string | null
+          executed_by: string | null
+          id: string
+          insight_id: string | null
+          priority: number
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          action_payload?: Json
+          action_type: string
+          created_at?: string
+          description?: string | null
+          executed_at?: string | null
+          executed_by?: string | null
+          id?: string
+          insight_id?: string | null
+          priority?: number
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          action_payload?: Json
+          action_type?: string
+          created_at?: string
+          description?: string | null
+          executed_at?: string | null
+          executed_by?: string | null
+          id?: string
+          insight_id?: string | null
+          priority?: number
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recommended_actions_insight_id_fkey"
+            columns: ["insight_id"]
+            isOneToOne: false
+            referencedRelation: "insights"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       referrals: {
         Row: {
@@ -5338,6 +5745,91 @@ export type Database = {
             columns: ["runtime_trace_id"]
             isOneToOne: false
             referencedRelation: "runtime_traces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_approvals: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          decision: string | null
+          id: string
+          reason: string | null
+          requested_at: string
+          run_id: string
+          step_index: number
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          decision?: string | null
+          id?: string
+          reason?: string | null
+          requested_at?: string
+          run_id: string
+          step_index: number
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          decision?: string | null
+          id?: string
+          reason?: string | null
+          requested_at?: string
+          run_id?: string
+          step_index?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_approvals_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_runs: {
+        Row: {
+          completed_at: string | null
+          current_step: number
+          error_message: string | null
+          id: string
+          started_at: string
+          status: string
+          step_results: Json
+          trigger_event: Json
+          workflow_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          current_step?: number
+          error_message?: string | null
+          id?: string
+          started_at?: string
+          status?: string
+          step_results?: Json
+          trigger_event?: Json
+          workflow_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          current_step?: number
+          error_message?: string | null
+          id?: string
+          started_at?: string
+          status?: string
+          step_results?: Json
+          trigger_event?: Json
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_runs_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "automation_workflows"
             referencedColumns: ["id"]
           },
         ]
