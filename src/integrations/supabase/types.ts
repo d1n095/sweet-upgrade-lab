@@ -572,6 +572,97 @@ export type Database = {
         }
         Relationships: []
       }
+      article_translations: {
+        Row: {
+          article_id: string
+          body_md: string | null
+          created_at: string
+          id: string
+          language_code: string
+          meta_description: string | null
+          meta_title: string | null
+          summary: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          article_id: string
+          body_md?: string | null
+          created_at?: string
+          id?: string
+          language_code: string
+          meta_description?: string | null
+          meta_title?: string | null
+          summary?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          article_id?: string
+          body_md?: string | null
+          created_at?: string
+          id?: string
+          language_code?: string
+          meta_description?: string | null
+          meta_title?: string | null
+          summary?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "article_translations_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_articles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      article_versions: {
+        Row: {
+          article_id: string
+          body_md: string | null
+          created_at: string
+          edit_note: string | null
+          edited_by: string | null
+          id: string
+          summary: string | null
+          title: string
+          version_number: number
+        }
+        Insert: {
+          article_id: string
+          body_md?: string | null
+          created_at?: string
+          edit_note?: string | null
+          edited_by?: string | null
+          id?: string
+          summary?: string | null
+          title: string
+          version_number: number
+        }
+        Update: {
+          article_id?: string
+          body_md?: string | null
+          created_at?: string
+          edit_note?: string | null
+          edited_by?: string | null
+          id?: string
+          summary?: string | null
+          title?: string
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "article_versions_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_articles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       automation_logs: {
         Row: {
           action_type: string
@@ -1872,6 +1963,119 @@ export type Database = {
           },
         ]
       }
+      knowledge_articles: {
+        Row: {
+          author_id: string | null
+          author_name: string | null
+          body_html: string | null
+          body_md: string | null
+          canonical_url: string | null
+          category_id: string | null
+          created_at: string
+          hero_image_url: string | null
+          id: string
+          is_published: boolean
+          meta_description: string | null
+          meta_title: string | null
+          published_at: string | null
+          reading_time_minutes: number | null
+          slug: string
+          summary: string | null
+          tags: string[]
+          title: string
+          updated_at: string
+          view_count: number
+        }
+        Insert: {
+          author_id?: string | null
+          author_name?: string | null
+          body_html?: string | null
+          body_md?: string | null
+          canonical_url?: string | null
+          category_id?: string | null
+          created_at?: string
+          hero_image_url?: string | null
+          id?: string
+          is_published?: boolean
+          meta_description?: string | null
+          meta_title?: string | null
+          published_at?: string | null
+          reading_time_minutes?: number | null
+          slug: string
+          summary?: string | null
+          tags?: string[]
+          title: string
+          updated_at?: string
+          view_count?: number
+        }
+        Update: {
+          author_id?: string | null
+          author_name?: string | null
+          body_html?: string | null
+          body_md?: string | null
+          canonical_url?: string | null
+          category_id?: string | null
+          created_at?: string
+          hero_image_url?: string | null
+          id?: string
+          is_published?: boolean
+          meta_description?: string | null
+          meta_title?: string | null
+          published_at?: string | null
+          reading_time_minutes?: number | null
+          slug?: string
+          summary?: string | null
+          tags?: string[]
+          title?: string
+          updated_at?: string
+          view_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_articles_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      knowledge_categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          is_published: boolean
+          name: string
+          slug: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_published?: boolean
+          name: string
+          slug: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_published?: boolean
+          name?: string
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ledger_entries: {
         Row: {
           account: string
@@ -2439,6 +2643,48 @@ export type Database = {
           },
           {
             foreignKeyName: "product_ingredients_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_knowledge_links: {
+        Row: {
+          article_id: string
+          created_at: string
+          id: string
+          product_id: string
+          relation_type: string
+          sort_order: number
+        }
+        Insert: {
+          article_id: string
+          created_at?: string
+          id?: string
+          product_id: string
+          relation_type?: string
+          sort_order?: number
+        }
+        Update: {
+          article_id?: string
+          created_at?: string
+          id?: string
+          product_id?: string
+          relation_type?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_knowledge_links_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_knowledge_links_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
