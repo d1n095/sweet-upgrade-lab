@@ -275,6 +275,19 @@ const Header = () => {
                 </Link>
               )}
 
+              <Link
+                to="/kunskap"
+                className={`text-sm text-muted-foreground hover:text-foreground transition-colors font-medium py-2 whitespace-nowrap ${location.pathname.startsWith('/kunskap') ? 'text-foreground' : ''}`}
+              >
+                Kunskap
+              </Link>
+              <Link
+                to="/mitt-liv"
+                className={`text-sm text-muted-foreground hover:text-foreground transition-colors font-medium py-2 whitespace-nowrap ${location.pathname === '/mitt-liv' ? 'text-foreground' : ''}`}
+              >
+                Mitt Liv
+              </Link>
+
               <NavDropdown
                 label={t('nav.contact')}
                 href="/contact"
