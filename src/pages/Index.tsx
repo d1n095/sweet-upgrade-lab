@@ -10,6 +10,7 @@ import HomepageSustainability from '@/components/sections/HomepageSustainability
 import HomepageNewProducts from '@/components/sections/HomepageNewProducts';
 import HomepageValues from '@/components/sections/HomepageValues';
 import HomepageTimeline from '@/components/sections/HomepageTimeline';
+import BusinessOSShowcase from '@/components/sections/BusinessOSShowcase';
 import FloatingContactButton from '@/components/trust/FloatingContactButton';
 import SEOHead from '@/components/seo/SEOHead';
 import { useLanguage, getContentLang } from '@/context/LanguageContext';
@@ -54,20 +55,22 @@ const Index = () => {
       />
       <Header />
       <main>
-        {orderedBlocks.map(block => {
+        {orderedBlocks.slice(0, 1).map(block => {
           const Component = BLOCK_COMPONENTS[block.section_key];
           if (!Component) return null;
-          return (
-            <Component
-              key={block.id}
-              sections={sections}
-              getSection={getSection}
-              isSectionVisible={isSectionVisible}
-            />
-          );
+          return <Component key={block.id} sections={sections} getSection={getSection} isSectionVisible={isSectionVisible} />;
+        })}
+        <BusinessOSShowcase />
+        {orderedBlocks.slice(1).map(block => {
+          const Component = BLOCK_COMPONENTS[block.section_key];
+          if (!Component) return null;
+          return <Component key={block.id} sections={sections} getSection={getSection} isSectionVisible={isSectionVisible} />;
         })}
         {sections.length === 0 && (
-          <Hero sections={[]} getSection={() => undefined} isSectionVisible={() => true} />
+          <>
+            <Hero sections={[]} getSection={() => undefined} isSectionVisible={() => true} />
+            <BusinessOSShowcase />
+          </>
         )}
       </main>
       <Footer />
