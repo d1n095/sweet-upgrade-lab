@@ -1,137 +1,125 @@
-## Mål
+# Del 17 — Life Hub i Sprint 0
 
-1. Göra donationssystemet **juridiskt korrekt** för svensk handel (Marknadsföringslagen, Konsumentverket/EU Dark Patterns, GDPR, Bokföringslagen).
-2. Samla **all donationskontroll** i admin under låst behörighet (founder/finance — inte generic admin).
-3. Rensa upp hela **behörighetskapitlet** så det är en professionell, central matris istället för ad-hoc rollistor utspridda i koden.
+Del 17 introducerar **Life Hub** som ett nytt vertikalt lager ovanpå Business OS: användarens personliga kontrollcenter för mål, rutiner, framsteg och kunskapsresa. Del 16 fastställde Sprint 0–10 utan Life Hub — därför flaggas placering som konfliktbeslut.
 
----
+Sprint 0-regeln gäller fortsatt: **inget byggs, ingen migration, inga user-privata data rörs.**
 
-## Del A — Donationer: lagar, transparens, kontroll
+## Placeringsfråga (kräver ditt beslut)
 
-### A1. Lagliga brister som måste fixas
+Del 16:s officiella sprint-karta har ingen Life Hub-sprint. Två alternativ eskaleras i rapporten:
 
-| Brist idag | Risk | Åtgärd |
-|---|---|---|
-| `roundUpEnabled = true` som default i `RoundUpDonation.tsx:19` | EU Digital Services Act + Konsumentverket: förkryssade donationer = mörkt mönster, kan tolkas som vilseledande marknadsföring | Default `false`. Användaren måste aktivt kryssa i. |
-| Ingen tydlig text om vad pengarna används till vid kassan | Marknadsföringslagen §10 (transparenskrav) | Lägg in kort, obligatorisk disclosure ("Din gåva går till projekt X, hanteras av 4ThePeople AB, ej avdragsgill") + länk till `/donations-policy` |
-| `donations` saknar `project_id` FK | Omöjligt att verifiera vart pengarna gick → bryter mot transparenskravet | Migration: lägg till `project_id uuid REFERENCES donation_projects` |
-| `donation_projects.current_amount` redigeras manuellt | Admin kan fejka insamlingsstatus → konsumentbedrägeri | Gör fältet read-only i UI. Automatisk uppräkning via DB-trigger när `donations` insert/delete. |
-| Anonyma donationer lagrar fortfarande `user_id` | GDPR-konflikt: "anonym" är inte anonym | Trigger: om `is_anonymous = true` → tvinga `user_id = NULL` vid insert |
-| Ingen retention / radering | GDPR art. 5(1)(e) — datalagring längre än nödvändigt | Lägg till retention-rutin: anonymisera donationer äldre än 7 år (BFL kräver 7 år för bokföring) |
-| Ingen bokföringsexport | Bokföringslagen §5 — verifikationer måste kunna återskapas | "Exportera till bokföring" knapp (CSV) per period + per projekt |
-| Ingen audit-logg på projektändringar | Internkontroll-krav | Trigger: logga alla `donation_projects`-UPDATE till `activity_logs` |
+- **Alternativ A — Ny Sprint 11 (efter Polish):** Life Hub byggs efter att Core+Commerce+Knowledge+Relationship+ERP+Automation+Analytics+Security+Multi-Company+Polish är klara. Klassisk lager-för-lager-approach.
+- **Alternativ B — Integrera i Sprint 3 + Sprint 4:** Life Hub Level 1 (Goal Engine, Routine Builder, Reminders, Life Library, Product Tracking, Life Dashboard) mappar naturligt mot Knowledge (Sprint 3) och Relationship OS (Sprint 4). Bygg Life Hub-koncept inbakat.
 
-### A2. Admin-konsolidering
+**Inget val fattas i Sprint 0.** Både alternativen dokumenteras med for/against, och beslutet fattas när Sprint 3-planen skrivs.
 
-Allt finns redan utspritt — flytta till **/admin/donations** som blir den enda kontrollpunkten med flikar:
+## Nytt Spår 18 — Life Hub Audit (mot Del 17)
+
+Ingen personlig data läses på radnivå. Endast schema-check och aggregat.
+
+### 18a. Personal Dashboard-status
+- Finns per-user-dashboard idag (utöver stats/orders)? Grep `/dashboard`, `/account`, `/profile`, `/mypage`
+- Vilka element av Del 17 (Mål/Rutiner/Produkter/Guider/Framsteg/Påminnelser/Favoriter/Anteckningar) finns?
+
+### 18b. Goal Engine-status
+- `goals`-tabell finns? Nej (bekräftat via Del 10-audit).
+- Custom goals: helt gap.
+
+### 18c. Routine Builder-status
+- `routines`/`recipe_templates`/`recipe_ingredients` finns (schemat visar recipe-strukturer). Är dessa för produktrecept eller kundrutiner? Verifiera med read-only inspektion.
+- Del 17-koncept (Morgon/Kväll/Vecka/Månad + egna steg): gap.
+
+### 18d. Reminder Engine-status
+- Customer Retention System-memory täcker refill-påminnelser ✓
+- Utökade Del 17-påminnelser (rutin/produkt/guide/prebuy/lager/prenumeration/egna): gap
+- Ingen ny cron ändras i Sprint 0.
+
+### 18e. Progress Tracking + Streaks-status
+- Streak/progress-fält på `profiles` idag? Grep.
+- Ingen hälsodata krävs (Del 17-regel) — verifiera att befintlig data inte innehåller känsligt hälso-material.
+
+### 18f. Life Journal (privata anteckningar)-status
+- `notes`/`journal_entries`-tabell finns? Nej.
+- Om beslutat framöver: kritiskt att RLS är strikt (endast ägare läser/skriver), krypterat vid vila om känsligt innehåll.
+
+### 18g. Knowledge Journey-status
+- `ai_read_log`, `interest_logs`, `search_logs`, `wishlists` — täcker de "vad har användaren läst/sparat/följt"?
+- Del 17 kräver kontinuitet ("fortsätter där användaren slutade") — finns UI-element för detta? Troligen nej.
+
+### 18h. Smart Recommendations-status
+Samma mönster som Del 10 (Recommendation Engine). Deterministisk fallback via kategori/tag/ingredient-relationer möjlig utan AI. Life Insights-avsnitt är AI-flaggat → konflikt-notering (samma som Del 9–14).
+
+### 18i. Product Tracking-status
+- Del 17 kräver markering: Har köpt / Använder / Testar / Slutat / Favorit / Vill prova
+- Idag: `wishlists` täcker "vill prova"; `orders` täcker "har köpt". Övriga states saknas.
+
+### 18j. Life Library-status
+- Sparade guider/checklistor/rutiner/artiklar/video/ordlista per user: alla saknar underliggande innehållsobjekt (Del 9-gap återspeglas här).
+
+### 18k. Calendar-status
+Level 2 — dokumentera enbart att kalender-vy inte finns.
+
+### 18l. Privacy First-status (KRITISKT)
+Del 17 är den mest privacy-känsliga modulen: journal, mål, rutiner, framsteg = mycket personlig data.
+
+Verifiera att GDPR-baseline från Spår 11 (Del 10) och Spår 17 (Del 15) täcker:
+- Export per user (per Del 17-krav)
+- Radera (rensa historik)
+- Stänga av rekommendationer (opt-out)
+- Ingen marknadsföringsanvändning utan samtycke (samtyckesfält på `profiles`?)
+
+Om GDPR-luckor finns → **blocker för Life Hub-sprinten oavsett placering.**
+
+### 18m. Gamification & Community (roadmap)
+Level 3. Dokumenteras enbart som ej-i-scope.
+
+## Rapport-sektion i AUDIT_REPORT.md
+
+Ny sektion **"Life Hub Gap Analysis (Del 17)"**:
+
+1. Placerings-alternativ A vs B (with pros/cons per alternativ)
+2. Dashboard/Goal/Routine/Reminder/Progress/Journal/Journey/Rec/Tracking/Library-mognadstabell
+3. **Privacy First-verifiering** (kritisk — måste vara grön innan Life Hub byggs)
+4. Deterministisk fallback för Smart Recommendations + Life Insights (No AI-linje)
+5. Konflikt-notering: **Del 16 vs Del 17-placering** — kräver ditt beslut
+6. Sprint-input (till antingen Sprint 3+4 eller ny Sprint 11 beroende på val)
+
+## Konsoliderade Konflikter — uppdaterad
+
+Från förra planen (5 konflikter) → nu **6 konflikter**:
+
+1. AI vs No AI (Core-memory) — påverkar Del 9, 10, 11, 12, 13, 14, **17**
+2. staff_tasks vs work_items — dubbelt task-system
+3. Multi-tenant arkitektur (Del 14)
+4. Payment Isolation-utökning (Del 11, 13, 15)
+5. GDPR-blockers (om upptäckta) — påverkar Sprint 4, 7, **och Life Hub-sprinten**
+6. **NYTT: Life Hub-placering** — ny Sprint 11 eller integrerad i Sprint 3+4
+
+## Uppdaterad vågkörning
 
 ```text
-/admin/donations
-├── Översikt        (totaler, projekt-progress, senaste 30 dgr)
-├── Projekt         (CRUD, aktivera/inaktivera, current_amount read-only)
-├── Donationer      (lista, filter, sök, anonymisera-knapp per rad)
-├── Bokföring       (CSV-export per period, månadsrapport)
-└── Compliance      (disclosure-text, retention-policy, GDPR-radering)
+Våg A: (oförändrat) Health · Perf · Duplication · Auto-inventering · Identity/Perm/Audit
+Våg B: (+ Spår 18a–18e: Dashboard/Goal/Routine/Reminder/Progress-inventering)
+Våg C: (+ Spår 18f–18m: Journal/Journey/Rec/Tracking/Library/Calendar/Privacy/Gamification)
+Slut:  AUDIT_REPORT.md med Del 8–17-sektioner
 ```
 
-### A3. Behörighetslås på donationer
+Ingen ny våg, ingen extra tid.
 
-Idag: `is_admin()` räcker (12 personer kan komma åt). Ska bli:
-- **Visa**: `founder` eller `finance`
-- **Redigera projekt**: `founder` eller `finance`
-- **Radera/anonymisera donation**: **endast `founder`**
-- **Bokföringsexport**: `founder` eller `finance`
+## Guardrails oförändrade + tillägg
 
-Route-guard på `/admin/donations` + RLS-policies uppdateras till `is_founder() OR has_role(_, 'finance')`.
+Alla G-S0-1..25 gäller. Tillägg:
 
----
+- **G-S0-26** Ingen läsning av `notifications`/`interest_logs`/`ai_read_log`/`search_logs` på radnivå. Endast aggregat. Life Hub-datakällor är extra privacy-känsliga.
+- **G-S0-27** Ingen ny personlig-data-tabell (goals/routines/journal/streaks) skapas eller migrerar under Sprint 0.
+- **G-S0-28** Om GDPR-lucka upptäcks som blockerar Life Hub — flagga som blocker även om Life Hub byggs sist. Åtgärd senast i Sprint 4 (Relationship OS) eller Sprint 8 (Security), beroende på var GDPR-fixet naturligt hör hemma.
 
-## Del B — Behörighetskapitlet: städning
+## Efter godkänd Sprint 0-rapport
 
-### B1. Problem idag
+Din Life Hub-placering (Alt A eller Alt B) fattas när Sprint 3-planen skrivs, INTE nu. Sprint 0-rapporten levererar underlaget så beslutet blir informerat.
 
-- 12 roller i `app_role`-enum, men ingen central översikt vem som har vad
-- `is_admin`/`is_staff` har hårdkodade listor (admin/founder/it/moderator/support/...) — ändrar man en roll måste man redigera SQL
-- `role_module_permissions`-tabellen finns (8 kolumner, 2 policies) men används knappt i koden — alla checkar gör direkta rollistor
-- Ingen UI för att se "vad får roll X göra"
-- Privilege-escalation-risk: admin kan tilldela `founder` till sig själv via `user_roles`-tabellen (även om policy säger `is_founder()` kontrollera)
+Nivå 1 (Life Dashboard, Goal Engine, Routine Builder, Reminders, Life Library, Product Tracking) byggs bara efter din approval, konfliktbeslut om AI Insights, GDPR-verifiering och sprint-plan.
 
-### B2. Åtgärder
+## Godkännande
 
-1. **Central permissionsmatris i admin** (`/admin/security`, ny flik "Roller & moduler"):
-   - Tabell: rader = roller, kolumner = moduler (orders, products, donations, users, finance, system, ...)
-   - Checkboxar: read / create / update / delete
-   - Spara → uppdaterar `role_module_permissions`
-   - Endast `founder` kan ändra
-2. **Använd `has_module_permission()` i koden** istället för rollistor — den finns redan, används bara inte
-3. **Stärk `user_roles` RLS**: tillägg av roller `admin`/`founder`/`finance` får endast göras av founder (verifierat via WITH CHECK)
-4. **Audit-trigger på `user_roles`**: varje role-ändring loggas till `activity_logs` med `before/after` + vem som gjorde det
-5. **Visning av "Mina behörigheter"** i admin-headern (debug-vy så användaren ser vad hen kan)
-
-### B3. RLS-genomgång (donations + user_roles)
-
-Konkreta policy-uppdateringar i migrationen:
-
-```sql
--- donations: only founder/finance
-DROP POLICY "Admins can view all donations" ON donations;
-CREATE POLICY "Finance & founder can view donations"
-  ON donations FOR SELECT
-  USING (is_founder(auth.uid()) OR has_role(auth.uid(), 'finance'));
-
--- donation_projects: write locked to founder/finance
-DROP POLICY "Admins can manage donation projects" ON donation_projects;
-CREATE POLICY "Finance & founder can manage projects"
-  ON donation_projects FOR ALL
-  USING (is_founder(auth.uid()) OR has_role(auth.uid(), 'finance'))
-  WITH CHECK (is_founder(auth.uid()) OR has_role(auth.uid(), 'finance'));
-
--- user_roles INSERT/UPDATE: only founder can grant privileged roles
-CREATE POLICY "Only founder can grant privileged roles"
-  ON user_roles FOR INSERT
-  WITH CHECK (
-    is_founder(auth.uid())
-    OR role NOT IN ('admin','founder','finance','it')
-  );
-```
-
----
-
-## Tekniska detaljer
-
-### Filer som skapas/ändras
-
-**Nytt:**
-- `src/pages/admin/AdminDonations.tsx` — byggs om till flikbaserad container
-- `src/components/admin/donations/DonationOverview.tsx`
-- `src/components/admin/donations/DonationBookkeeping.tsx` (CSV-export)
-- `src/components/admin/donations/DonationCompliance.tsx` (disclosure-text + retention-knapp)
-- `src/components/admin/security/PermissionMatrix.tsx`
-- `src/components/checkout/DonationDisclosure.tsx` (visas vid round-up)
-
-**Ändras:**
-- `src/components/cart/RoundUpDonation.tsx` — `roundUpEnabled` default `false`, disclosure inline
-- `src/components/admin/AdminDonationManager.tsx` — splittas, `current_amount` read-only
-- `src/pages/admin/AdminSecurity.tsx` — ny flik "Roller & moduler"
-- `src/pages/admin/AdminLayout.tsx` — donationsmenypost kräver finance/founder, ej admin
-
-**Migration (en SQL-batch):**
-- `donations`: lägg till `project_id`, trigger för anonymisering, trigger för current_amount auto-uppdatering
-- `donation_projects`: RLS-uppdatering, audit-trigger
-- `user_roles`: tillägg av WITH CHECK för privilege escalation, audit-trigger
-- Helper: `is_finance_or_founder(uuid)` security-definer för clean policies
-
-### Det jag INTE rör
-
-- Stripe/checkout-flödet (donationer går via befintlig orderlinje, ingen ny betalintegration)
-- 90-konto-ansökan (det är en juridisk process som kräver att 4ThePeople ansöker hos Svensk Insamlingskontroll — jag flaggar bara att texten "ej avdragsgill, ej 90-konto" måste finnas tills ni ansökt)
-- Hela `app_role`-enumet — för stort scope att rensa just nu, men jag dokumenterar vilka som faktiskt används
-
----
-
-## Frågor innan jag bygger
-
-1. **Är ni registrerade hos Svensk Insamlingskontroll (90-konto)?** Påverkar disclosure-texten. Om nej → vi skriver "voluntary contribution, not tax-deductible".
-2. **Vill ni att donationsbeloppet ska vara en separat orderrad eller bakas in i totalsumman?** (Bokföringsmässigt är separat rad korrekt.)
-3. **Ska `admin`-rollen behålla någon insyn i donationer (read-only) eller helt utelåst?** Mitt förslag: helt utelåst, endast `founder`+`finance`.
-4. **Retention 7 år (BFL-krav)** — OK att jag implementerar automatisk anonymisering efter 7 år, eller vill ni hantera det manuellt?
+Godkänner du denna uppdatering fortsätter Sprint 0 med Spår 18 tillagt. Life Hub är riktning, inte order. Inget byggs, ingen migration, ingen deploy — endast läs-only inventering, aggregerad statistik och rapport. Personlig data rörs inte.
