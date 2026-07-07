@@ -10,7 +10,6 @@ import HomepageSustainability from '@/components/sections/HomepageSustainability
 import HomepageNewProducts from '@/components/sections/HomepageNewProducts';
 import HomepageValues from '@/components/sections/HomepageValues';
 import HomepageTimeline from '@/components/sections/HomepageTimeline';
-import BusinessOSShowcase from '@/components/sections/BusinessOSShowcase';
 import FloatingContactButton from '@/components/trust/FloatingContactButton';
 import SEOHead from '@/components/seo/SEOHead';
 import { useLanguage, getContentLang } from '@/context/LanguageContext';
