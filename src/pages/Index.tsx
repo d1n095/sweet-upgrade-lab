@@ -65,10 +65,7 @@ const Index = () => {
           return <Component key={block.id} sections={sections} getSection={getSection} isSectionVisible={isSectionVisible} />;
         })}
         {sections.length === 0 && (
-          <>
-            <Hero sections={[]} getSection={() => undefined} isSectionVisible={() => true} />
-            <BusinessOSShowcase />
-          </>
+          <Hero sections={[]} getSection={() => undefined} isSectionVisible={() => true} />
         )}
       </main>
       <Footer />
