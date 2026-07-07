@@ -59,7 +59,6 @@ const Index = () => {
           if (!Component) return null;
           return <Component key={block.id} sections={sections} getSection={getSection} isSectionVisible={isSectionVisible} />;
         })}
-        <BusinessOSShowcase />
         {orderedBlocks.slice(1).map(block => {
           const Component = BLOCK_COMPONENTS[block.section_key];
           if (!Component) return null;
