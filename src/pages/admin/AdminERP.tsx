@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { useFounderRole } from "@/hooks/useFounderRole";
 import PremiumPageShell, { StatCard, SectionCard } from "@/components/premium/PremiumPageShell";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import LedgerJournal from "@/components/admin/erp/LedgerJournal";
 
 export default function AdminERP() {
   const { isFounder } = useFounderRole();
