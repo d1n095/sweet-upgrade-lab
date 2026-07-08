@@ -66,28 +66,9 @@ export default function AdminERP() {
         </TabsList>
 
         <TabsContent value="ledger">
-          <SectionCard title="Senaste verifikationer" subtitle="Skapas automatiskt vid betald order.">
-            {loading ? <p className="text-muted-foreground">Laddar…</p> : ledger.length === 0 ? <p className="text-muted-foreground">Inga verifikationer ännu.</p> : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead><tr className="text-left text-xs uppercase tracking-wider text-muted-foreground border-b border-border"><th className="py-3 pr-4">Ver.nr</th><th className="py-3 pr-4">Datum</th><th className="py-3 pr-4">Konto</th><th className="py-3 pr-4 text-right">Debet</th><th className="py-3 pr-4 text-right">Kredit</th><th className="py-3">Beskrivning</th></tr></thead>
-                  <tbody>
-                    {ledger.map((r: any) => (
-                      <tr key={r.id} className="border-b border-border/50 hover:bg-secondary/40 transition">
-                        <td className="py-3 pr-4 font-mono text-xs">{r.verification_number}</td>
-                        <td className="py-3 pr-4">{r.entry_date}</td>
-                        <td className="py-3 pr-4">{r.account} <span className="text-muted-foreground text-xs">{r.account_name}</span></td>
-                        <td className="py-3 pr-4 text-right tabular-nums">{r.debit > 0 ? fmt(Number(r.debit)) : ""}</td>
-                        <td className="py-3 pr-4 text-right tabular-nums text-gold">{r.credit > 0 ? fmt(Number(r.credit)) : ""}</td>
-                        <td className="py-3 text-muted-foreground">{r.description}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </SectionCard>
+          <LedgerJournal />
         </TabsContent>
+
 
         <TabsContent value="invoices">
           <SectionCard title="Fakturor">
