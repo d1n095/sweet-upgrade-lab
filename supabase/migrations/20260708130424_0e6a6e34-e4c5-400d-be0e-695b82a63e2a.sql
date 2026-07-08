@@ -1,0 +1,1 @@
+UPDATE public.page_sections SET is_visible=true WHERE page='home' AND section_key IN ('hero_badges','philosophy','philosophy_step_1','philosophy_step_2','philosophy_step_3','about_compact','sustainability','values','timeline','contact','reviews');
