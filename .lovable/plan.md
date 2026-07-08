@@ -15,7 +15,7 @@ Schema (tabeller + RLS) och skalroute + minimal read-only UI finns för alla 7 s
 
 ### P0 – Business-kritiska luckor (måste klart först)
 
-1. ⛔ **ERP – bokföringsjournal-UI**: lista `ledger_entries` med filter (konto/datum), verifikationsdrilldown, saldon per konto.
+1. ✅ **ERP – bokföringsjournal-UI**: lista `ledger_entries` med filter (konto/datum), verifikationsdrilldown, saldon per konto.
 2. 🟡 **ERP – leverantörer & inköp CRUD**: `suppliers`, `purchase_orders`, `expenses` – skapa/redigera/attesta i UI.
 3. ⛔ **ERP – SIE4-export**: edge-funktion `erp-export-sie4` som streamar SIE4 för valt räkenskapsår.
 4. ⛔ **ERP – fakturaflöde**: `invoices` UI + PDF-generering + status (utkast/skickad/betald/förfallen) + koppling till order.
