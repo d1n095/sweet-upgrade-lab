@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowDown, Star, ShieldCheck, Truck } from 'lucide-react';
+import { ArrowDown, Star, ShieldCheck, Truck, Sparkles, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/context/LanguageContext';
 import { useNavigate } from 'react-router-dom';
