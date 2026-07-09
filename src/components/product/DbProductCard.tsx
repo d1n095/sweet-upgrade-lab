@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
-import { ShoppingCart, Check, Flame, Package, Star, Plus } from 'lucide-react';
+import { ShoppingCart, Check, Flame, Package, Star, Plus, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DbProduct } from '@/lib/products';
@@ -11,6 +11,7 @@ import QuantitySelector from './QuantitySelector';
 import WishlistButton from '@/components/wishlist/WishlistButton';
 import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import { useProductReviewStats } from '@/hooks/useProductReviewStats';
+import PrebuyDialog from './PrebuyDialog';
 
 interface DbProductCardProps {
   product: DbProduct;
@@ -50,6 +51,8 @@ const DbProductCard = ({ product, index, compact = false, isPurchased = false }:
   const [isAdded, setIsAdded] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [imgError, setImgError] = useState(false);
+  const [prebuyOpen, setPrebuyOpen] = useState(false);
+  const isPrebuy = !!product.is_prebuy;
 
   const title = product.title_sv;
   const description = product.description_sv;
