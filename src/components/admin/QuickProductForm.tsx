@@ -73,6 +73,32 @@ const QuickProductForm: React.FC<QuickProductFormProps> = ({
         />
       </div>
 
+      <div className="p-3 rounded-lg border border-gold/30 bg-gold/5 space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <Label className="text-sm font-medium flex items-center gap-1.5">
+              <Zap className="w-3.5 h-3.5 text-gold" /> Förköp (prebuy)
+            </Label>
+            <p className="text-xs text-muted-foreground mt-0.5">Testa marknaden — kunder reserverar plats gratis</p>
+          </div>
+          <Switch
+            checked={!!formData.isPrebuy}
+            onCheckedChange={v => setFormData(p => ({ ...p, isPrebuy: v }))}
+          />
+        </div>
+        {formData.isPrebuy && (
+          <div className="space-y-1.5">
+            <Label htmlFor="quick-release" className="text-xs">Planerat släppdatum (valfritt)</Label>
+            <Input
+              id="quick-release"
+              type="date"
+              value={formData.prebuyReleaseDate || ''}
+              onChange={e => setFormData(p => ({ ...p, prebuyReleaseDate: e.target.value }))}
+            />
+          </div>
+        )}
+      </div>
+
       <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
         <Button type="button" variant="outline" size="sm" onClick={onCancel} disabled={isSubmitting}>
           Avbryt

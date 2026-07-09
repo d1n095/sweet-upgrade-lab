@@ -66,6 +66,9 @@ export interface ProductFormData {
   safety: string;
   specifications: string;
   isConcentrate: boolean;
+  isPrebuy?: boolean;
+  prebuyReleaseDate?: string;
+  prebuyNote?: string;
 }
 
 export const DEFAULT_PRODUCT_FORM_DATA: ProductFormData = {
@@ -79,6 +82,7 @@ export const DEFAULT_PRODUCT_FORM_DATA: ProductFormData = {
   usageStep1: '', usageStep2: '', usageStep3: '', seoMode: 'auto',
   hook: '', dosage: '', variants: '', storage: '', safety: '',
   specifications: '', isConcentrate: false,
+  isPrebuy: false, prebuyReleaseDate: '', prebuyNote: '',
 };
 
 export type ProductCategoryOption = {

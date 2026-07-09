@@ -374,6 +374,9 @@ const AdminDbProductManager = () => {
         safety_sv: formData.safety || null,
         specifications: formData.specifications ? JSON.parse(formData.specifications || '{}') : {},
         is_concentrate: formData.isConcentrate,
+        is_prebuy: !!formData.isPrebuy,
+        prebuy_release_date: formData.prebuyReleaseDate || null,
+        prebuy_note_sv: formData.prebuyNote || null,
         status: 'active',
       } as any);
       if (formData.categoryIds.length > 0) await setProductCategories(newProduct.id, formData.categoryIds);
@@ -427,6 +430,9 @@ const AdminDbProductManager = () => {
         safety_sv: formData.safety || null,
         specifications: formData.specifications ? JSON.parse(formData.specifications || '{}') : {},
         is_concentrate: formData.isConcentrate,
+        is_prebuy: !!formData.isPrebuy,
+        prebuy_release_date: formData.prebuyReleaseDate || null,
+        prebuy_note_sv: formData.prebuyNote || null,
       } as any);
       await setProductCategories(selected.id, formData.categoryIds);
       await setProductTags(selected.id, formData.tagIds);
