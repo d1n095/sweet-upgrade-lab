@@ -60,6 +60,10 @@ export interface DbProduct {
   last_sold_at: string | null;
   created_at: string;
   updated_at: string;
+  is_prebuy?: boolean;
+  prebuy_release_date?: string | null;
+  prebuy_note_sv?: string | null;
+  prebuy_note_en?: string | null;
 }
 
 export type DbProductInsert = Omit<DbProduct, 'id' | 'created_at' | 'updated_at' | 'handle' | 'ingredients_sv' | 'ingredients_en' | 'certifications' | 'reserved_stock' | 'currency' | 'recipe_sv' | 'recipe_en' | 'feeling_sv' | 'feeling_en' | 'effects_sv' | 'effects_en' | 'usage_sv' | 'usage_en' | 'extended_description_sv' | 'extended_description_en' | 'hook_sv' | 'hook_en' | 'dosage_sv' | 'dosage_en' | 'variants_sv' | 'variants_en' | 'storage_sv' | 'storage_en' | 'safety_sv' | 'safety_en' | 'specifications' | 'is_concentrate' | 'meta_title' | 'meta_description' | 'meta_keywords' | 'weight_grams' | 'status' | 'is_sellable' | 'low_stock_threshold' | 'restock_amount' | 'units_sold_7d' | 'units_sold_30d' | 'last_sold_at'> & {

@@ -3002,6 +3002,56 @@ export type Database = {
         }
         Relationships: []
       }
+      prebuy_reservations: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          name: string | null
+          note: string | null
+          phone: string | null
+          product_id: string
+          quantity: number
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          name?: string | null
+          note?: string | null
+          phone?: string | null
+          product_id: string
+          quantity?: number
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string | null
+          note?: string | null
+          phone?: string | null
+          product_id?: string
+          quantity?: number
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prebuy_reservations_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       price_history: {
         Row: {
           change_reason: string | null
@@ -3491,6 +3541,7 @@ export type Database = {
           ingredients_en: string | null
           ingredients_sv: string | null
           is_concentrate: boolean
+          is_prebuy: boolean
           is_sellable: boolean
           is_visible: boolean
           last_sold_at: string | null
@@ -3500,6 +3551,9 @@ export type Database = {
           meta_title: string | null
           original_price: number | null
           package_weight_grams: number | null
+          prebuy_note_en: string | null
+          prebuy_note_sv: string | null
+          prebuy_release_date: string | null
           price: number
           recipe_en: string | null
           recipe_sv: string | null
@@ -3552,6 +3606,7 @@ export type Database = {
           ingredients_en?: string | null
           ingredients_sv?: string | null
           is_concentrate?: boolean
+          is_prebuy?: boolean
           is_sellable?: boolean
           is_visible?: boolean
           last_sold_at?: string | null
@@ -3561,6 +3616,9 @@ export type Database = {
           meta_title?: string | null
           original_price?: number | null
           package_weight_grams?: number | null
+          prebuy_note_en?: string | null
+          prebuy_note_sv?: string | null
+          prebuy_release_date?: string | null
           price?: number
           recipe_en?: string | null
           recipe_sv?: string | null
@@ -3613,6 +3671,7 @@ export type Database = {
           ingredients_en?: string | null
           ingredients_sv?: string | null
           is_concentrate?: boolean
+          is_prebuy?: boolean
           is_sellable?: boolean
           is_visible?: boolean
           last_sold_at?: string | null
@@ -3622,6 +3681,9 @@ export type Database = {
           meta_title?: string | null
           original_price?: number | null
           package_weight_grams?: number | null
+          prebuy_note_en?: string | null
+          prebuy_note_sv?: string | null
+          prebuy_release_date?: string | null
           price?: number
           recipe_en?: string | null
           recipe_sv?: string | null

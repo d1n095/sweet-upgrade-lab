@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
-import { ShoppingCart, Check, Flame, Package, Star, Plus } from 'lucide-react';
+import { ShoppingCart, Check, Flame, Package, Star, Plus, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DbProduct } from '@/lib/products';
@@ -11,6 +11,7 @@ import QuantitySelector from './QuantitySelector';
 import WishlistButton from '@/components/wishlist/WishlistButton';
 import { useLanguage, getContentLang } from '@/context/LanguageContext';
 import { useProductReviewStats } from '@/hooks/useProductReviewStats';
+import PrebuyDialog from './PrebuyDialog';
 
 interface DbProductCardProps {
   product: DbProduct;
@@ -50,6 +51,8 @@ const DbProductCard = ({ product, index, compact = false, isPurchased = false }:
   const [isAdded, setIsAdded] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [imgError, setImgError] = useState(false);
+  const [prebuyOpen, setPrebuyOpen] = useState(false);
+  const isPrebuy = !!product.is_prebuy;
 
   const title = product.title_sv;
   const description = product.description_sv;
@@ -153,11 +156,21 @@ const DbProductCard = ({ product, index, compact = false, isPurchased = false }:
             )}
 
             {/* Sold out overlay */}
-            {!isAvailable && (
+            {!isAvailable && !isPrebuy && (
               <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
                 <span className="text-sm font-semibold text-foreground">
                   {lang === 'sv' ? 'Slutsåld' : 'Sold out'}
                 </span>
+              </div>
+            )}
+
+            {/* Prebuy ribbon */}
+            {isPrebuy && (
+              <div className="absolute top-3 left-3 z-10">
+                <Badge className="bg-gradient-to-r from-gold to-gold-soft text-gold-foreground text-[10px] font-bold px-2.5 py-1 rounded-full shadow-[var(--shadow-gold)] animate-pulse-soft">
+                  <Sparkles className="w-3 h-3 mr-1" />
+                  {lang === 'sv' ? 'FÖRKÖP' : 'PREBUY'}
+                </Badge>
               </div>
             )}
 
@@ -257,28 +270,52 @@ const DbProductCard = ({ product, index, compact = false, isPurchased = false }:
               )}
             </div>
 
-            {/* Add to cart — responsive: quantity + icon-only button on mobile, full on desktop */}
+            {/* Add to cart / Prebuy CTA */}
             <div className="flex items-center gap-2" onClick={(e) => e.preventDefault()}>
-              <QuantitySelector quantity={quantity} onChange={setQuantity} size="xs" />
-              <motion.div whileTap={{ scale: 0.93 }}>
-                <Button
-                  size="icon"
-                  onClick={handleAddToCart}
-                  disabled={!isAvailable || (!product.allow_overselling && maxAddable <= 0)}
-                  className={`w-10 h-10 sm:w-11 sm:h-11 shrink-0 rounded-xl transition-all ${isAdded ? 'bg-accent hover:bg-accent text-accent-foreground' : ''}`}
-                >
-                  {!isAvailable
-                    ? <Package className="w-4 h-4" />
-                    : isAdded
-                      ? <Check className="w-4 h-4" />
-                      : <Plus className="w-4 h-4" />
-                  }
-                </Button>
-              </motion.div>
+              {isPrebuy ? (
+                <motion.div whileTap={{ scale: 0.96 }} className="w-full">
+                  <Button
+                    onClick={(e) => { e.preventDefault(); setPrebuyOpen(true); }}
+                    className="w-full h-10 sm:h-11 rounded-xl font-semibold gap-1.5 bg-gradient-to-r from-gold to-gold-soft text-gold-foreground hover:opacity-90 shadow-[var(--shadow-gold)]"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    {lang === 'sv' ? 'Reservera plats' : 'Reserve spot'}
+                  </Button>
+                </motion.div>
+              ) : (
+                <>
+                  <QuantitySelector quantity={quantity} onChange={setQuantity} size="xs" />
+                  <motion.div whileTap={{ scale: 0.93 }}>
+                    <Button
+                      size="icon"
+                      onClick={handleAddToCart}
+                      disabled={!isAvailable || (!product.allow_overselling && maxAddable <= 0)}
+                      className={`w-10 h-10 sm:w-11 sm:h-11 shrink-0 rounded-xl transition-all ${isAdded ? 'bg-accent hover:bg-accent text-accent-foreground' : ''}`}
+                    >
+                      {!isAvailable
+                        ? <Package className="w-4 h-4" />
+                        : isAdded
+                          ? <Check className="w-4 h-4" />
+                          : <Plus className="w-4 h-4" />
+                      }
+                    </Button>
+                  </motion.div>
+                </>
+              )}
             </div>
           </div>
         </div>
       </Link>
+      {isPrebuy && (
+        <PrebuyDialog
+          open={prebuyOpen}
+          onOpenChange={setPrebuyOpen}
+          productId={product.id}
+          productTitle={title}
+          releaseDate={product.prebuy_release_date}
+          lang={lang}
+        />
+      )}
     </motion.div>
   );
 };
