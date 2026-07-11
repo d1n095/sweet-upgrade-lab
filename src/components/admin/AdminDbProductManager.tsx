@@ -34,8 +34,9 @@ import {
   AdminProductForm, ProductFormData, DEFAULT_PRODUCT_FORM_DATA
 } from '@/components/admin/AdminProductForm';
 import QuickProductForm from '@/components/admin/QuickProductForm';
+import ProductChatWizard from '@/components/admin/ProductChatWizard';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Zap, Settings2 } from 'lucide-react';
+import { Zap, Settings2, MessageCircle } from 'lucide-react';
 
 const productCategories = [
   { value: 'Kroppsvård', label: { sv: 'Kroppsvård', en: 'Body Care' } },
