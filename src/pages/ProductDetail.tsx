@@ -49,8 +49,10 @@ const ProductDetail = () => {
   const [viewerCount] = useState(0); // removed fake viewer count
   const { hasPurchased } = usePurchaseHistory();
   const { variants, selectedVariant, setSelectedVariant, hasVariants } = useProductVariants(product?.id);
+  const reviewStats = useProductReviewStats(handle);
 
   const translated = useTranslatedProduct(product);
+
 
   useEffect(() => {
     const load = async () => {
