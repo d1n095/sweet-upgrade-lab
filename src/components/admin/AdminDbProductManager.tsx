@@ -34,8 +34,9 @@ import {
   AdminProductForm, ProductFormData, DEFAULT_PRODUCT_FORM_DATA
 } from '@/components/admin/AdminProductForm';
 import QuickProductForm from '@/components/admin/QuickProductForm';
+import ProductChatWizard from '@/components/admin/ProductChatWizard';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Zap, Settings2 } from 'lucide-react';
+import { Zap, Settings2, MessageCircle } from 'lucide-react';
 
 const productCategories = [
   { value: 'Kroppsvård', label: { sv: 'Kroppsvård', en: 'Body Care' } },
@@ -835,15 +836,26 @@ const AdminDbProductManager = () => {
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[95vh] overflow-y-auto">
             <DialogHeader><DialogTitle>{t.addProduct}</DialogTitle></DialogHeader>
-            <Tabs defaultValue="quick" className="space-y-3">
-              <TabsList className="grid grid-cols-2 w-full">
+            <Tabs defaultValue="chat" className="space-y-3">
+              <TabsList className="grid grid-cols-3 w-full">
+                <TabsTrigger value="chat" className="gap-1.5 text-xs">
+                  <MessageCircle className="w-3.5 h-3.5" /> Chatt
+                </TabsTrigger>
                 <TabsTrigger value="quick" className="gap-1.5 text-xs">
-                  <Zap className="w-3.5 h-3.5" /> Snabbläge
+                  <Zap className="w-3.5 h-3.5" /> Snabb
                 </TabsTrigger>
                 <TabsTrigger value="advanced" className="gap-1.5 text-xs">
                   <Settings2 className="w-3.5 h-3.5" /> Avancerat
                 </TabsTrigger>
               </TabsList>
+              <TabsContent value="chat" className="mt-0">
+                <ProductChatWizard
+                  formData={formData} setFormData={setFormData}
+                  isSubmitting={isSubmitting}
+                  onCancel={() => { setIsAddOpen(false); resetForm(); }}
+                  onSubmit={handleAdd}
+                />
+              </TabsContent>
               <TabsContent value="quick" className="mt-0">
                 <QuickProductForm
                   formData={formData} setFormData={setFormData}
