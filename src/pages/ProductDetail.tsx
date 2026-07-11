@@ -49,8 +49,10 @@ const ProductDetail = () => {
   const [viewerCount] = useState(0); // removed fake viewer count
   const { hasPurchased } = usePurchaseHistory();
   const { variants, selectedVariant, setSelectedVariant, hasVariants } = useProductVariants(product?.id);
+  const reviewStats = useProductReviewStats(handle);
 
   const translated = useTranslatedProduct(product);
+
 
   useEffect(() => {
     const load = async () => {
@@ -194,7 +196,8 @@ const ProductDetail = () => {
   const feeling = lang === 'sv' ? product.feeling_sv : (product.feeling_en || product.feeling_sv);
   const usage = lang === 'sv' ? product.usage_sv : (product.usage_en || product.usage_sv);
   const extDescription = lang === 'sv' ? product.extended_description_sv : (product.extended_description_en || product.extended_description_sv);
-  const reviewStats = useProductReviewStats(handle);
+
+
 
   return (
     <div className="min-h-screen bg-background">
