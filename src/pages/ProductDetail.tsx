@@ -663,15 +663,36 @@ const ProductDetail = () => {
         </div>
       </main>
 
-      <MobileBuyBar
-        quantity={quantity}
-        setQuantity={setQuantity}
-        isAdded={isAdded}
-        isOutOfStock={isOutOfStock}
-        price={activePrice}
-        onAddToCart={handleAddToCart}
+      {!isPrebuy && (
+        <MobileBuyBar
+          quantity={quantity}
+          setQuantity={setQuantity}
+          isAdded={isAdded}
+          isOutOfStock={isOutOfStock}
+          price={activePrice}
+          onAddToCart={handleAddToCart}
+        />
+      )}
+      {isPrebuy && (
+        <div className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-background/95 backdrop-blur border-t border-border p-3 pb-[max(env(safe-area-inset-bottom),0.75rem)]">
+          <Button
+            size="lg"
+            className="w-full h-12 font-semibold bg-gradient-to-r from-gold to-gold-soft text-gold-foreground shadow-[var(--shadow-gold)]"
+            onClick={() => setPrebuyOpen(true)}
+          >
+            <Sparkles className="w-4 h-4 mr-2" />
+            {lang === 'sv' ? 'Reservera din plats' : 'Reserve your spot'}
+          </Button>
+        </div>
+      )}
+      <PrebuyDialog
+        open={prebuyOpen}
+        onOpenChange={setPrebuyOpen}
+        productId={product.id}
+        productTitle={title}
+        releaseDate={product.prebuy_release_date}
+        lang={lang}
       />
-
       <Footer />
     </div>
   );
