@@ -691,7 +691,7 @@ const ProductDetail = () => {
         productId={product.id}
         productTitle={title}
         releaseDate={product.prebuy_release_date}
-        lang={lang}
+        lang={lang === 'en' ? 'en' : 'sv'}
       />
       <Footer />
     </div>
