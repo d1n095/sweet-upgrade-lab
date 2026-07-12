@@ -26,6 +26,7 @@ import SEOHead from '@/components/seo/SEOHead';
 import { Badge } from '@/components/ui/badge';
 import { storeConfig } from '@/config/storeConfig';
 import { toast } from 'sonner';
+import PrebuyDialog from '@/components/product/PrebuyDialog';
 
 // SEO is fully DB-driven — meta_title / meta_description / meta_keywords
 // columns on `products` are the single source of truth. No client-side
@@ -46,6 +47,7 @@ const ProductDetail = () => {
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [isAdded, setIsAdded] = useState(false);
+  const [prebuyOpen, setPrebuyOpen] = useState(false);
   const [viewerCount] = useState(0); // removed fake viewer count
   const { hasPurchased } = usePurchaseHistory();
   const { variants, selectedVariant, setSelectedVariant, hasVariants } = useProductVariants(product?.id);
@@ -188,9 +190,13 @@ const ProductDetail = () => {
   const activePrice = selectedVariant ? selectedVariant.price : product.price;
   const activeStock = selectedVariant ? selectedVariant.stock : (product.stock - (product.reserved_stock || 0));
   const availableStock = selectedVariant ? selectedVariant.stock : (product.stock - (product.reserved_stock || 0));
-  const isOutOfStock = !product.allow_overselling && availableStock <= 0;
+  const isPrebuy = !!product.is_prebuy;
+  const isOutOfStock = !isPrebuy && !product.allow_overselling && availableStock <= 0;
   const hasDiscount = product.original_price && product.original_price > activePrice;
   const discountPercent = hasDiscount ? Math.round((1 - activePrice / product.original_price!) * 100) : 0;
+  const prebuyDateLabel = product.prebuy_release_date
+    ? new Date(product.prebuy_release_date).toLocaleDateString(lang === 'sv' ? 'sv-SE' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+    : null;
 
   const effects = parseBullets(lang === 'sv' ? product.effects_sv : (product.effects_en || product.effects_sv));
   const feeling = lang === 'sv' ? product.feeling_sv : (product.feeling_en || product.feeling_sv);
@@ -380,7 +386,13 @@ const ProductDetail = () => {
 
               {/* 5. URGENCY — stock status */}
               <div className="mb-4 space-y-2">
-                {isOutOfStock ? (
+                {isPrebuy ? (
+                  <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-gold-foreground bg-gradient-to-r from-gold to-gold-soft px-3 py-1 rounded-full shadow-[var(--shadow-gold)]">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    {lang === 'sv' ? 'Förköp öppet' : 'Prebuy open'}
+                    {prebuyDateLabel ? ` · ${lang === 'sv' ? 'släpps' : 'launches'} ${prebuyDateLabel}` : ''}
+                  </span>
+                ) : isOutOfStock ? (
                   <span className="inline-flex items-center gap-1.5 text-sm text-destructive font-medium bg-destructive/10 px-3 py-1 rounded-full">{t('product.outofstockwarning')}</span>
                 ) : availableStock <= 5 ? (
                   <span className="inline-flex items-center gap-1.5 text-sm text-warning font-medium bg-warning/10 px-3 py-1 rounded-full">
@@ -418,32 +430,50 @@ const ProductDetail = () => {
 
               {/* 7. CTA — Quantity + Add to cart (desktop) */}
               <div className="hidden md:flex items-center gap-3 mb-4">
-                <div className="flex items-center border border-border rounded-lg">
-                  <Button variant="ghost" size="icon" className="h-11 w-11 rounded-r-none" onClick={() => setQuantity(Math.max(1, quantity - 1))}>
-                    <Minus className="w-4 h-4" />
-                  </Button>
-                  <span className="w-12 text-center font-medium text-lg select-none">{quantity}</span>
-                  <Button variant="ghost" size="icon" className="h-11 w-11 rounded-l-none" onClick={() => setQuantity(quantity + 1)}>
-                    <Plus className="w-4 h-4" />
-                  </Button>
-                </div>
-                <Button
-                  size="lg"
-                  className={`flex-1 h-12 text-sm font-semibold transition-all ${isAdded ? 'bg-accent hover:bg-accent/90 text-accent-foreground' : 'bg-accent hover:bg-accent/90 text-accent-foreground'}`}
-                  onClick={handleAddToCart}
-                  disabled={isOutOfStock}
-                >
-                  {isOutOfStock ? (
-                    t('product.outofstock')
-                  ) : isAdded ? (
-                    <><Check className="w-4 h-4 mr-2" />{lang === 'sv' ? 'Tillagd!' : 'Added!'}</>
-                  ) : (
-                    <><ShoppingCart className="w-4 h-4 mr-2" />{lang === 'sv' ? 'Lägg i kundvagn' : 'Add to cart'}</>
-                  )}
-                </Button>
-                <Button variant="outline" size="icon" className="h-11 w-11 shrink-0" onClick={handleShare}>
-                  <Share2 className="w-4 h-4" />
-                </Button>
+                {isPrebuy ? (
+                  <>
+                    <Button
+                      size="lg"
+                      className="flex-1 h-12 text-sm font-semibold bg-gradient-to-r from-gold to-gold-soft text-gold-foreground hover:opacity-90 shadow-[var(--shadow-gold)]"
+                      onClick={() => setPrebuyOpen(true)}
+                    >
+                      <Sparkles className="w-4 h-4 mr-2" />
+                      {lang === 'sv' ? 'Reservera din plats' : 'Reserve your spot'}
+                    </Button>
+                    <Button variant="outline" size="icon" className="h-11 w-11 shrink-0" onClick={handleShare}>
+                      <Share2 className="w-4 h-4" />
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center border border-border rounded-lg">
+                      <Button variant="ghost" size="icon" className="h-11 w-11 rounded-r-none" onClick={() => setQuantity(Math.max(1, quantity - 1))}>
+                        <Minus className="w-4 h-4" />
+                      </Button>
+                      <span className="w-12 text-center font-medium text-lg select-none">{quantity}</span>
+                      <Button variant="ghost" size="icon" className="h-11 w-11 rounded-l-none" onClick={() => setQuantity(quantity + 1)}>
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    <Button
+                      size="lg"
+                      className={`flex-1 h-12 text-sm font-semibold transition-all ${isAdded ? 'bg-accent hover:bg-accent/90 text-accent-foreground' : 'bg-accent hover:bg-accent/90 text-accent-foreground'}`}
+                      onClick={handleAddToCart}
+                      disabled={isOutOfStock}
+                    >
+                      {isOutOfStock ? (
+                        t('product.outofstock')
+                      ) : isAdded ? (
+                        <><Check className="w-4 h-4 mr-2" />{lang === 'sv' ? 'Tillagd!' : 'Added!'}</>
+                      ) : (
+                        <><ShoppingCart className="w-4 h-4 mr-2" />{lang === 'sv' ? 'Lägg i kundvagn' : 'Add to cart'}</>
+                      )}
+                    </Button>
+                    <Button variant="outline" size="icon" className="h-11 w-11 shrink-0" onClick={handleShare}>
+                      <Share2 className="w-4 h-4" />
+                    </Button>
+                  </>
+                )}
               </div>
 
               {/* 8. MICRO TRUST — shipping, guarantee, social proof (near CTA) */}
@@ -633,15 +663,36 @@ const ProductDetail = () => {
         </div>
       </main>
 
-      <MobileBuyBar
-        quantity={quantity}
-        setQuantity={setQuantity}
-        isAdded={isAdded}
-        isOutOfStock={isOutOfStock}
-        price={activePrice}
-        onAddToCart={handleAddToCart}
+      {!isPrebuy && (
+        <MobileBuyBar
+          quantity={quantity}
+          setQuantity={setQuantity}
+          isAdded={isAdded}
+          isOutOfStock={isOutOfStock}
+          price={activePrice}
+          onAddToCart={handleAddToCart}
+        />
+      )}
+      {isPrebuy && (
+        <div className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-background/95 backdrop-blur border-t border-border p-3 pb-[max(env(safe-area-inset-bottom),0.75rem)]">
+          <Button
+            size="lg"
+            className="w-full h-12 font-semibold bg-gradient-to-r from-gold to-gold-soft text-gold-foreground shadow-[var(--shadow-gold)]"
+            onClick={() => setPrebuyOpen(true)}
+          >
+            <Sparkles className="w-4 h-4 mr-2" />
+            {lang === 'sv' ? 'Reservera din plats' : 'Reserve your spot'}
+          </Button>
+        </div>
+      )}
+      <PrebuyDialog
+        open={prebuyOpen}
+        onOpenChange={setPrebuyOpen}
+        productId={product.id}
+        productTitle={title}
+        releaseDate={product.prebuy_release_date}
+        lang={lang === 'en' ? 'en' : 'sv'}
       />
-
       <Footer />
     </div>
   );
