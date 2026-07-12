@@ -47,6 +47,7 @@ const ProductDetail = () => {
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [isAdded, setIsAdded] = useState(false);
+  const [prebuyOpen, setPrebuyOpen] = useState(false);
   const [viewerCount] = useState(0); // removed fake viewer count
   const { hasPurchased } = usePurchaseHistory();
   const { variants, selectedVariant, setSelectedVariant, hasVariants } = useProductVariants(product?.id);
