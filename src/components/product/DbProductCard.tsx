@@ -22,7 +22,17 @@ interface DbProductCardProps {
 
 const FALLBACK_IMAGE = '/placeholder.svg';
 
-const StockIndicator = ({ stock, allowOverselling, lang }: { stock: number; allowOverselling: boolean; lang: 'sv' | 'en' }) => {
+const StockIndicator = ({ stock, allowOverselling, lang, isPrebuy, releaseDate }: { stock: number; allowOverselling: boolean; lang: 'sv' | 'en'; isPrebuy?: boolean; releaseDate?: string | null }) => {
+  if (isPrebuy) {
+    const dateLabel = releaseDate
+      ? new Date(releaseDate).toLocaleDateString(lang === 'sv' ? 'sv-SE' : 'en-GB', { day: 'numeric', month: 'short' })
+      : null;
+    return (
+      <span className="text-[11px] text-gold font-medium">
+        {lang === 'sv' ? 'Förköp öppet' : 'Prebuy open'}{dateLabel ? ` · ${dateLabel}` : ''}
+      </span>
+    );
+  }
   if (allowOverselling || stock > 10) {
     return (
       <span className="text-[11px] text-accent font-medium">
@@ -254,7 +264,7 @@ const DbProductCard = ({ product, index, compact = false, isPurchased = false }:
 
             {/* Stock status */}
             <div className="mb-1.5">
-              <StockIndicator stock={availableStock} allowOverselling={product.allow_overselling} lang={lang} />
+              <StockIndicator stock={availableStock} allowOverselling={product.allow_overselling} lang={lang} isPrebuy={isPrebuy} releaseDate={product.prebuy_release_date} />
             </div>
 
             {/* Price */}
