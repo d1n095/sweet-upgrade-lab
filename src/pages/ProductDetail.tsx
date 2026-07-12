@@ -386,7 +386,13 @@ const ProductDetail = () => {
 
               {/* 5. URGENCY — stock status */}
               <div className="mb-4 space-y-2">
-                {isOutOfStock ? (
+                {isPrebuy ? (
+                  <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-gold-foreground bg-gradient-to-r from-gold to-gold-soft px-3 py-1 rounded-full shadow-[var(--shadow-gold)]">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    {lang === 'sv' ? 'Förköp öppet' : 'Prebuy open'}
+                    {prebuyDateLabel ? ` · ${lang === 'sv' ? 'släpps' : 'launches'} ${prebuyDateLabel}` : ''}
+                  </span>
+                ) : isOutOfStock ? (
                   <span className="inline-flex items-center gap-1.5 text-sm text-destructive font-medium bg-destructive/10 px-3 py-1 rounded-full">{t('product.outofstockwarning')}</span>
                 ) : availableStock <= 5 ? (
                   <span className="inline-flex items-center gap-1.5 text-sm text-warning font-medium bg-warning/10 px-3 py-1 rounded-full">
