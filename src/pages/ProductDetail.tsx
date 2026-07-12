@@ -190,9 +190,13 @@ const ProductDetail = () => {
   const activePrice = selectedVariant ? selectedVariant.price : product.price;
   const activeStock = selectedVariant ? selectedVariant.stock : (product.stock - (product.reserved_stock || 0));
   const availableStock = selectedVariant ? selectedVariant.stock : (product.stock - (product.reserved_stock || 0));
-  const isOutOfStock = !product.allow_overselling && availableStock <= 0;
+  const isPrebuy = !!product.is_prebuy;
+  const isOutOfStock = !isPrebuy && !product.allow_overselling && availableStock <= 0;
   const hasDiscount = product.original_price && product.original_price > activePrice;
   const discountPercent = hasDiscount ? Math.round((1 - activePrice / product.original_price!) * 100) : 0;
+  const prebuyDateLabel = product.prebuy_release_date
+    ? new Date(product.prebuy_release_date).toLocaleDateString(lang === 'sv' ? 'sv-SE' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+    : null;
 
   const effects = parseBullets(lang === 'sv' ? product.effects_sv : (product.effects_en || product.effects_sv));
   const feeling = lang === 'sv' ? product.feeling_sv : (product.feeling_en || product.feeling_sv);
