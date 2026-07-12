@@ -430,32 +430,50 @@ const ProductDetail = () => {
 
               {/* 7. CTA — Quantity + Add to cart (desktop) */}
               <div className="hidden md:flex items-center gap-3 mb-4">
-                <div className="flex items-center border border-border rounded-lg">
-                  <Button variant="ghost" size="icon" className="h-11 w-11 rounded-r-none" onClick={() => setQuantity(Math.max(1, quantity - 1))}>
-                    <Minus className="w-4 h-4" />
-                  </Button>
-                  <span className="w-12 text-center font-medium text-lg select-none">{quantity}</span>
-                  <Button variant="ghost" size="icon" className="h-11 w-11 rounded-l-none" onClick={() => setQuantity(quantity + 1)}>
-                    <Plus className="w-4 h-4" />
-                  </Button>
-                </div>
-                <Button
-                  size="lg"
-                  className={`flex-1 h-12 text-sm font-semibold transition-all ${isAdded ? 'bg-accent hover:bg-accent/90 text-accent-foreground' : 'bg-accent hover:bg-accent/90 text-accent-foreground'}`}
-                  onClick={handleAddToCart}
-                  disabled={isOutOfStock}
-                >
-                  {isOutOfStock ? (
-                    t('product.outofstock')
-                  ) : isAdded ? (
-                    <><Check className="w-4 h-4 mr-2" />{lang === 'sv' ? 'Tillagd!' : 'Added!'}</>
-                  ) : (
-                    <><ShoppingCart className="w-4 h-4 mr-2" />{lang === 'sv' ? 'Lägg i kundvagn' : 'Add to cart'}</>
-                  )}
-                </Button>
-                <Button variant="outline" size="icon" className="h-11 w-11 shrink-0" onClick={handleShare}>
-                  <Share2 className="w-4 h-4" />
-                </Button>
+                {isPrebuy ? (
+                  <>
+                    <Button
+                      size="lg"
+                      className="flex-1 h-12 text-sm font-semibold bg-gradient-to-r from-gold to-gold-soft text-gold-foreground hover:opacity-90 shadow-[var(--shadow-gold)]"
+                      onClick={() => setPrebuyOpen(true)}
+                    >
+                      <Sparkles className="w-4 h-4 mr-2" />
+                      {lang === 'sv' ? 'Reservera din plats' : 'Reserve your spot'}
+                    </Button>
+                    <Button variant="outline" size="icon" className="h-11 w-11 shrink-0" onClick={handleShare}>
+                      <Share2 className="w-4 h-4" />
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center border border-border rounded-lg">
+                      <Button variant="ghost" size="icon" className="h-11 w-11 rounded-r-none" onClick={() => setQuantity(Math.max(1, quantity - 1))}>
+                        <Minus className="w-4 h-4" />
+                      </Button>
+                      <span className="w-12 text-center font-medium text-lg select-none">{quantity}</span>
+                      <Button variant="ghost" size="icon" className="h-11 w-11 rounded-l-none" onClick={() => setQuantity(quantity + 1)}>
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    <Button
+                      size="lg"
+                      className={`flex-1 h-12 text-sm font-semibold transition-all ${isAdded ? 'bg-accent hover:bg-accent/90 text-accent-foreground' : 'bg-accent hover:bg-accent/90 text-accent-foreground'}`}
+                      onClick={handleAddToCart}
+                      disabled={isOutOfStock}
+                    >
+                      {isOutOfStock ? (
+                        t('product.outofstock')
+                      ) : isAdded ? (
+                        <><Check className="w-4 h-4 mr-2" />{lang === 'sv' ? 'Tillagd!' : 'Added!'}</>
+                      ) : (
+                        <><ShoppingCart className="w-4 h-4 mr-2" />{lang === 'sv' ? 'Lägg i kundvagn' : 'Add to cart'}</>
+                      )}
+                    </Button>
+                    <Button variant="outline" size="icon" className="h-11 w-11 shrink-0" onClick={handleShare}>
+                      <Share2 className="w-4 h-4" />
+                    </Button>
+                  </>
+                )}
               </div>
 
               {/* 8. MICRO TRUST — shipping, guarantee, social proof (near CTA) */}
