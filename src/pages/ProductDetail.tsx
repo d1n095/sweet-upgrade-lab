@@ -26,6 +26,7 @@ import SEOHead from '@/components/seo/SEOHead';
 import { Badge } from '@/components/ui/badge';
 import { storeConfig } from '@/config/storeConfig';
 import { toast } from 'sonner';
+import PrebuyDialog from '@/components/product/PrebuyDialog';
 
 // SEO is fully DB-driven — meta_title / meta_description / meta_keywords
 // columns on `products` are the single source of truth. No client-side
