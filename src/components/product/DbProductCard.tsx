@@ -22,7 +22,17 @@ interface DbProductCardProps {
 
 const FALLBACK_IMAGE = '/placeholder.svg';
 
-const StockIndicator = ({ stock, allowOverselling, lang }: { stock: number; allowOverselling: boolean; lang: 'sv' | 'en' }) => {
+const StockIndicator = ({ stock, allowOverselling, lang, isPrebuy, releaseDate }: { stock: number; allowOverselling: boolean; lang: 'sv' | 'en'; isPrebuy?: boolean; releaseDate?: string | null }) => {
+  if (isPrebuy) {
+    const dateLabel = releaseDate
+      ? new Date(releaseDate).toLocaleDateString(lang === 'sv' ? 'sv-SE' : 'en-GB', { day: 'numeric', month: 'short' })
+      : null;
+    return (
+      <span className="text-[11px] text-gold font-medium">
+        {lang === 'sv' ? 'Förköp öppet' : 'Prebuy open'}{dateLabel ? ` · ${dateLabel}` : ''}
+      </span>
+    );
+  }
   if (allowOverselling || stock > 10) {
     return (
       <span className="text-[11px] text-accent font-medium">
